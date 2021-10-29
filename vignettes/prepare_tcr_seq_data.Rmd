@@ -10,14 +10,15 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  cache = T,
+  cache = F,
   cache.lazy = F,
+  eval = F,
   comment = "#>"
 )
 options(knitr.kable.NA = '', width = 200)
 ```
 
-```{r setup1, eval=F}
+```{r setup1}
 install.packages("tidyverse")
 install.packages("randomNames")
 install.packages("BiocManager")
@@ -120,7 +121,7 @@ clonotype.data.long.format <-
 Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well, also to the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
 This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respective data frames for human and mouse are included in this package, with data downloaded Oct-2021 from IMGT.
 
-```{r cache=T}
+```{r }
 # optional:
 # imgt_ref <- igsc::imgt_tcr_segment_prep()
 # see ?igsc::imgt_tcr_segment_prep()
@@ -185,7 +186,7 @@ all(check == 1)
 ```
 
 Save the data frames.
-```{r eval=F}
+```{r }
 cl <- list(wide = clonotype.data.wide.format, long = clonotype.data.long.format)
 saveRDS(cl, "clonotype_data.rds")
 ```
