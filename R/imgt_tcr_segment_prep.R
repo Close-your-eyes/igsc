@@ -3,7 +3,7 @@
 #' Immunoglobulin (IG) reference data from IMGT do not come in a handy format for processing in R.
 #' For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared xlsx) to
 #' create a data frame that can be used subsequently to align TCR sequences from scRNAseq (or other).
-#' All necessary files (human or mouse) are included in this package (approx. mid 2021) but may be downloaded manually from IMGT in case there are major updates.
+#' All necessary files (human or mouse) are included in this package (Oct-2021) but may be downloaded manually from IMGT in case there are major updates.
 #' The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref/human", package = "igsc")), 'path to your folder') or
 #' file.copy(list.files(system.file("extdata", "IMGT_ref/mouse", package = "igsc")), 'path to your folder').
 #' This will also show you the required file names in case you provide your own folder.
@@ -19,11 +19,14 @@
 #' Others are from "L-PART1+V-EXON" artificially spliced sets and Constant gene artificially spliced exons sets.
 #' Fasta-formated sequences from there have to be copied manually and saved as .fasta files in a folder. This folder then becomes the path argument.
 #'
-#' @param path path to a folder with all necessary files from IMGT; if not provided human or mouse data downloaded roughly mid-2021 will be used
+#' @param path path to a folder with all necessary files from IMGT; if not provided human or mouse data downloaded roughly Oct-2021 will be used
 #' @param organism if no path is provided data will be taken from this package, either human or mouse
+#' @param mc use multicore (mclapply from parallel package) for pairwise alignment of TCR segments
 #'
 #' @return a data frame
 #' @export
+#'
+#' @importFrom magrittr "%>%"
 #'
 #' @examples
 #' \dontrun{
@@ -31,12 +34,10 @@
 #' openxlsx::write.xlsx(imgt_df, "imgt_ref_df.xlsx")
 #' saveRDS(imgt_df, "imgt_ref_df.rds")
 #' }
-imgt_tcr_segment_prep <- function(path, organism = "human") {
+imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
   if (!"BiocManager" %in% rownames(utils::installed.packages())) {utils::install.packages("BiocManager")}
   if (!"Biostrings" %in% rownames(utils::installed.packages())) {BiocManager::install("Biostrings")}
-
-  organism <- match.arg(organism, c("human", "mouse"))
 
   if (missing(path)) {
     if (organism == "human") {
@@ -45,7 +46,16 @@ imgt_tcr_segment_prep <- function(path, organism = "human") {
     if (organism == "mouse") {
       path <- system.file("extdata", "IMGT_ref/mouse", package = "igsc")
     }
+  } else {
+    if (!is.character(path) || !file.exists(path)) {
+      stop("path not found or not a character")
+    }
   }
+  organism <- match.arg(organism, c("human", "mouse"))
+  if (!is.logical(mc)) {
+    stop("mc has to be T or F.")
+  }
+
   files <- list.files(path, "\\.fasta", recursive = T, full.names = T)
   files <- files[which(!grepl("leader", basename(files)))]
   ts <- dplyr::bind_rows(lapply(files, function(x) {
@@ -87,17 +97,24 @@ imgt_tcr_segment_prep <- function(path, organism = "human") {
 
   ts <-
     ts %>%
-    dplyr::left_join(leader.seq) %>%
-    dplyr::left_join(imgt_cdr_fr)
+    dplyr::left_join(leader.seq, by = c("Allele", "Gene", "Allele.number")) %>%
+    dplyr::left_join(imgt_cdr_fr, by = "Gene")
+
+
+  al_fun <- function(x) {
+    if (is.na(x[,FR]) || x[,"Functionality"] != "F") {
+      NA
+    } else {
+      Biostrings::pairwiseAlignment(subject = x[,"seq.aa"], pattern = x[,FR], type = "local")
+    }
+  }
 
   for (FR in c("LEADER", "FR1", "CDR1", "FR2", "CDR2", "FR3")) {
-    out <- pbapply::pblapply(split(ts, seq(nrow(ts))), function(x) {
-      if (is.na(x[,FR]) || x[,"Functionality"] != "F") {
-        NA
-      } else {
-        Biostrings::pairwiseAlignment(subject = x[,"seq.aa"], pattern = x[,FR], type = "local")
-      }
-    })
+    if (mc) {
+      out <- parallel::mclapply(split(ts, seq(nrow(ts))), al_fun, mc.cores = parallel::detectCores())
+    } else {
+      out <- pbapply::pblapply(split(ts, seq(nrow(ts))), al_fun)
+    }
     ts[,paste0(FR, ".start.aa")] <- sapply(out, function(x) ifelse(is.na(x), NA, x@subject@range@start))
     ts[,paste0(FR, ".end.aa")] <- sapply(out, function(x) ifelse(is.na(x), NA, x@subject@range@start + x@subject@range@width - 1))
     ## formula only works since the first ATG is at position 1

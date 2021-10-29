@@ -1,5 +1,5 @@
 Package: igsc
-Title: Retrieve and process immunoglobulin sequences from 10X Genomics CellRanger output and align them to IMGTs reference gene segments
+Title: Immunoglobolin sequences from scRNAseq
 Version: 0.0.0.9000
 Authors@R: 
     person(given = "Christopher Mark",
@@ -18,5 +18,6 @@ Imports:
     dplyr,
     magrittr,
     openxlsx,
+    parallel,
     pbapply,
     stringr

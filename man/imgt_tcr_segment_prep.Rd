@@ -4,12 +4,14 @@
 \alias{imgt_tcr_segment_prep}
 \title{Prepare a data frame with TCR gene segment reference data from IMGT}
 \usage{
-imgt_tcr_segment_prep(path, organism = "human")
+imgt_tcr_segment_prep(path, organism = "human", mc = F)
 }
 \arguments{
-\item{path}{path to a folder with all necessary files from IMGT; if not provided human or mouse data downloaded roughly mid-2021 will be used}
+\item{path}{path to a folder with all necessary files from IMGT; if not provided human or mouse data downloaded roughly Oct-2021 will be used}
 
 \item{organism}{if no path is provided data will be taken from this package, either human or mouse}
+
+\item{mc}{use multicore (mclapply from parallel package) for pairwise alignment of TCR segments}
 }
 \value{
 a data frame
@@ -18,7 +20,7 @@ a data frame
 Immunoglobulin (IG) reference data from IMGT do not come in a handy format for processing in R.
 For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared xlsx) to
 create a data frame that can be used subsequently to align TCR sequences from scRNAseq (or other).
-All necessary files (human or mouse) are included in this package (approx. mid 2021) but may be downloaded manually from IMGT in case there are major updates.
+All necessary files (human or mouse) are included in this package (Oct-2021) but may be downloaded manually from IMGT in case there are major updates.
 The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref/human", package = "igsc")), 'path to your folder') or
 file.copy(list.files(system.file("extdata", "IMGT_ref/mouse", package = "igsc")), 'path to your folder').
 This will also show you the required file names in case you provide your own folder.
