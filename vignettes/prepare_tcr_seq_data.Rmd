@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
   eval = F,
   comment = "#>"
 )
-options(knitr.kable.NA = '', width = 200)
+options(knitr.kable.NA = '', width = 60)
 ```
 
 ```{r setup1}
@@ -32,18 +32,19 @@ library(igsc)
 library(tidyverse)
 ```
 
-```{r, include=F}
-vdj_path <- "/Volumes/AG_Hiepe-1/Christopher.Skopnik/igsc/ignore_folder/VDJ"
+```{r, eval=T,include=F}
+vdj_path <- file.path(dirname(getwd()), "ignore_folder", "VDJ")
 ```
 
 Prepare a folder with sub-folder of your samples.
-```{r }
-# vdj_path is the directory on your disk
+```{r, eval=T}
+# vdj_path is the directory on your disk and may contain sub-folders of different samples
 list.files(vdj_path)
 ```
 
-Each folder must contain the 6 files from the CellRanger output which are required to prepare a data frame 
-```{r }
+Each sub-folder must contain the 6 files from the CellRanger output which are required to prepare a data frame as in the procedure below.
+Some modifications may be possible putting the functionality of downstream functions at risk though.
+```{r, eval=T}
 list.files(file.path(vdj_path, "Pat3_rep1_blood"))
 ```
 
@@ -219,7 +220,7 @@ align_list_TRB <- igsc::align_imgt_ref_to_TCR_seq(chain = "TRB", TCR = setNames(
 
 The output of align_imgt_ref_to_TCR_seq contains several plots and sequence information.
 ```{r, eval=T, fig.width=8, fig.height=4}
-names(align_list_TRA[[1]])
+names(align_list_TRA)
 # this plot shows how many different unique sequences existed in cl_long; source column is cell.ranger.consensus.seq
 # in different cells (single cell transcriptomes) the cell.ranger.consensus.seq may differ slightly but still the TCR is grouped into one clonotype
 # sometimes there are irrelevant sequence differences at the beginning or the end, which do not include the V(D)J-region
@@ -229,17 +230,18 @@ align_list_TRA[[1]]
 # the consensus sequences is available at the second index
 align_list_TRA[[2]]
 
-# at indices 3 and 4 are alignment plots (and the respective data frames) for V(D)JC or V(D)J
-# these plots are made with a custom made function MultiplePairwiseAlignmentsToOneSubject
-# the names on the y-axis indicate the pattern name ist the full length in nt
-# the number-annotations in the plot indicate the first and last in the alignment of each pattern
-# the vertical dashed lines indicate the lower and upper limit of the all patterns in the subject
+# at indices 3 and 4 are plots (and the respective data frames) for V(D)JC or V(D)J alignments
+# these plots are made with a custom function igsc::MultiplePairwiseAlignmentsToOneSubject()
+# names on the y-axis show the pattern name its the full length in nt
+# number-annotations in the plot indicate the first and last nt of the alignment of the respective pattern
+# vertical dashed lines indicate the lower and upper limit of all patterns aligned to the subject
 align_list_TRA[[3]][[2]]
 
-# the last sub-index contains the alignment limits of the subject, your TCR (vertical dashed lines)
+# the last sub-index contains the lower and upper limit as integers
 align_list_TRA[[3]][[5]]
 
 # the last index of align_list_TRA contains the V(D)J-sequence of your TCR (sequence between the vertical lines of align_list_TRA[[4]][[2]])
+# if the alignment plots are as expected this sequence may be used for further processing
 align_list_TRA[[5]]
 ```
 

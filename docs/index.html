@@ -89,10 +89,16 @@
 <code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html">install.packages</a></span><span class="op">(</span><span class="st">"devtools"</span><span class="op">)</span>
 <span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/devtools/man/remote-reexports.html">install_github</a></span><span class="op">(</span><span class="st">"Close-your-eyes/igsc"</span><span class="op">)</span></code></pre></div>
 </div>
+<div id="what-it-is" class="section level2">
+<h2 class="hasAnchor">
+<a href="#what-it-is" class="anchor"></a>What it is</h2>
+<p>This small package provides a standardized workflow to extract the V(D)J sequences from CellRangers output (10X Genomics). Only TCRs are handled at the moment. To gain confidence reference sequences from the <a href="http://www.imgt.org">IMGT</a> database are included in an R-friendly format (data frame) which may be aligned to one’s sequencing data. Based on this alignment the V(D)J sequence of TRA and TRB are retrieved and are made available for further processing.<br>
+The data from IMGT have been downloaded in Oct-2021. Using the files included in this package as template one can also download and process updated versions from IMGT.</p>
+</div>
 <div id="vignettes-tutorials" class="section level2">
 <h2 class="hasAnchor">
 <a href="#vignettes-tutorials" class="anchor"></a>Vignettes (tutorials)</h2>
-<p><a href="https://close-your-eyes.github.io/igsc/articles/prepare_tcr_seq_data.html">prepare TCR sequence</a></p>
+<p><a href="https://close-your-eyes.github.io/igsc/articles/prepare_tcr_seq_data.html">prepare TCR sequences</a></p>
 </div>
 </div>
   </div>
