@@ -247,9 +247,9 @@
 <code class="sourceCode R"><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>wide <span class="op">=</span> <span class="va">clonotype.data.wide.format</span>, long <span class="op">=</span> <span class="va">clonotype.data.long.format</span><span class="op">)</span>
 <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html">saveRDS</a></span><span class="op">(</span><span class="va">cl</span>, <span class="st">"clonotype_data.rds"</span><span class="op">)</span></code></pre></div>
 </div>
-<div id="align-tcr-sequencing-data-with-imgt-references-and-retrived-the-vdj-range" class="section level2">
+<div id="align-tcr-sequencing-data-with-imgt-references-and-obtain-the-vdj-range" class="section level2">
 <h2 class="hasAnchor">
-<a href="#align-tcr-sequencing-data-with-imgt-references-and-retrived-the-vdj-range" class="anchor"></a>Align TCR sequencing data with IMGT references and retrived the V(D)J-range</h2>
+<a href="#align-tcr-sequencing-data-with-imgt-references-and-obtain-the-vdj-range" class="anchor"></a>Align TCR sequencing data with IMGT references and obtain the V(D)J-range</h2>
 <p>Now everything is set up to systematically align IMGT TCR reference gene segments to our sequencing data of TCRs.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co"># lets find an expanded clonotype_name</span>
@@ -303,7 +303,7 @@
 <div id="concanetate-a-tcr-cassette" class="section level2">
 <h2 class="hasAnchor">
 <a href="#concanetate-a-tcr-cassette" class="anchor"></a>Concanetate a TCR cassette</h2>
-<p>This V(D)J-sequence can then be used to concanetate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like a P2A element, restriction sites, etc.</p>
+<p>This V(D)J-sequence can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like a P2A element, restriction sites, etc.</p>
 </div>
   </div>
 

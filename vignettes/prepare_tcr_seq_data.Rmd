@@ -205,7 +205,7 @@ cl <- readRDS("clonotype_data.rds")
 imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc"))
 ```
 
-## Align TCR sequencing data with IMGT references and retrived the V(D)J-range
+## Align TCR sequencing data with IMGT references and obtain the V(D)J-range
 
 Now everything is set up to systematically align IMGT TCR reference gene segments to our sequencing data of TCRs.
 ```{r, eval=T}
@@ -247,7 +247,7 @@ align_list_TRA[[5]]
 
 ## Concanetate a TCR cassette
 
-This V(D)J-sequence can then be used to concanetate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like
+This V(D)J-sequence can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like
 a P2A element, restriction sites, etc.
 
 
