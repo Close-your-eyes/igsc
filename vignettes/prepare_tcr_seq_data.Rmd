@@ -27,7 +27,7 @@ BiocManager::install("Biostrings")
 BiocManager::install("protR")
 ```
 
-```{r setup, message=F}
+```{r setup, message=F,eval=T}
 library(igsc)
 library(tidyverse)
 ```
@@ -162,7 +162,6 @@ for (i in seq_along(cls)) {
   }
   names <- c(names, name)
 }
-length(names) == unique(length(names))
 cls <- stats::setNames(object = names, nm = cls)
 clonotype.data.long.format$clonotype_name <- cls[clonotype.data.long.format$cell.ranger.clonotype.id]
 ```
@@ -181,7 +180,11 @@ clonotype.data.wide.format <-
   dplyr::select(chain, Barcode, cell.ranger.clonotype.id, sample, CDR3.nt, CDR3.aa, V, J, C, cell.ranger.consensus.seq, cell.ranger.ref.seq, V.allele, J.allele, clonotype_name) %>%
   tidyr::pivot_wider(names_from = chain, values_from = c(CDR3.nt, CDR3.aa, V, J, C, cell.ranger.consensus.seq, cell.ranger.ref.seq, V.allele, J.allele), values_fn = collapse.fun)
 clonotype.data.wide.format <- as.data.frame(clonotype.data.wide.format)
-
+```
+```{r eval=T, include=F}
+clonotype.data.wide.format <- readRDS("clonotype_data.rds")[["wide"]]
+```
+```{r eval=T}
 # test if every name is unique to on cell.ranger.clonotype.id
 check <-
   clonotype.data.wide.format %>%
@@ -193,7 +196,7 @@ check <-
 all(check == 1)
 ```
 
-Save the processed clonotype data. The wide format may be used to create meta-data columns in the Seurat Object. That way the phenotype data are complemented with clonotype information and are readily available e.g. as color code on a dimension reduction plot or so.
+Save the processed clonotype data. The wide format may be used to create meta-data columns in the Seurat Object. That way the phenotype data are complemented with clonotype information which are then readily available e.g. as color code on a dimension reduction plot or so.
 ```{r }
 cl <- list(wide = clonotype.data.wide.format, long = clonotype.data.long.format)
 saveRDS(cl, "clonotype_data.rds")
@@ -224,7 +227,7 @@ names(align_list_TRA)
 # this plot shows how many different unique sequences existed in cl_long; source column is cell.ranger.consensus.seq
 # in different cells (single cell transcriptomes) the cell.ranger.consensus.seq may differ slightly but still the TCR is grouped into one clonotype
 # sometimes there are irrelevant sequence differences at the beginning or the end, which do not include the V(D)J-region
-# if there are at least 2 different ones the consensus is used for further processsing
+# if there are at least 2 different ones the consensus is used for further processing
 align_list_TRA[[1]]
 
 # the consensus sequences is available at the second index
@@ -247,8 +250,29 @@ align_list_TRA[[5]]
 
 ## Concanetate a TCR cassette
 
-This V(D)J-sequence can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like
-a P2A element, restriction sites, etc.
+The obtained V(D)J-sequences can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like
+a P2A element, restriction sites, etc. Below one possible cassette is created. A fasta file with cassette elements is included in this package.
+```{r, eval=T}
+tcr_cassette_elements <- protr::readFASTA(system.file("extdata", "TCR_cassette_elements.fasta", package = "igsc"))
+
+# concatenate
+concat_seq <- toupper(paste0(tcr_cassette_elements[["NotI_site"]], # left restriction site
+                             tcr_cassette_elements[["Kozak_sequence_noATG"]], # eukaryotic translation initiation
+                             align_list_TRB[["V.to.J.TCR.seq"]], # TRB V->J chain
+                             substr(tcr_cassette_elements[["mTRBC2_Ser57Cys_STOPcodon_removed"]],
+                                    2,
+                                    nchar(tcr_cassette_elements[["mTRBC2_Ser57Cys_STOPcodon_removed"]])), # mTRBC, see info below
+                             tcr_cassette_elements[["gsg_linker"]], # linker that provides flexibility for more efficient cleavage
+                             tcr_cassette_elements[["P2A_element"]], # a cleavable linker
+                             align_list_TRA[["V.to.J.TCR.seq"]], # TRA V->J chain
+                             substr(tcr_cassette_elements[["mTRAC_Thr48Cys"]],
+                                    2,
+                                    nchar(tcr_cassette_elements[["mTRAC_Thr48Cys"]])), #mTRAC, see info below
+                             tcr_cassette_elements[["EcoRI_site"]]) # right restriction site
+                      )
+```
+
+Please note, that the the original sequences of constant chains have been altered. One codon each has been changed to a Cysteine (Ser57Cys, Thr48Cys) for TRB and TRA, respectively. This increases stability of the chain pairing. Moreover, in this example of human TCRs constant chain are taken from mouse which has several reasons. It descreases mispairing with (if present) endogenous TCR and positive transductants may easily be identified by a mAb for mTCRb (clone H57-597).
 
 
 

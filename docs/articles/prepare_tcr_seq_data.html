@@ -214,7 +214,6 @@
   <span class="op">}</span>
   <span class="va">names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="va">names</span>, <span class="va">name</span><span class="op">)</span>
 <span class="op">}</span>
-<span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="va">names</span><span class="op">)</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="va">names</span><span class="op">)</span><span class="op">)</span>
 <span class="va">cls</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html">setNames</a></span><span class="op">(</span>object <span class="op">=</span> <span class="va">names</span>, nm <span class="op">=</span> <span class="va">cls</span><span class="op">)</span>
 <span class="va">clonotype.data.long.format</span><span class="op">$</span><span class="va">clonotype_name</span> <span class="op">&lt;-</span> <span class="va">cls</span><span class="op">[</span><span class="va">clonotype.data.long.format</span><span class="op">$</span><span class="va">cell.ranger.clonotype.id</span><span class="op">]</span></code></pre></div>
 </div>
@@ -231,9 +230,9 @@
   <span class="va">clonotype.data.long.format</span> <span class="op">%&gt;%</span>
   <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/dplyr/man/select.html">select</a></span><span class="op">(</span><span class="va">chain</span>, <span class="va">Barcode</span>, <span class="va">cell.ranger.clonotype.id</span>, <span class="va">sample</span>, <span class="va">CDR3.nt</span>, <span class="va">CDR3.aa</span>, <span class="va">V</span>, <span class="va">J</span>, <span class="va">C</span>, <span class="va">cell.ranger.consensus.seq</span>, <span class="va">cell.ranger.ref.seq</span>, <span class="va">V.allele</span>, <span class="va">J.allele</span>, <span class="va">clonotype_name</span><span class="op">)</span> <span class="op">%&gt;%</span>
   <span class="fu">tidyr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/tidyr/man/pivot_wider.html">pivot_wider</a></span><span class="op">(</span>names_from <span class="op">=</span> <span class="va">chain</span>, values_from <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="va">CDR3.nt</span>, <span class="va">CDR3.aa</span>, <span class="va">V</span>, <span class="va">J</span>, <span class="va">C</span>, <span class="va">cell.ranger.consensus.seq</span>, <span class="va">cell.ranger.ref.seq</span>, <span class="va">V.allele</span>, <span class="va">J.allele</span><span class="op">)</span>, values_fn <span class="op">=</span> <span class="va">collapse.fun</span><span class="op">)</span>
-<span class="va">clonotype.data.wide.format</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html">as.data.frame</a></span><span class="op">(</span><span class="va">clonotype.data.wide.format</span><span class="op">)</span>
-
-<span class="co"># test if every name is unique to on cell.ranger.clonotype.id</span>
+<span class="va">clonotype.data.wide.format</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html">as.data.frame</a></span><span class="op">(</span><span class="va">clonotype.data.wide.format</span><span class="op">)</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="co"># test if every name is unique to on cell.ranger.clonotype.id</span>
 <span class="va">check</span> <span class="op">&lt;-</span>
   <span class="va">clonotype.data.wide.format</span> <span class="op">%&gt;%</span>
   <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/dplyr/man/distinct.html">distinct</a></span><span class="op">(</span><span class="va">clonotype_name</span>, <span class="va">CDR3.nt_TRA</span>, <span class="va">CDR3.nt_TRB</span>, <span class="va">cell.ranger.clonotype.id</span><span class="op">)</span> <span class="op">%&gt;%</span>
@@ -241,9 +240,10 @@
   <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/dplyr/man/summarise.html">summarise</a></span><span class="op">(</span>levels.per.clonotype.name <span class="op">=</span> <span class="fu">n</span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span>
   <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/dplyr/man/group_by.html">ungroup</a></span><span class="op">(</span><span class="op">)</span> <span class="op">%&gt;%</span>
   <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/dplyr/man/pull.html">pull</a></span><span class="op">(</span><span class="va">levels.per.clonotype.name</span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/all.html">all</a></span><span class="op">(</span><span class="va">check</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span></code></pre></div>
-<p>Save the processed clonotype data. The wide format may be used to create meta-data columns in the Seurat Object. That way the phenotype data are complemented with clonotype information and are readily available e.g. as color code on a dimension reduction plot or so.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<span class="fu"><a href="https://rdrr.io/r/base/all.html">all</a></span><span class="op">(</span><span class="va">check</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>
+<span class="co">#&gt; [1] TRUE</span></code></pre></div>
+<p>Save the processed clonotype data. The wide format may be used to create meta-data columns in the Seurat Object. That way the phenotype data are complemented with clonotype information which are then readily available e.g. as color code on a dimension reduction plot or so.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>wide <span class="op">=</span> <span class="va">clonotype.data.wide.format</span>, long <span class="op">=</span> <span class="va">clonotype.data.long.format</span><span class="op">)</span>
 <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html">saveRDS</a></span><span class="op">(</span><span class="va">cl</span>, <span class="st">"clonotype_data.rds"</span><span class="op">)</span></code></pre></div>
 </div>
@@ -251,7 +251,7 @@
 <h2 class="hasAnchor">
 <a href="#align-tcr-sequencing-data-with-imgt-references-and-obtain-the-vdj-range" class="anchor"></a>Align TCR sequencing data with IMGT references and obtain the V(D)J-range</h2>
 <p>Now everything is set up to systematically align IMGT TCR reference gene segments to our sequencing data of TCRs.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co"># lets find an expanded clonotype_name</span>
 <span class="va">top_expanded_clonotypes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html">sort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html">table</a></span><span class="op">(</span><span class="va">cl</span><span class="op">[[</span><span class="st">"wide"</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">clonotype_name</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">T</span><span class="op">)</span>
 <span class="fu"><a href="https://rdrr.io/r/utils/head.html">head</a></span><span class="op">(</span><span class="va">top_expanded_clonotypes</span><span class="op">)</span>
@@ -263,7 +263,7 @@
 <span class="va">align_list_TRA</span> <span class="op">&lt;-</span> <span class="fu">igsc</span><span class="fu">::</span><span class="fu"><a href="../reference/align_imgt_ref_to_TCR_seq.html">align_imgt_ref_to_TCR_seq</a></span><span class="op">(</span>chain <span class="op">=</span> <span class="st">"TRA"</span>, TCR <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">top_expanded_clonotypes</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="st">"clonotype_name"</span><span class="op">)</span>, cl_long <span class="op">=</span> <span class="va">cl</span><span class="op">[[</span><span class="st">"long"</span><span class="op">]</span><span class="op">]</span>, imgt_ref <span class="op">=</span> <span class="va">imgt_ref</span><span class="op">)</span>
 <span class="va">align_list_TRB</span> <span class="op">&lt;-</span> <span class="fu">igsc</span><span class="fu">::</span><span class="fu"><a href="../reference/align_imgt_ref_to_TCR_seq.html">align_imgt_ref_to_TCR_seq</a></span><span class="op">(</span>chain <span class="op">=</span> <span class="st">"TRB"</span>, TCR <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">top_expanded_clonotypes</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="st">"clonotype_name"</span><span class="op">)</span>, cl_long <span class="op">=</span> <span class="va">cl</span><span class="op">[[</span><span class="st">"long"</span><span class="op">]</span><span class="op">]</span>, imgt_ref <span class="op">=</span> <span class="va">imgt_ref</span><span class="op">)</span></code></pre></div>
 <p>The output of align_imgt_ref_to_TCR_seq contains several plots and sequence information.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">align_list_TRA</span><span class="op">)</span>
 <span class="co">#&gt; [1] "consensus.alingment" "consensus.seq.uncut"</span>
 <span class="co">#&gt; [3] "VJC.alignment"       "VJ.alignment"       </span>
@@ -271,10 +271,10 @@
 <span class="co"># this plot shows how many different unique sequences existed in cl_long; source column is cell.ranger.consensus.seq</span>
 <span class="co"># in different cells (single cell transcriptomes) the cell.ranger.consensus.seq may differ slightly but still the TCR is grouped into one clonotype</span>
 <span class="co"># sometimes there are irrelevant sequence differences at the beginning or the end, which do not include the V(D)J-region</span>
-<span class="co"># if there are at least 2 different ones the consensus is used for further processsing</span>
+<span class="co"># if there are at least 2 different ones the consensus is used for further processing</span>
 <span class="va">align_list_TRA</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></code></pre></div>
-<p><img src="prepare_tcr_seq_data_files/figure-html/unnamed-chunk-14-1.png" width="768"></p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<p><img src="prepare_tcr_seq_data_files/figure-html/unnamed-chunk-16-1.png" width="768"></p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R">
 <span class="co"># the consensus sequences is available at the second index</span>
 <span class="va">align_list_TRA</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>
@@ -287,8 +287,8 @@
 <span class="co"># number-annotations in the plot indicate the first and last nt of the alignment of the respective pattern</span>
 <span class="co"># vertical dashed lines indicate the lower and upper limit of all patterns aligned to the subject</span>
 <span class="va">align_list_TRA</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span></code></pre></div>
-<p><img src="prepare_tcr_seq_data_files/figure-html/unnamed-chunk-14-2.png" width="768"></p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<p><img src="prepare_tcr_seq_data_files/figure-html/unnamed-chunk-16-2.png" width="768"></p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R">
 <span class="co"># the last sub-index contains the lower and upper limit as integers</span>
 <span class="va">align_list_TRA</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span><span class="op">[[</span><span class="fl">5</span><span class="op">]</span><span class="op">]</span>
@@ -303,7 +303,26 @@
 <div id="concanetate-a-tcr-cassette" class="section level2">
 <h2 class="hasAnchor">
 <a href="#concanetate-a-tcr-cassette" class="anchor"></a>Concanetate a TCR cassette</h2>
-<p>This V(D)J-sequence can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like a P2A element, restriction sites, etc.</p>
+<p>The obtained V(D)J-sequences can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like a P2A element, restriction sites, etc. Below one possible cassette is created. A fasta file with cassette elements is included in this package.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span class="va">tcr_cassette_elements</span> <span class="op">&lt;-</span> <span class="fu">protr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/protr/man/readFASTA.html">readFASTA</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"TCR_cassette_elements.fasta"</span>, package <span class="op">=</span> <span class="st">"igsc"</span><span class="op">)</span><span class="op">)</span>
+
+<span class="co"># concatenate</span>
+<span class="va">concat_seq</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/chartr.html">toupper</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html">paste0</a></span><span class="op">(</span><span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"NotI_site"</span><span class="op">]</span><span class="op">]</span>, <span class="co"># left restriction site</span>
+                             <span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"Kozak_sequence_noATG"</span><span class="op">]</span><span class="op">]</span>, <span class="co"># eukaryotic translation initiation</span>
+                             <span class="va">align_list_TRB</span><span class="op">[[</span><span class="st">"V.to.J.TCR.seq"</span><span class="op">]</span><span class="op">]</span>, <span class="co"># TRB V-&gt;J chain</span>
+                             <span class="fu"><a href="https://rdrr.io/r/base/substr.html">substr</a></span><span class="op">(</span><span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"mTRBC2_Ser57Cys_STOPcodon_removed"</span><span class="op">]</span><span class="op">]</span>,
+                                    <span class="fl">2</span>,
+                                    <span class="fu"><a href="https://rdrr.io/r/base/nchar.html">nchar</a></span><span class="op">(</span><span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"mTRBC2_Ser57Cys_STOPcodon_removed"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>, <span class="co"># mTRBC, see info below</span>
+                             <span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"gsg_linker"</span><span class="op">]</span><span class="op">]</span>, <span class="co"># linker that provides flexibility for more efficient cleavage</span>
+                             <span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"P2A_element"</span><span class="op">]</span><span class="op">]</span>, <span class="co"># a cleavable linker</span>
+                             <span class="va">align_list_TRA</span><span class="op">[[</span><span class="st">"V.to.J.TCR.seq"</span><span class="op">]</span><span class="op">]</span>, <span class="co"># TRA V-&gt;J chain</span>
+                             <span class="fu"><a href="https://rdrr.io/r/base/substr.html">substr</a></span><span class="op">(</span><span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"mTRAC_Thr48Cys"</span><span class="op">]</span><span class="op">]</span>,
+                                    <span class="fl">2</span>,
+                                    <span class="fu"><a href="https://rdrr.io/r/base/nchar.html">nchar</a></span><span class="op">(</span><span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"mTRAC_Thr48Cys"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>, <span class="co">#mTRAC, see info below</span>
+                             <span class="va">tcr_cassette_elements</span><span class="op">[[</span><span class="st">"EcoRI_site"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span> <span class="co"># right restriction site</span>
+                      <span class="op">)</span></code></pre></div>
+<p>Please note, that the the original sequences of constant chains have been altered. One codon each has been changed to a Cysteine (Ser57Cys, Thr48Cys) for TRB and TRA, respectively. This increases stability of the chain pairing. Moreover, in this example of human TCRs constant chain are taken from mouse which has several reasons. It descreases mispairing with (if present) endogenous TCR and positive transductants may easily be identified by a mAb for mTCRb (clone H57-597).</p>
 </div>
   </div>
 
