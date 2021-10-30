@@ -24,6 +24,7 @@ install.packages("randomNames")
 install.packages("BiocManager")
 install.packages("parallel")
 BiocManager::install("Biostrings")
+BiocManager::install("protR")
 ```
 
 ```{r setup, message=F}
@@ -46,8 +47,9 @@ Each folder must contain the 6 files from the CellRanger output which are requir
 list.files(file.path(vdj_path, "Pat3_rep1_blood"))
 ```
 
+## Read raw files from CellRanger output
 
-Read the files one by one and modify one or the other column name. Some operations are optional.
+Read the files one by one and modify one or the other column name. Some operations are optional, others are necessary to join the data frames below.
 ```{r }
 consensus_annotations <- dplyr::bind_rows(lapply(list.files(vdj_path, "consensus_annotations\\.csv", recursive = T, full.names = T), function(x) {
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
@@ -98,7 +100,9 @@ contig_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "filtered_contig\\.
   dplyr::mutate(cell.ranger.contig.id = as.numeric(cell.ranger.contig.id))
 ```
 
-Join some of the data frames. The only source for cell-barcodes are the contig-files.
+## Process to long data frame
+
+Join the data frames. The only source for cell-barcodes are the contig-files.
 ```{r }
 consensus.data <-
   consensus_annotations %>%
@@ -118,7 +122,9 @@ clonotype.data.long.format <-
   dplyr::rename("V" = v_gene, "D" = d_gene, "J" = j_gene, "C" = c_gene, "CDR3.aa" = cdr3, "CDR3.nt" = cdr3_nt)
 ```
 
-Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well, also to the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
+## Additional columns
+
+Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well. Also thins brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
 This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respective data frames for human and mouse are included in this package, with data downloaded Oct-2021 from IMGT.
 
 ```{r }
@@ -143,7 +149,6 @@ for (VJ in c("V", "J")) {
 
 ```
 
-
 With the randomNames packages you may give your clonotypes a catchy name, as an alternative to e.g. "clonotype1001". The sampling from randomNames does not work perfect though, so we use a custom loop to avoid duplicate names.
 ```{r }
 # in this case we trust the clonotype assignment from CellRanger but one could also check that
@@ -161,6 +166,8 @@ cls <- stats::setNames(object = names, nm = cls)
 clonotype.data.long.format$clonotype_name <- cls[clonotype.data.long.format$cell.ranger.clonotype.id]
 ```
 
+
+## Make a wide data frame
 
 Prepare a data frame in the wide format. Long or wide format may be useful in different scenarios.
 ```{r }
@@ -185,18 +192,61 @@ check <-
 all(check == 1)
 ```
 
-Save the data frames.
+Save the processed clonotype data. The wide format may be used to create meta-data columns in the Seurat Object. That way the phenotype data are complemented with clonotype information and are readily available e.g. as color code on a dimension reduction plot or so.
 ```{r }
 cl <- list(wide = clonotype.data.wide.format, long = clonotype.data.long.format)
 saveRDS(cl, "clonotype_data.rds")
 ```
 
 
+```{r, include=F, eval=T}
+cl <- readRDS("clonotype_data.rds")
+imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc"))
+```
 
+## Align TCR sequencing data with IMGT references and retrived the V(D)J-range
 
+Now everything is set up to systematically align IMGT TCR reference gene segments to our sequencing data of TCRs.
+```{r, eval=T}
+# lets find an expanded clonotype_name
+top_expanded_clonotypes <- sort(table(cl[["wide"]]$clonotype_name), decreasing = T)
+head(top_expanded_clonotypes)
+# use the TCR that has been detected in most single cell transcriptomes
+# check the documentation of align_imgt_ref_to_TCR_seq to understand the inputs
+align_list_TRA <- igsc::align_imgt_ref_to_TCR_seq(chain = "TRA", TCR = setNames(names(top_expanded_clonotypes)[1], "clonotype_name"), cl_long = cl[["long"]], imgt_ref = imgt_ref)
+align_list_TRB <- igsc::align_imgt_ref_to_TCR_seq(chain = "TRB", TCR = setNames(names(top_expanded_clonotypes)[1], "clonotype_name"), cl_long = cl[["long"]], imgt_ref = imgt_ref)
+```
 
+The output of align_imgt_ref_to_TCR_seq contains several plots and sequence information.
+```{r, eval=T, fig.width=8, fig.height=4}
+names(align_list_TRA[[1]])
+# this plot shows how many different unique sequences existed in cl_long; source column is cell.ranger.consensus.seq
+# in different cells (single cell transcriptomes) the cell.ranger.consensus.seq may differ slightly but still the TCR is grouped into one clonotype
+# sometimes there are irrelevant sequence differences at the beginning or the end, which do not include the V(D)J-region
+# if there are at least 2 different ones the consensus is used for further processsing
+align_list_TRA[[1]]
 
+# the consensus sequences is available at the second index
+align_list_TRA[[2]]
 
+# at indices 3 and 4 are alignment plots (and the respective data frames) for V(D)JC or V(D)J
+# these plots are made with a custom made function MultiplePairwiseAlignmentsToOneSubject
+# the names on the y-axis indicate the pattern name ist the full length in nt
+# the number-annotations in the plot indicate the first and last in the alignment of each pattern
+# the vertical dashed lines indicate the lower and upper limit of the all patterns in the subject
+align_list_TRA[[3]][[2]]
+
+# the last sub-index contains the alignment limits of the subject, your TCR (vertical dashed lines)
+align_list_TRA[[3]][[5]]
+
+# the last index of align_list_TRA contains the V(D)J-sequence of your TCR (sequence between the vertical lines of align_list_TRA[[4]][[2]])
+align_list_TRA[[5]]
+```
+
+## Concanetate a TCR cassette
+
+This V(D)J-sequence can then be used to concanetate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like
+a P2A element, restriction sites, etc.
 
 
 

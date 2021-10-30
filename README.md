@@ -22,3 +22,8 @@ Please install igsc from GitHub. This requires devtools.
 install.packages("devtools")
 devtools::install_github("Close-your-eyes/igsc")
 ```
+
+## Vignettes (tutorials)
+
+[prepare TCR
+sequence](https://close-your-eyes.github.io/igsc/articles/prepare_tcr_seq_data.html)

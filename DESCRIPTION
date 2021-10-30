@@ -15,12 +15,15 @@ RoxygenNote: 7.1.2
 Imports: 
     BiocManager,
     Biostrings,
+    DECIPHER,
     dplyr,
+    ggplot2,
     magrittr,
     openxlsx,
     parallel,
     pbapply,
-    stringr
+    stringr,
+    tidyr
 Suggests: 
     rmarkdown,
     knitr
