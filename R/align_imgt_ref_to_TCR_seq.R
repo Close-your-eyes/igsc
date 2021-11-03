@@ -25,10 +25,12 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref) {
     cs <- DECIPHER::ConsensusSequence(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F))
     cs <- consecutive.disambiguate.consensus.seq.from.decipher.consensus(cs)
     names(cs) <- paste0(TCR, "_consensus")
-  } else {
+  } else if (length(raw.cs) == 1)  {
     cs <- raw.cs
     names(cs) <- TCR
     p1 <- NULL
+  } else {
+    stop("No sequence found. Does the TCR exist in the respective column? Does the sequence column names is cell.ranger.consensus.seq?")
   }
 
   ## pull out reference sequences
