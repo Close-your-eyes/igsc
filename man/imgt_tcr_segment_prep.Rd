@@ -24,6 +24,9 @@ All necessary files (human or mouse) are included in this package (Oct-2021) but
 The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref/human", package = "igsc")), 'path to your folder') or
 file.copy(list.files(system.file("extdata", "IMGT_ref/mouse", package = "igsc")), 'path to your folder').
 This will also show you the required file names in case you provide your own folder.
+Readymade data frames are available with
+imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc")) or
+imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc")).
 Sources and how to prepare the data yourself:
 Data for the xlsx-files are from
 http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&latin=Homo\%20sapiens&group=TRAV,
@@ -34,7 +37,7 @@ Fasta-files are made from the data found here:
 http://www.imgt.org/vquest/refseqh.html.
 Leader sequences are from "L-PART1+L-PART2" artificially spliced sets, nucleotides (F+ORF+all P).
 Others are from "L-PART1+V-EXON" artificially spliced sets and Constant gene artificially spliced exons sets.
-Fasta-formated sequences from there have to be copied manually and saved as .fasta files in a folder. This folder then becomes the path argument.
+Fasta-formatted sequences from there have to be copied manually and saved as .fasta files in a folder. This folder then becomes the path argument.
 }
 \examples{
 \dontrun{

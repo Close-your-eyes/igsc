@@ -125,7 +125,7 @@ clonotype.data.long.format <-
 
 ## Additional columns
 
-Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well. Also thins brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
+Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well. Also this brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
 This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respective data frames for human and mouse are included in this package, with data downloaded Oct-2021 from IMGT.
 
 ```{r }
@@ -133,6 +133,8 @@ This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respect
 # imgt_ref <- igsc::imgt_tcr_segment_prep()
 # see ?igsc::imgt_tcr_segment_prep()
 imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc"))
+# for mouse:
+#imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc"))
 
 # this calculation may take a while depend up on the number of clonotypes etc. especially on a single core (not mclapply but lapply only)
 for (VJ in c("V", "J")) {

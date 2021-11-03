@@ -182,12 +182,14 @@
 <div id="additional-columns" class="section level2">
 <h2 class="hasAnchor">
 <a href="#additional-columns" class="anchor"></a>Additional columns</h2>
-<p>Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well. Also thins brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website. This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respective data frames for human and mouse are included in this package, with data downloaded Oct-2021 from IMGT.</p>
+<p>Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well. Also this brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website. This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respective data frames for human and mouse are included in this package, with data downloaded Oct-2021 from IMGT.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co"># optional:</span>
 <span class="co"># imgt_ref &lt;- igsc::imgt_tcr_segment_prep()</span>
 <span class="co"># see ?igsc::imgt_tcr_segment_prep()</span>
 <span class="va">imgt_ref</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"IMGT_ref/human/hs.rds"</span>, package <span class="op">=</span> <span class="st">"igsc"</span><span class="op">)</span><span class="op">)</span>
+<span class="co"># for mouse:</span>
+<span class="co">#imgt_ref &lt;- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc"))</span>
 
 <span class="co"># this calculation may take a while depend up on the number of clonotypes etc. especially on a single core (not mclapply but lapply only)</span>
 <span class="kw">for</span> <span class="op">(</span><span class="va">VJ</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"V"</span>, <span class="st">"J"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span>
