@@ -7,6 +7,8 @@
 #' @param TCR a named vector; which of your TCRs to align, the name indicates which column name of cl_long to use, the value indicates what to look for in that column
 #' @param cl_long the prepared clonotype data frame in long format
 #' @param imgt_ref the prepared data.frame of IMGT references
+#' @param sequence_col name of the column to pull sequences from, defaults to "cell.ranger.consensus.seq"
+#' @param C_allele optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame
 #'
 #' @return a list
 #' @export
@@ -15,10 +17,10 @@
 #' \dontrun{
 #'
 #' }
-align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref) {
+align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref, sequence_col = "cell.ranger.consensus.seq", C_allele) {
   chain <- match.arg(chain, c("TRA", "TRB"))
 
-  raw.cs <- cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "cell.ranger.consensus.seq"]
+  raw.cs <- cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), sequence_col]
 
   if (length(raw.cs) > 1) {
     p1 <- MultipleSequenceAlignmentDECIPHER(input.set = raw.cs) + ggplot2::ggtitle(paste(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), collapse = ", "))
@@ -30,7 +32,7 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref) {
     names(cs) <- TCR
     p1 <- NULL
   } else {
-    stop("No sequence found. Does the TCR exist in the respective column? Does the sequence column names is cell.ranger.consensus.seq?")
+    stop("No sequence found. Does the TCR exist in the respective column?")
   }
 
   ## pull out reference sequences
@@ -52,12 +54,12 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref) {
   J.allele.seq <- imgt_ref[which(imgt_ref$Allele == J.allele.name), "seq.nt"]
   names(J.allele.seq) <- J.allele.name
 
-  if (chain == "TRA") {
-    C.allele.seq <- imgt_ref[which(grepl("TRAC", imgt_ref$Allele)), "seq.nt"]
-    names(C.allele.seq) <- "TRAC*01"
-  } else if (chain == "TRB") {
-    C.allele.seq <- imgt_ref[which(grepl("TRBC1\\*01", imgt_ref$Allele)), "seq.nt"]
-    names(C.allele.seq) <- "TRBC1*01"
+  if (missing(C_allele)) {
+    C.allele.seq <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "seq.nt"]
+    names(C.allele.seq) <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "Allele"]
+  } else {
+    C.allele.seq <- imgt_ref[which(imgt_ref$Allele == C_allele), "seq.nt"]
+    names(C.allele.seq) <- C_allele
   }
 
   p2 <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs), patterns = Biostrings::DNAStringSet(c(V.allele.seq, J.allele.seq, C.allele.seq)), type = "local", pattern.positions.size = 4, print.subject.min.max = T)

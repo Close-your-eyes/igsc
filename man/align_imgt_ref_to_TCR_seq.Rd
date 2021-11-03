@@ -4,7 +4,14 @@
 \alias{align_imgt_ref_to_TCR_seq}
 \title{Align IMGTs reference sequences to your TCR sequence}
 \usage{
-align_imgt_ref_to_TCR_seq(chain, TCR, cl_long, imgt_ref)
+align_imgt_ref_to_TCR_seq(
+  chain,
+  TCR,
+  cl_long,
+  imgt_ref,
+  sequence_col = "cell.ranger.consensus.seq",
+  C_allele
+)
 }
 \arguments{
 \item{chain}{character which TCR chain to align, currently only TRA and TRB}
@@ -14,6 +21,10 @@ align_imgt_ref_to_TCR_seq(chain, TCR, cl_long, imgt_ref)
 \item{cl_long}{the prepared clonotype data frame in long format}
 
 \item{imgt_ref}{the prepared data.frame of IMGT references}
+
+\item{sequence_col}{name of the column to pull sequences from, defaults to "cell.ranger.consensus.seq"}
+
+\item{C_allele}{optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame}
 }
 \value{
 a list
