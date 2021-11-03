@@ -150,126 +150,126 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   })
 
 
-  if (!overlapping.range.vs.indels) {
-    # get ranges
-    subject.ranges <- lapply(split(data.frame(pa@subject@range), seq(nrow(data.frame(pa@subject@range)))), function (x) {x$start:x$end})
-
-    if (length(subject.ranges) > 1) {
-      is.subset <- unlist(lapply(which(!duplicated(subject.ranges)), function(i) {
-        any(unlist(lapply(which(!duplicated(subject.ranges)), function (j) {
-          if (i == j) {
-            return(F)
-          } else {
-            all(subject.ranges[[i]] %in% subject.ranges[[j]])
-          }
-        })))
-      }))
-    } else {
-      is.subset <- rep(F, length(subject.ranges))
-    }
-    # order alignment and subject ranges increasingly
-    pa.order <- pa[order(sapply(subject.ranges[which(!duplicated(subject.ranges))][!is.subset], function(x) min(x)))]
-    subject.ranges <- subject.ranges[order(sapply(subject.ranges[which(!duplicated(subject.ranges))][!is.subset], function(x) min(x)))]
-
-    # paste together the complete subject
-    total.subject.seq <- NULL
-    for (i in 1:length(subject.ranges)) {
-      if (i == 1) {
-        total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, 1, (min(subject.ranges[[i]]) - 1)))
-      } else {
-        # correct for overlapping sequences
-        if (max(subject.ranges[[i-1]]) >= min(subject.ranges[[i]])) {
-          total.subject.seq <- stringr::str_sub(total.subject.seq, 1, max(subject.ranges[[i-1]]) - min(subject.ranges[[i]]) - 2)
-        } else {
-          total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, (max(subject.ranges[[i-1]]) + 1), (min(subject.ranges[[i]]) - 1)))
-        }
-      }
-      total.subject.seq <- paste0(total.subject.seq, as.character(Biostrings::alignedSubject(pa.order[i])))
-    }
-    # paste the remaining seq behind the last alignment
-    total.subject.seq <- paste0(total.subject.seq, substr(as.character(pa.order@subject@unaligned), start = pa.order[length(subject.ranges)]@subject@range@start + pa.order[length(subject.ranges)]@subject@range@width, stop = nchar(as.character(pa.order@subject@unaligned))))
-
-
-    df <- data.frame(seq = strsplit(total.subject.seq, "")[[1]],
-                     position = seq(1:length(strsplit(total.subject.seq, "")[[1]])))
-
-    df[df$seq != "-", "subject.position"] <- seq(1:nrow(df[df$seq != "-", ]))
-    names(df)[1] <- subject.name
-
-    pf <- list()
-    gap.corr <- 0
-    for (x in 1:length(pa)) {
-      pf[[x]] <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
-                            position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
-      gap.corr <- gap.corr + sum(data.frame(pa[x]@subject@indel@unlistData)$width)
-    }
-
-    for (i in 1:length(pf)) {
-      df <- df %>% dplyr::left_join(pf[[i]], by = "position")
-    }
-
-    df.match <- df
-    for (x in patterns.names) {
-      # without dplyr
-      df.match[,x] <- ifelse(df.match[,x] == df.match[,subject.name], "match", ifelse(df.match[,x] == "-", "-", "mismatch"))
-      df.match[,x] <- ifelse(df.match[,x] == "mismatch" & df.match[,subject.name] == "-", "insertion", df.match[,x])
-      df.match[,x] <- ifelse(df.match[,x] == "-" & df.match[,subject.name] != "-", "gap", df.match[,x])
-    }
-    df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
-
-    df <-
-      df %>%
-      tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-      dplyr::mutate(seq = ifelse(is.na(seq), "-", seq)) %>%
-      dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names))) %>%
-      dplyr::mutate(seq = factor(seq, levels = c(names(alignment.colour.palette)[1:4], names(alignment.colour.palette)[6:9], names(alignment.colour.palette)[5])))
-
-    df.match <-
-      df.match %>%
-      tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-      dplyr::mutate(seq = ifelse(is.na(seq), "-", seq)) %>%
-      dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names))) %>%
-      dplyr::mutate(seq = factor(seq, levels = c(names(alignment.colour.palette)[1:4], names(alignment.colour.palette)[6:9], names(alignment.colour.palette)[5])))
-
-    g1 <- ggplot2::ggplot(df, ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-      ggplot2::geom_tile(color = tile.border.color) +
-      ggplot2::theme_classic() +
-      ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
-      ggplot2::scale_fill_manual(values = alignment.colour.palette)
-
-
-    g2 <- ggplot2::ggplot(df.match, ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-      ggplot2::geom_tile(color = tile.border.color) +
-      ggplot2::theme_classic() +
-      ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
-      ggplot2::scale_fill_manual(values = alignment.colour.palette)
-
-    ### pull positions of patterns
-    if (print.pattern.positions) {
-      pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
-      for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
-      pattern.ranges <- pattern.ranges %>% tidyr::pivot_longer(cols = c(start, end), names_to = "pos", values_to = "values")
-      pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(df.match$position) + 2)
-      g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.positions.size, inherit.aes = F)
-    }
-
-    min.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
-    min.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position)
-
-    max.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(position)
-    max.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)
-
-    if (print.subject.min.max) {
-      g2 <- g2 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
-    }
-
-    if (!missing(title)) {
-      g1 <- g1 + ggplot2::ggtitle(title)
-      g2 <- g2 + ggplot2::ggtitle(title)
-    }
-
-    return(list(base.plot = g1, match.plot = g2, base.df = df, match.df = df.match, min.max.subject.position = c(min.subj.pos, max.subj.pos)))
-  } else {
-    print("overlapping.ranges not handled, yet.")
+  if (overlapping.range.vs.indels) {
+    stop("overlapping ranges with indels cannot be handled.")
   }
+  # get ranges
+  subject.ranges <- lapply(split(data.frame(pa@subject@range), seq(nrow(data.frame(pa@subject@range)))), function (x) {x$start:x$end})
+
+  if (length(subject.ranges) > 1) {
+    is.subset <- unlist(lapply(which(!duplicated(subject.ranges)), function(i) {
+      any(unlist(lapply(which(!duplicated(subject.ranges)), function (j) {
+        if (i == j) {
+          return(F)
+        } else {
+          all(subject.ranges[[i]] %in% subject.ranges[[j]])
+        }
+      })))
+    }))
+  } else {
+    is.subset <- rep(F, length(subject.ranges))
+  }
+  # order alignment and subject ranges increasingly
+  pa.order <- pa[!is.subset][order(sapply(subject.ranges[which(!duplicated(subject.ranges))][!is.subset], function(x) min(x)))]
+  subject.ranges <- subject.ranges[!is.subset][order(sapply(subject.ranges[which(!duplicated(subject.ranges))][!is.subset], function(x) min(x)))]
+
+  # paste together the complete subject
+  total.subject.seq <- NULL
+  for (i in 1:length(subject.ranges)) {
+    if (i == 1) {
+      total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, 1, (min(subject.ranges[[i]]) - 1)))
+    } else {
+      # correct for overlapping sequences
+      if (max(subject.ranges[[i-1]]) >= min(subject.ranges[[i]])) {
+        total.subject.seq <- stringr::str_sub(total.subject.seq, 1, max(subject.ranges[[i-1]]) - min(subject.ranges[[i]]) - 2)
+      } else {
+        total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, (max(subject.ranges[[i-1]]) + 1), (min(subject.ranges[[i]]) - 1)))
+      }
+    }
+    total.subject.seq <- paste0(total.subject.seq, as.character(Biostrings::alignedSubject(pa.order[i])))
+  }
+  # paste the remaining seq behind the last alignment
+  total.subject.seq <- paste0(total.subject.seq, substr(as.character(pa.order@subject@unaligned), start = pa.order[length(subject.ranges)]@subject@range@start + pa.order[length(subject.ranges)]@subject@range@width, stop = nchar(as.character(pa.order@subject@unaligned))))
+
+
+  df <- data.frame(seq = strsplit(total.subject.seq, "")[[1]],
+                   position = seq(1:length(strsplit(total.subject.seq, "")[[1]])))
+
+  df[df$seq != "-", "subject.position"] <- seq(1:nrow(df[df$seq != "-", ]))
+  names(df)[1] <- subject.name
+
+  pf <- list()
+  gap.corr <- 0
+  for (x in 1:length(pa)) {
+    pf[[x]] <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
+                          position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
+    gap.corr <- gap.corr + sum(data.frame(pa[x]@subject@indel@unlistData)$width)
+  }
+
+  for (i in 1:length(pf)) {
+    df <- df %>% dplyr::left_join(pf[[i]], by = "position")
+  }
+
+  df.match <- df
+  for (x in patterns.names) {
+    # without dplyr
+    df.match[,x] <- ifelse(df.match[,x] == df.match[,subject.name], "match", ifelse(df.match[,x] == "-", "-", "mismatch"))
+    df.match[,x] <- ifelse(df.match[,x] == "mismatch" & df.match[,subject.name] == "-", "insertion", df.match[,x])
+    df.match[,x] <- ifelse(df.match[,x] == "-" & df.match[,subject.name] != "-", "gap", df.match[,x])
+  }
+  df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
+
+  df <-
+    df %>%
+    tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
+    dplyr::mutate(seq = ifelse(is.na(seq), "-", seq)) %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names))) %>%
+    dplyr::mutate(seq = factor(seq, levels = c(names(alignment.colour.palette)[1:4], names(alignment.colour.palette)[6:9], names(alignment.colour.palette)[5])))
+
+  df.match <-
+    df.match %>%
+    tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
+    dplyr::mutate(seq = ifelse(is.na(seq), "-", seq)) %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names))) %>%
+    dplyr::mutate(seq = factor(seq, levels = c(names(alignment.colour.palette)[1:4], names(alignment.colour.palette)[6:9], names(alignment.colour.palette)[5])))
+
+  g1 <- ggplot2::ggplot(df, ggplot2::aes(x = position, y = seq.name, fill = seq)) +
+    ggplot2::geom_tile(color = tile.border.color) +
+    ggplot2::theme_classic() +
+    ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
+    ggplot2::scale_fill_manual(values = alignment.colour.palette)
+
+
+  g2 <- ggplot2::ggplot(df.match, ggplot2::aes(x = position, y = seq.name, fill = seq)) +
+    ggplot2::geom_tile(color = tile.border.color) +
+    ggplot2::theme_classic() +
+    ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
+    ggplot2::scale_fill_manual(values = alignment.colour.palette)
+
+  ### pull positions of patterns
+  if (print.pattern.positions) {
+    pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
+    for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
+    pattern.ranges <- pattern.ranges %>% tidyr::pivot_longer(cols = c(start, end), names_to = "pos", values_to = "values")
+    pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(df.match$position) + 2)
+    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.positions.size, inherit.aes = F)
+  }
+
+  min.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
+  min.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position)
+
+  max.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(position)
+  max.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)
+
+  if (print.subject.min.max) {
+    g2 <- g2 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
+  }
+
+  if (!missing(title)) {
+    g1 <- g1 + ggplot2::ggtitle(title)
+    g2 <- g2 + ggplot2::ggtitle(title)
+  }
+
+  return(list(base.plot = g1, match.plot = g2, base.df = df, match.df = df.match, min.max.subject.position = c(min.subj.pos, max.subj.pos)))
 }
+

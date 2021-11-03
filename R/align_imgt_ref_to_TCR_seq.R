@@ -43,7 +43,11 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref, sequence_co
     print(paste0("Picking: ", V.allele.name, "."))
   }
   V.allele.seq <- imgt_ref[which(imgt_ref$Allele == V.allele.name), "seq.nt"]
-  names(V.allele.seq) <- V.allele.name
+  if (length(which(imgt_ref$Allele == V.allele.name)) > 1) {
+    names(V.allele.seq) <- paste0(imgt_ref[which(imgt_ref$Allele == V.allele.name), "Allele"], "_", imgt_ref[which(imgt_ref$Allele == V.allele.name), "AccNum"])
+  } else {
+    names(V.allele.seq) <- V.allele.name
+  }
 
   J.allele.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "J.allele"])
   if (length(J.allele.name) > 1) {
@@ -52,7 +56,12 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref, sequence_co
     print(paste0("Picking: ", J.allele.name, "."))
   }
   J.allele.seq <- imgt_ref[which(imgt_ref$Allele == J.allele.name), "seq.nt"]
-  names(J.allele.seq) <- J.allele.name
+  if (length(which(imgt_ref$Allele == J.allele.name)) > 1) {
+    names(J.allele.seq) <- paste0(imgt_ref[which(imgt_ref$Allele == J.allele.name), "Allele"], "_", imgt_ref[which(imgt_ref$Allele == J.allele.name), "AccNum"])
+  } else {
+    names(J.allele.seq) <- J.allele.name
+  }
+
 
   if (missing(C_allele)) {
     C.allele.seq <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "seq.nt"]
