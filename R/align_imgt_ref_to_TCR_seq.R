@@ -5,10 +5,10 @@
 #'
 #' @param chain character which TCR chain to align, currently only TRA and TRB
 #' @param TCR a named vector; which of your TCRs to align, the name indicates which column name of cl_long to use, the value indicates what to look for in that column
-#' @param cl_long the prepared clonotype data frame in long format
 #' @param imgt_ref the prepared data.frame of IMGT references
 #' @param sequence_col name of the column to pull sequences from, defaults to "cell.ranger.consensus.seq"
 #' @param C_allele optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame
+#' @param cl the prepared list of clonotype data (wide and long data frames, named "wide" and "long")
 #'
 #' @return a list
 #' @export
