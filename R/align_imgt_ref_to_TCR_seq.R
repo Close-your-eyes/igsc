@@ -55,10 +55,30 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref, sequence_co
   cs <- unlist(sapply(out, "[", 2))
   names(cs) <- paste0(V.allele.name,"_",J.allele.name)
 
+  imgt_ref[which(imgt_ref$Allele == V.allele.name), ] %>% dplyr::distinct(seq.nt)
+  imgt_ref[which(imgt_ref$Allele == J.allele.name), ]
+
   # imgt ref seqs
-  V.allele.seq <- imgt_ref[which(imgt_ref$Allele == V.allele.name), "seq.nt"]
+  V.allele.seq <- imgt_ref[which(imgt_ref$Allele == V.allele.name),] %>% dplyr::distinct(seq.nt, meta, Allele)
+  if (nrow(V.allele.seq) > 1) {
+    if (sum(grepl("Mus musculus", V.allele.seq$meta)) == 1) {
+      V.allele.seq <- V.allele.seq[which(grepl("Mus musculus", V.allele.seq$meta)),]
+    } else {
+      V.allele.seq <- V.allele.seq[sample(1:nrow(V.allele.seq), 1),]
+    }
+  }
+  V.allele.seq <- V.allele.seq[,"seq.nt",drop=T]
   names(V.allele.seq) <- V.allele.name
-  J.allele.seq <- imgt_ref[which(imgt_ref$Allele == J.allele.name), "seq.nt"]
+
+  J.allele.seq <- imgt_ref[which(imgt_ref$Allele == J.allele.name),] %>% dplyr::distinct(seq.nt, meta, Allele)
+  if (nrow(J.allele.seq) > 1) {
+    if (sum(grepl("Mus musculus", J.allele.seq$meta)) == 1) {
+      J.allele.seq <- J.allele.seq[which(grepl("Mus musculus", J.allele.seq$meta)),]
+    } else {
+      J.allele.seq <- J.allele.seq[sample(1:nrow(J.allele.seq), 1),]
+    }
+  }
+  J.allele.seq <- J.allele.seq[,"seq.nt",drop=T]
   names(J.allele.seq) <- J.allele.name
 
   if (missing(C_allele)) {
