@@ -136,19 +136,61 @@ imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "i
 # for mouse:
 #imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc"))
 
-# this calculation may take a while depend up on the number of clonotypes etc. especially on a single core (not mclapply but lapply only)
-for (VJ in c("V", "J")) {
-  clonotype.data.long.format[,paste0(VJ, ".allele")] <- unlist(parallel::mclapply(split(clonotype.data.long.format[,c("cell.ranger.consensus.seq", VJ)], seq(nrow(clonotype.data.long.format))), function(x) {
-    if (length(which(imgt_ref$Gene == x[1,2])) == 1) {
-      return(imgt_ref[which(imgt_ref$Gene == x[1,2]), "Allele"])
-    } else if (length(which(imgt_ref$Gene == x[1,2])) > 1) {
-      max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(x[1,1]), pattern = Biostrings::DNAStringSet(imgt_ref[imgt_ref$Gene == x[1,2],"seq.nt"]), type = "local", scoreOnly = T))
-      return(imgt_ref[which(imgt_ref$Gene == x[1,2]), "Allele"][max.ind])
-    } else if (length(which(imgt_ref$Gene == x[1,2])) == 0) {
-      return(NA)
-    }
-  }, mc.cores = parallel::detectCores()))
-}
+# first, match allele names by smallest string distance
+V_matches <- sapply(unique(clonotype.data.long.format$V), function(x) {
+  ref_al <- imgt_ref$Allele[which(grepl(stringr::str_extract(x, "^[:alpha:]{1,}[:digit:]{1,}"), imgt_ref$Allele))]
+  dists <- adist(x, ref_al, ignore.case = T)
+  min_val <- min(dists)
+  ref_al[which(dists == min_val)]
+})
+J_matches <- sapply(unique(clonotype.data.long.format$J), function(x) {
+  ref_al <- imgt_ref$Allele[which(grepl(stringr::str_extract(x, "^[:alpha:]{1,}[:digit:]{1,}"), imgt_ref$Allele))]
+  dists <- adist(x, ref_al, ignore.case = T)
+  min_val <- min(dists)
+  ref_al[which(dists == min_val)]
+})
+clonotype.data.long.format$V.allele <- V_matches[clonotype.data.long.format$V]
+clonotype.data.long.format$J.allele <- J_matches[clonotype.data.long.format$J]
+
+# then resolve allele-groups for which there are multiple alleles in IMGT
+V_unique <-
+  clonotype.data.long.format %>%
+  dplyr::distinct(cell.ranger.consensus.seq, V.allele, clonotype_name)
+
+V_unique$V.allele <- unlist(pbapply::pblapply(1:nrow(V_unique), function(x) {
+  als <- V_unique$V.allele[x]
+  if (length(unlist(als)) == 1) {
+    return(unname(unlist(als)))
+  } else {
+    seq <- V_unique$cell.ranger.consensus.seq[x]
+    refs <- imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"seq.nt"]
+    max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq), pattern = Biostrings::DNAStringSet(refs), type = "local", scoreOnly = T))
+    return(imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"Allele"][max.ind])
+  }
+}))
+
+J_unique <-
+  clonotype.data.long.format %>%
+  dplyr::distinct(cell.ranger.consensus.seq, J.allele, clonotype_name)
+
+J_unique$J.allele <- unlist(pbapply::pblapply(1:nrow(J_unique), function(x) {
+  als <- J_unique$J.allele[x]
+  if (length(unlist(als)) == 1) {
+    return(unname(unlist(als)))
+  } else {
+    seq <- J_unique$cell.ranger.consensus.seq[x]
+    refs <- imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"seq.nt"]
+    max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq), pattern = Biostrings::DNAStringSet(refs), type = "local", scoreOnly = T))
+    return(imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"Allele"][max.ind])
+  }
+}))
+
+# join
+clonotype.data.long.format <-
+  clonotype.data.long.format %>%
+  dplyr::select(-c(J.allele, V.allele)) %>%
+  dplyr::left_join(V_unique, by = c("cell.ranger.consensus.seq", "clonotype_name")) %>%
+  dplyr::left_join(J_unique, by = c("cell.ranger.consensus.seq", "clonotype_name"))
 
 ```
 
@@ -187,7 +229,7 @@ clonotype.data.wide.format <- as.data.frame(clonotype.data.wide.format)
 clonotype.data.wide.format <- readRDS("clonotype_data.rds")[["wide"]]
 ```
 ```{r eval=T}
-# test if every name is unique to on cell.ranger.clonotype.id
+# test if every name is unique to cell.ranger.clonotype.id
 check <-
   clonotype.data.wide.format %>%
   dplyr::distinct(clonotype_name, CDR3.nt_TRA, CDR3.nt_TRB, cell.ranger.clonotype.id) %>%
@@ -230,24 +272,24 @@ names(align_list_TRA)
 # in different cells (single cell transcriptomes) the cell.ranger.consensus.seq may differ slightly but still the TCR is grouped into one clonotype
 # sometimes there are irrelevant sequence differences at the beginning or the end, which do not include the V(D)J-region
 # if there are at least 2 different ones the consensus is used for further processing
-align_list_TRA[[1]]
+align_list_TRA[[1]][[1]]
 
 # the consensus sequences is available at the second index
-align_list_TRA[[2]]
+align_list_TRA[[2]][[1]]
 
 # at indices 3 and 4 are plots (and the respective data frames) for V(D)JC or V(D)J alignments
 # these plots are made with a custom function igsc::MultiplePairwiseAlignmentsToOneSubject()
 # names on the y-axis show the pattern name its the full length in nt
 # number-annotations in the plot indicate the first and last nt of the alignment of the respective pattern
 # vertical dashed lines indicate the lower and upper limit of all patterns aligned to the subject
-align_list_TRA[[3]][[2]]
+align_list_TRA[[3]][[1]][[2]]
 
 # the last sub-index contains the lower and upper limit as integers
-align_list_TRA[[3]][[5]]
+align_list_TRA[[3]][[1]][[5]]
 
 # the last index of align_list_TRA contains the V(D)J-sequence of your TCR (sequence between the vertical lines of align_list_TRA[[4]][[2]])
 # if the alignment plots are as expected this sequence may be used for further processing
-align_list_TRA[[5]]
+align_list_TRA[[5]][[1]]
 ```
 
 ## Concanetate a TCR cassette

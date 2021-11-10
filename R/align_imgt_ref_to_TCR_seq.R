@@ -20,61 +20,73 @@
 align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl_long, imgt_ref, sequence_col = "cell.ranger.consensus.seq", C_allele) {
   chain <- match.arg(chain, c("TRA", "TRB"))
 
-  raw.cs <- cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), sequence_col]
-
-  if (length(raw.cs) > 1) {
-    p1 <- MultipleSequenceAlignmentDECIPHER(input.set = raw.cs) + ggplot2::ggtitle(paste(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), collapse = ", "))
-    cs <- DECIPHER::ConsensusSequence(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F))
-    cs <- consecutive.disambiguate.consensus.seq.from.decipher.consensus(cs)
-    names(cs) <- paste0(TCR, "_consensus")
-  } else if (length(raw.cs) == 1)  {
-    cs <- raw.cs
-    names(cs) <- TCR
-    p1 <- NULL
-  } else {
-    stop("No sequence found. Does the TCR exist in the respective column?")
-  }
-
-  ## pull out reference sequences
   V.allele.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V.allele"])
   if (length(V.allele.name) > 1) {
     print(paste0("More than one V allele: ", paste(V.allele.name, collapse = ", "), "."))
-    V.allele.name <- V.allele.name[sample(1:length(V.allele.name), 1)]
-    print(paste0("Picking: ", V.allele.name, "."))
-  }
-  V.allele.seq <- imgt_ref[which(imgt_ref$Allele == V.allele.name), "seq.nt"]
-  if (length(which(imgt_ref$Allele == V.allele.name)) > 1) {
-    names(V.allele.seq) <- paste0(imgt_ref[which(imgt_ref$Allele == V.allele.name), "Allele"], "_", imgt_ref[which(imgt_ref$Allele == V.allele.name), "AccNum"])
-  } else {
-    names(V.allele.seq) <- V.allele.name
+    print("Splitting output by those. Double check results, please.")
   }
 
   J.allele.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "J.allele"])
   if (length(J.allele.name) > 1) {
     print(paste0("More than one J allele: ", paste(J.allele.name, collapse = ", "), "."))
-    J.allele.name <- J.allele.name[sample(1:length(J.allele.name), 1)]
-    print(paste0("Picking: ", J.allele.name, "."))
-  }
-  J.allele.seq <- imgt_ref[which(imgt_ref$Allele == J.allele.name), "seq.nt"]
-  if (length(which(imgt_ref$Allele == J.allele.name)) > 1) {
-    names(J.allele.seq) <- paste0(imgt_ref[which(imgt_ref$Allele == J.allele.name), "Allele"], "_", imgt_ref[which(imgt_ref$Allele == J.allele.name), "AccNum"])
-  } else {
-    names(J.allele.seq) <- J.allele.name
+    print("Splitting output by those. Double check results, please.")
   }
 
+  out <- lapply(V.allele.name, function(x) {
+    raw.cs <- cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V.allele"] == x))), sequence_col]
+    if (length(raw.cs) > 1) {
+      J_al <- unique(cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V.allele"] == x))), "J.allele"])
+      p1 <- MultipleSequenceAlignmentDECIPHER(input.set = raw.cs) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", x, "_", J_al), collapse = ", "))
+      cs <- DECIPHER::ConsensusSequence(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F))
+      cs <- consecutive.disambiguate.consensus.seq.from.decipher.consensus(cs)
+      names(cs) <- paste0(TCR, "_consensus")
+    } else if (length(raw.cs) == 1)  {
+      cs <- raw.cs
+      names(cs) <- TCR
+      p1 <- NULL
+    } else {
+      stop("No sequence found. Does the TCR exist in the respective column?")
+    }
+    return(list(p1, cs))
+  })
+
+  p1 <- sapply(out, "[", 1)
+  names(p1) <- paste0(V.allele.name,"_",J.allele.name)
+  cs <- unlist(sapply(out, "[", 2))
+  names(cs) <- paste0(V.allele.name,"_",J.allele.name)
+
+  # imgt ref seqs
+  V.allele.seq <- imgt_ref[which(imgt_ref$Allele == V.allele.name), "seq.nt"]
+  names(V.allele.seq) <- V.allele.name
+  J.allele.seq <- imgt_ref[which(imgt_ref$Allele == J.allele.name), "seq.nt"]
+  names(J.allele.seq) <- J.allele.name
 
   if (missing(C_allele)) {
     C.allele.seq <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "seq.nt"]
     names(C.allele.seq) <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "Allele"]
+    if (length(C.allele.seq) > 1) {
+      C.allele.seq <- C.allele.seq[sample(1:length(C.allele.seq), 1)]
+    }
   } else {
     C.allele.seq <- imgt_ref[which(imgt_ref$Allele == C_allele), "seq.nt"]
     names(C.allele.seq) <- C_allele
   }
 
-  p2 <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs), patterns = Biostrings::DNAStringSet(c(V.allele.seq, J.allele.seq, C.allele.seq)), type = "local", pattern.positions.size = 4, print.subject.min.max = T)
-  p3 <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs), patterns = Biostrings::DNAStringSet(c(V.allele.seq, J.allele.seq)), type = "local", pattern.positions.size = 4, print.subject.min.max = T)
+  # what about one V allele but 2 J allele or vice versa?
+  p2 <- lapply(seq_along(V.allele.seq), function (x) {
+    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]), patterns = Biostrings::DNAStringSet(c(V.allele.seq[x], J.allele.seq[x], C.allele.seq)), type = "local", pattern.positions.size = 4, print.subject.min.max = T)
+  })
+  names(p2) <- paste0(V.allele.name,"_",J.allele.name)
 
-  TCR.seq <- stringr::str_sub(cs, start = p3[["min.max.subject.position"]][1], end = p3[["min.max.subject.position"]][2])
-  names(TCR.seq) <- paste0(TCR, "_", chain)
-  return(list("consensus.alingment" = p1, "consensus.seq.uncut" = cs, "VJC.alignment" = p2, "VJ.alignment" = p3, "V.to.J.TCR.seq" = TCR.seq))
+  p3 <- lapply(seq_along(V.allele.seq), function (x) {
+    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]), patterns = Biostrings::DNAStringSet(c(V.allele.seq[x], J.allele.seq[x])), type = "local", pattern.positions.size = 4, print.subject.min.max = T)
+  })
+  names(p3) <- paste0(V.allele.name,"_",J.allele.name)
+
+  TCR.seq <- unlist(lapply(seq_along(V.allele.seq), function (x) {
+    stringr::str_sub(cs[x], start = p3[[x]][["min.max.subject.position"]][1], end = p3[[x]][["min.max.subject.position"]][2])
+  }))
+  names(TCR.seq) <- paste0(TCR, "_", chain, "(", V.allele.name, "_", J.allele.name, ")")
+
+  return(list("consensus.alingments" = p1, "consensus.seqs.uncut" = cs, "VJC.alignments" = p2, "VJ.alignments" = p3, "V.to.J.TCR.seqs" = TCR.seq))
 }
