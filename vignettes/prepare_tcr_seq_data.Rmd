@@ -57,22 +57,22 @@ consensus_annotations <- dplyr::bind_rows(lapply(list.files(vdj_path, "consensus
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
   dplyr::rename("clonotype_id_cr" = clonotype_id, "consensus_id_cr" = consensus_id) %>%
-  dplyr::mutate(consensus_id_cr = as.numeric(str_extract(consensus_id_cr, "[:digit:]{1,}$"))) %>%
-  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
+  dplyr::mutate(consensus_id_cr = str_extract(consensus_id_cr, "[:digit:]{1,}$")) %>%
+  dplyr::mutate(clonotype_id_cr = str_extract(clonotype_id_cr, "[:digit:]{1,}"))
 
 clonotypes <- dplyr::bind_rows(lapply(list.files(vdj_path, "clonotypes\\.csv", recursive = T, full.names = T), function(x) {
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
   dplyr::rename("clonotype_id_cr" = clonotype_id) %>%
-  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
+  dplyr::mutate(clonotype_id_cr = str_extract(clonotype_id_cr, "[:digit:]{1,}"))
 
 contig_annotations <- dplyr::bind_rows(lapply(list.files(vdj_path, "filtered_contig_annotations\\.csv", recursive = T, full.names = T), function(x) {
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
   dplyr::rename("Barcode" = barcode, "contiq_id_cr" = contig_id, "clonotype_id_cr" = raw_clonotype_id, "consensus_id_cr" = raw_consensus_id) %>%
-  dplyr::mutate(Barcode = str_replace(Barcode, "-1$", ""), contiq_id_cr = as.numeric(str_extract(contiq_id_cr, "[:digit:]{1,}$"))) %>%
-  dplyr::mutate(consensus_id_cr = as.numeric(str_extract(consensus_id_cr, "[:digit:]{1,}$"))) %>%
-  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
+  dplyr::mutate(Barcode = str_replace(Barcode, "-1$", ""), contiq_id_cr = str_extract(contiq_id_cr, "[:digit:]{1,}$")) %>%
+  dplyr::mutate(consensus_id_cr = str_extract(consensus_id_cr, "[:digit:]{1,}$")) %>%
+  dplyr::mutate(clonotype_id_cr = str_extract(clonotype_id_cr, "[:digit:]{1,}"))
 
 consensus_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "consensus\\.fasta$", recursive = T, full.names = T), function(x) {
   stack(protr::readFASTA(x)) %>% dplyr::mutate(sample = basename(dirname(x)))
@@ -80,8 +80,8 @@ consensus_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "consensus\\.fas
   dplyr::rename("consensus_seq_cr" = values) %>%
   tidyr::separate(ind, into = c("clonotype_id_cr", "temp", "consensus_id_cr"), sep = "_") %>%
   dplyr::select(-temp) %>%
-  dplyr::mutate(consensus_id_cr = as.numeric(consensus_id_cr)) %>%
-  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}$")))
+  dplyr::mutate(consensus_id_cr = consensus_id_cr) %>%
+  dplyr::mutate(clonotype_id_cr = str_extract(clonotype_id_cr, "[:digit:]{1,}$"))
 
 consensus_ref_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "concat_ref\\.fasta$", recursive = T, full.names = T), function(x) {
   stack(protr::readFASTA(x)) %>% dplyr::mutate(sample = basename(dirname(x)))
@@ -89,8 +89,8 @@ consensus_ref_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "concat_ref\
   dplyr::rename("ref_seq_cr" = values) %>%
   tidyr::separate(ind, into = c("clonotype_id_cr", "temp1", "temp2", "ref_seq_cr.id"), sep = "_") %>%
   dplyr::select(-c(temp1, temp2)) %>%
-  dplyr::mutate(ref_seq_cr.id = as.numeric(ref_seq_cr.id)) %>%
-  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
+  dplyr::mutate(ref_seq_cr.id = ref_seq_cr.id) %>%
+  dplyr::mutate(clonotype_id_cr = str_extract(clonotype_id_cr, "[:digit:]{1,}"))
 
 contig_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "filtered_contig\\.fasta$", recursive = T, full.names = T), function(x) {
   stack(protr::readFASTA(x)) %>% dplyr::mutate(sample = basename(dirname(x)))
@@ -99,7 +99,7 @@ contig_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "filtered_contig\\.
   tidyr::separate(ind, into = c("Barcode", "temp", "contiq_id_cr"), sep = "_") %>%
   dplyr::select(-c(temp)) %>%
   dplyr::mutate(Barcode = str_replace(Barcode, "-1$", "")) %>%
-  dplyr::mutate(contiq_id_cr = as.numeric(contiq_id_cr))
+  dplyr::mutate(contiq_id_cr = contiq_id_cr)
 ```
 
 ## Process to long data frame

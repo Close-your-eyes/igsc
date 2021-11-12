@@ -7,7 +7,7 @@
 align_imgt_ref_to_TCR_seq(
   chain,
   TCR,
-  cl_long,
+  cl,
   imgt_ref,
   sequence_col = "cell.ranger.consensus.seq",
   C_allele
@@ -18,7 +18,7 @@ align_imgt_ref_to_TCR_seq(
 
 \item{TCR}{a named vector; which of your TCRs to align, the name indicates which column name of cl_long to use, the value indicates what to look for in that column}
 
-\item{cl_long}{the prepared clonotype data frame in long format}
+\item{cl}{the prepared list of clonotype data (wide and long data frames, named "wide" and "long")}
 
 \item{imgt_ref}{the prepared data.frame of IMGT references}
 
@@ -31,7 +31,7 @@ a list
 }
 \description{
 With Biostrings::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
-The sequence within these border may then be used for further steps.
+The sequence within these border may then be used for further steps. In case of mouse, IMGT gene segments from Mus musculus are preferred.
 }
 \examples{
 \dontrun{

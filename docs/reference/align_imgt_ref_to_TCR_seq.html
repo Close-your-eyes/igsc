@@ -41,7 +41,7 @@
 
 <meta property="og:title" content="Align IMGTs reference sequences to your TCR sequence — align_imgt_ref_to_TCR_seq" />
 <meta property="og:description" content="With Biostrings::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
-The sequence within these border may then be used for further steps." />
+The sequence within these border may then be used for further steps. In case of mouse, IMGT gene segments from Mus musculus are preferred." />
 
 
 
@@ -73,7 +73,7 @@ The sequence within these border may then be used for further steps." />
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">igsc</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.0.0.9551</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.0.0.9555</span>
       </span>
     </div>
 
@@ -123,13 +123,13 @@ The sequence within these border may then be used for further steps." />
 
     <div class="ref-description">
     <p>With Biostrings::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
-The sequence within these border may then be used for further steps.</p>
+The sequence within these border may then be used for further steps. In case of mouse, IMGT gene segments from Mus musculus are preferred.</p>
     </div>
 
     <pre class="usage"><span class='fu'>align_imgt_ref_to_TCR_seq</span><span class='op'>(</span>
   <span class='va'>chain</span>,
   <span class='va'>TCR</span>,
-  <span class='va'>cl_long</span>,
+  <span class='va'>cl</span>,
   <span class='va'>imgt_ref</span>,
   sequence_col <span class='op'>=</span> <span class='st'>"cell.ranger.consensus.seq"</span>,
   <span class='va'>C_allele</span>
@@ -147,8 +147,8 @@ The sequence within these border may then be used for further steps.</p>
       <td><p>a named vector; which of your TCRs to align, the name indicates which column name of cl_long to use, the value indicates what to look for in that column</p></td>
     </tr>
     <tr>
-      <th>cl_long</th>
-      <td><p>the prepared clonotype data frame in long format</p></td>
+      <th>cl</th>
+      <td><p>the prepared list of clonotype data (wide and long data frames, named "wide" and "long")</p></td>
     </tr>
     <tr>
       <th>imgt_ref</th>
