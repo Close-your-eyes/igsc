@@ -23,24 +23,24 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "
   cl_long <- cl[["long"]]
   cl_wide <- cl[["wide"]]
 
-  V.allele.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V.allele"])
-  if (length(V.allele.name) > 1) {
-    print(paste0("More than one V allele: ", paste(V.allele.name, collapse = ", "), "."))
+  V_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V_imgt"])
+  if (length(V_imgt.name) > 1) {
+    print(paste0("More than one V allele: ", paste(V_imgt.name, collapse = ", "), "."))
     print("Splitting output by those. Double check results, please.")
   }
 
-  J.allele.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "J.allele"])
-  if (length(J.allele.name) > 1) {
-    print(paste0("More than one J allele: ", paste(J.allele.name, collapse = ", "), "."))
+  J_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "J_imgt"])
+  if (length(J_imgt.name) > 1) {
+    print(paste0("More than one J allele: ", paste(J_imgt.name, collapse = ", "), "."))
     print("Splitting output by those. Double check results, please.")
   }
 
-  pairs <- paste(strsplit(unique(cl_wide[which(cl_wide$clonotype_name == TCR),paste0("V.allele_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide$clonotype_name == TCR),paste0("J.allele_", chain)]), ",")[[1]], sep = ",")
+  pairs <- paste(strsplit(unique(cl_wide[which(cl_wide$clonotype_name == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide$clonotype_name == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
 
   out <- lapply(pairs, function(x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
-    raw.cs <- cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V.allele"] == v), which(cl_long[,"J.allele"] == j))), sequence_col]
+    raw.cs <- cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V_imgt"] == v), which(cl_long[,"J_imgt"] == j))), sequence_col]
     if (length(raw.cs) > 1) {
       p1 <- MultipleSequenceAlignmentDECIPHER(input.set = raw.cs) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
       cs <- DECIPHER::ConsensusSequence(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F))
@@ -62,7 +62,7 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "
   names(cs) <- pairs
 
   # imgt ref seqs
-  imgt_v_allele_seq <- unlist(lapply(V.allele.name, function(x) {
+  imgt_v_allele_seq <- unlist(lapply(V_imgt.name, function(x) {
     imgt_v_allele_seq <- imgt_ref[which(imgt_ref$Allele %in% x),] %>% dplyr::distinct(seq.nt, meta, Allele)
     if (nrow(imgt_v_allele_seq) > 1) {
       if (sum(grepl("Mus musculus", imgt_v_allele_seq$meta)) == 1) {
@@ -73,9 +73,9 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "
     }
     return(imgt_v_allele_seq[,"seq.nt",drop=T])
   }))
-  names(imgt_v_allele_seq) <- V.allele.name
+  names(imgt_v_allele_seq) <- V_imgt.name
 
-  imgt_j_allele_seq <- unlist(lapply(J.allele.name, function(x) {
+  imgt_j_allele_seq <- unlist(lapply(J_imgt.name, function(x) {
     imgt_j_allele_seq <- imgt_ref[which(imgt_ref$Allele %in% x),] %>% dplyr::distinct(seq.nt, meta, Allele)
     if (nrow(imgt_j_allele_seq) > 1) {
       if (sum(grepl("Mus musculus", imgt_j_allele_seq$meta)) == 1) {
@@ -86,7 +86,7 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "
     }
     return(imgt_j_allele_seq[,"seq.nt",drop=T])
   }))
-  names(imgt_j_allele_seq) <- J.allele.name
+  names(imgt_j_allele_seq) <- J_imgt.name
 
 
   if (missing(C_allele)) {

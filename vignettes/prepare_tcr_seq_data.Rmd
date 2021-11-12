@@ -23,109 +23,114 @@ install.packages("tidyverse")
 install.packages("randomNames")
 install.packages("BiocManager")
 install.packages("parallel")
+install.packages("pbapply")
 BiocManager::install("Biostrings")
 BiocManager::install("protR")
 ```
 
-```{r setup, message=F,eval=T}
+```{r setup, message=F,}
 library(igsc)
 library(tidyverse)
 ```
 
-```{r, eval=T,include=F}
+```{r,include=F}
 vdj_path <- file.path(dirname(getwd()), "ignore_folder", "VDJ")
 ```
 
 Prepare a folder with sub-folder of your samples.
-```{r, eval=T}
+```{r}
 # vdj_path is the directory on your disk and may contain sub-folders of different samples
 list.files(vdj_path)
 ```
 
-Each sub-folder must contain the 6 files from the CellRanger output which are required to prepare a data frame as in the procedure below.
+Each sub-folder must contain the 6 files from the cr output which are required to prepare a data frame as in the procedure below.
 Some modifications may be possible putting the functionality of downstream functions at risk though.
-```{r, eval=T}
+```{r}
 list.files(file.path(vdj_path, "Pat3_rep1_blood"))
 ```
 
-## Read raw files from CellRanger output
+## Read raw files from cr output
 
 Read the files one by one and modify one or the other column name. Some operations are optional, others are necessary to join the data frames below.
 ```{r }
 consensus_annotations <- dplyr::bind_rows(lapply(list.files(vdj_path, "consensus_annotations\\.csv", recursive = T, full.names = T), function(x) {
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
-  dplyr::rename("cell.ranger.clonotype.id" = clonotype_id, "cell.ranger.consensus.id" = consensus_id) %>%
-  dplyr::mutate(cell.ranger.consensus.id = as.numeric(str_extract(cell.ranger.consensus.id, "[:digit:]{1,}$"))) %>%
-  dplyr::mutate(cell.ranger.clonotype.id = as.numeric(str_extract(cell.ranger.clonotype.id, "[:digit:]{1,}")))
+  dplyr::rename("clonotype_id_cr" = clonotype_id, "consensus_id_cr" = consensus_id) %>%
+  dplyr::mutate(consensus_id_cr = as.numeric(str_extract(consensus_id_cr, "[:digit:]{1,}$"))) %>%
+  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
 
 clonotypes <- dplyr::bind_rows(lapply(list.files(vdj_path, "clonotypes\\.csv", recursive = T, full.names = T), function(x) {
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
-  dplyr::rename("cell.ranger.clonotype.id" = clonotype_id) %>%
-  dplyr::mutate(cell.ranger.clonotype.id = as.numeric(str_extract(cell.ranger.clonotype.id, "[:digit:]{1,}")))
+  dplyr::rename("clonotype_id_cr" = clonotype_id) %>%
+  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
 
 contig_annotations <- dplyr::bind_rows(lapply(list.files(vdj_path, "filtered_contig_annotations\\.csv", recursive = T, full.names = T), function(x) {
   read.csv(x, sep = ",") %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
-  dplyr::rename("Barcode" = barcode, "cell.ranger.contig.id" = contig_id, "cell.ranger.clonotype.id" = raw_clonotype_id, "cell.ranger.consensus.id" = raw_consensus_id) %>%
-  dplyr::mutate(Barcode = str_replace(Barcode, "-1$", ""), cell.ranger.contig.id = as.numeric(str_extract(cell.ranger.contig.id, "[:digit:]{1,}$"))) %>%
-  dplyr::mutate(cell.ranger.consensus.id = as.numeric(str_extract(cell.ranger.consensus.id, "[:digit:]{1,}$"))) %>%
-  dplyr::mutate(cell.ranger.clonotype.id = as.numeric(str_extract(cell.ranger.clonotype.id, "[:digit:]{1,}")))
+  dplyr::rename("Barcode" = barcode, "contiq_id_cr" = contig_id, "clonotype_id_cr" = raw_clonotype_id, "consensus_id_cr" = raw_consensus_id) %>%
+  dplyr::mutate(Barcode = str_replace(Barcode, "-1$", ""), contiq_id_cr = as.numeric(str_extract(contiq_id_cr, "[:digit:]{1,}$"))) %>%
+  dplyr::mutate(consensus_id_cr = as.numeric(str_extract(consensus_id_cr, "[:digit:]{1,}$"))) %>%
+  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
 
 consensus_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "consensus\\.fasta$", recursive = T, full.names = T), function(x) {
   stack(protr::readFASTA(x)) %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
-  dplyr::rename("cell.ranger.consensus.seq" = values) %>%
-  tidyr::separate(ind, into = c("cell.ranger.clonotype.id", "temp", "cell.ranger.consensus.id"), sep = "_") %>%
+  dplyr::rename("consensus_seq_cr" = values) %>%
+  tidyr::separate(ind, into = c("clonotype_id_cr", "temp", "consensus_id_cr"), sep = "_") %>%
   dplyr::select(-temp) %>%
-  dplyr::mutate(cell.ranger.consensus.id = as.numeric(cell.ranger.consensus.id)) %>%
-  dplyr::mutate(cell.ranger.clonotype.id = as.numeric(str_extract(cell.ranger.clonotype.id, "[:digit:]{1,}$")))
+  dplyr::mutate(consensus_id_cr = as.numeric(consensus_id_cr)) %>%
+  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}$")))
 
 consensus_ref_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "concat_ref\\.fasta$", recursive = T, full.names = T), function(x) {
   stack(protr::readFASTA(x)) %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
-  dplyr::rename("cell.ranger.ref.seq" = values) %>%
-  tidyr::separate(ind, into = c("cell.ranger.clonotype.id", "temp1", "temp2", "cell.ranger.ref.seq.id"), sep = "_") %>%
+  dplyr::rename("ref_seq_cr" = values) %>%
+  tidyr::separate(ind, into = c("clonotype_id_cr", "temp1", "temp2", "ref_seq_cr.id"), sep = "_") %>%
   dplyr::select(-c(temp1, temp2)) %>%
-  dplyr::mutate(cell.ranger.ref.seq.id = as.numeric(cell.ranger.ref.seq.id)) %>%
-  dplyr::mutate(cell.ranger.clonotype.id = as.numeric(str_extract(cell.ranger.clonotype.id, "[:digit:]{1,}")))
+  dplyr::mutate(ref_seq_cr.id = as.numeric(ref_seq_cr.id)) %>%
+  dplyr::mutate(clonotype_id_cr = as.numeric(str_extract(clonotype_id_cr, "[:digit:]{1,}")))
 
 contig_fasta <- dplyr::bind_rows(lapply(list.files(vdj_path, "filtered_contig\\.fasta$", recursive = T, full.names = T), function(x) {
   stack(protr::readFASTA(x)) %>% dplyr::mutate(sample = basename(dirname(x)))
 })) %>%
-  dplyr::rename("cell.ranger.contig.seq" = values) %>%
-  tidyr::separate(ind, into = c("Barcode", "temp", "cell.ranger.contig.id"), sep = "_") %>%
+  dplyr::rename("contiq_seq_cr" = values) %>%
+  tidyr::separate(ind, into = c("Barcode", "temp", "contiq_id_cr"), sep = "_") %>%
   dplyr::select(-c(temp)) %>%
   dplyr::mutate(Barcode = str_replace(Barcode, "-1$", "")) %>%
-  dplyr::mutate(cell.ranger.contig.id = as.numeric(cell.ranger.contig.id))
+  dplyr::mutate(contiq_id_cr = as.numeric(contiq_id_cr))
 ```
 
 ## Process to long data frame
 
 Join the data frames. The only source for cell-barcodes are the contig-files.
 ```{r }
-consensus.data <-
+consensus_data <-
   consensus_annotations %>%
-  dplyr::full_join(consensus_fasta, by = c("cell.ranger.clonotype.id" = "cell.ranger.clonotype.id", "cell.ranger.consensus.id" = "cell.ranger.consensus.id", "sample" = "sample")) %>%
-  dplyr::full_join(consensus_ref_fasta, by = c("cell.ranger.clonotype.id" = "cell.ranger.clonotype.id", "cell.ranger.consensus.id" = "cell.ranger.ref.seq.id", "sample" = "sample"))
+  dplyr::full_join(consensus_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "consensus_id_cr", "sample" = "sample")) %>%
+  dplyr::full_join(consensus_ref_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "ref_seq_cr.id", "sample" = "sample"))
 
-contig.data <- contig_annotations %>% dplyr::full_join(contig_fasta, by = c("cell.ranger.contig.id" = "cell.ranger.contig.id", "Barcode" = "Barcode", "sample" = "sample"))
+contig.data <-
+  contig_annotations %>%
+  dplyr::full_join(contig_fasta, by = c("contiq_id_cr" = "contiq_id_cr", "Barcode" = "Barcode", "sample" = "sample"))
 
-contig.data.barcodes <- contig.data %>% dplyr::distinct(sample, cell.ranger.clonotype.id, Barcode)
+contig_data_barcodes <-
+  contig.data %>%
+  dplyr::distinct(sample, clonotype_id_cr, Barcode)
 ```
 
 Make one final data frame in long format.
 ```{r }
-clonotype.data.long.format <-
-  dplyr::left_join(consensus.data, contig.data.barcodes) %>%
-  dplyr::mutate(cell.ranger.clonotype.id = paste0(sample, "_", cell.ranger.clonotype.id)) %>%
-  dplyr::rename("V" = v_gene, "D" = d_gene, "J" = j_gene, "C" = c_gene, "CDR3.aa" = cdr3, "CDR3.nt" = cdr3_nt)
+cl_long <-
+  dplyr::left_join(consensus_data, contig_data_barcodes) %>%
+  dplyr::mutate(clonotype_id_cr = paste0(sample, "_", clonotype_id_cr)) %>%
+  dplyr::rename("V_cr" = v_gene, "D_cr" = d_gene, "J_cr" = j_gene, "C_cr" = c_gene, "CDR3.aa_cr" = cdr3, "CDR3.nt_cr" = cdr3_nt)
 ```
 
 ## Additional columns
 
-Even though CellRanger annotates VDJ chain, we may repeat that ourselves as well. Also this brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
+Even though cr annotates VDJ chain, we may repeat that ourselves as well. Also this brings the IMGT nomenclature into our data frame. For that we have to prepare a respective data frame from the data available on IMGTs website.
 This may be done with the igsc:imgt_tcr_segment_prep(). More easily: The respective data frames for human and mouse are included in this package, with data downloaded Oct-2021 from IMGT.
 
 ```{r }
@@ -137,67 +142,69 @@ imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "i
 #imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc"))
 
 # first, match allele names by smallest string distance
-V_matches <- sapply(unique(clonotype.data.long.format$V), function(x) {
+V_matches <- sapply(unique(cl_long$V_cr), function(x) {
   ref_al <- imgt_ref$Allele[which(grepl(stringr::str_extract(x, "^[:alpha:]{1,}[:digit:]{1,}"), imgt_ref$Allele))]
   dists <- adist(x, ref_al, ignore.case = T)
   min_val <- min(dists)
-  ref_al[which(dists == min_val)]
+  return(unique(ref_al[which(dists == min_val)]))
 })
-J_matches <- sapply(unique(clonotype.data.long.format$J), function(x) {
+J_matches <- sapply(unique(cl_long$J_cr), function(x) {
   ref_al <- imgt_ref$Allele[which(grepl(stringr::str_extract(x, "^[:alpha:]{1,}[:digit:]{1,}"), imgt_ref$Allele))]
   dists <- adist(x, ref_al, ignore.case = T)
   min_val <- min(dists)
-  ref_al[which(dists == min_val)]
+  return(unique(ref_al[which(dists == min_val)]))
 })
-clonotype.data.long.format$V.allele <- V_matches[clonotype.data.long.format$V]
-clonotype.data.long.format$J.allele <- J_matches[clonotype.data.long.format$J]
+cl_long$V_imgt <- V_matches[cl_long$V_cr]
+cl_long$J_imgt <- J_matches[cl_long$J_cr]
 
 # then resolve allele-groups for which there are multiple alleles in IMGT
 V_unique <-
-  clonotype.data.long.format %>%
-  dplyr::distinct(cell.ranger.consensus.seq, V.allele, clonotype_name)
+  cl_long %>%
+  dplyr::distinct(consensus_seq_cr, V_imgt, clonotype_id_cr)
 
-V_unique$V.allele <- unlist(pbapply::pblapply(1:nrow(V_unique), function(x) {
-  als <- V_unique$V.allele[x]
-  if (length(unlist(als)) == 1) {
-    return(unname(unlist(als)))
+V_unique$V_imgt <- unlist(pbapply::pblapply(1:nrow(V_unique), function(x) {
+  als <- unlist(V_unique$V_imgt[x])
+  if (length(als) == 1) {
+    return(unname(als))
   } else {
-    seq <- V_unique$cell.ranger.consensus.seq[x]
-    refs <- imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"seq.nt"]
-    max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq), pattern = Biostrings::DNAStringSet(refs), type = "local", scoreOnly = T))
-    return(imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"Allele"][max.ind])
+    seq <- V_unique$consensus_seq_cr[x]
+    refs <- imgt_ref[which(imgt_ref$Allele %in% als),]
+    max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq), pattern = Biostrings::DNAStringSet(refs[,"seq.nt"]), type = "local", scoreOnly = T))
+    max.ind <- sample(1:length(max.ind), 1) # if multiple matches with equal score, pick one randomly
+    return(refs[max.ind,"Allele"])
   }
 }))
 
 J_unique <-
-  clonotype.data.long.format %>%
-  dplyr::distinct(cell.ranger.consensus.seq, J.allele, clonotype_name)
+  cl_long %>%
+  dplyr::distinct(consensus_seq_cr, J_imgt, clonotype_id_cr)
 
-J_unique$J.allele <- unlist(pbapply::pblapply(1:nrow(J_unique), function(x) {
-  als <- J_unique$J.allele[x]
-  if (length(unlist(als)) == 1) {
-    return(unname(unlist(als)))
+J_unique$J_imgt <- unlist(pbapply::pblapply(1:nrow(J_unique), function(x) {
+  als <- unlist(J_unique$J_imgt[x])
+  if (length(als) == 1) {
+    return(unname(als))
   } else {
-    seq <- J_unique$cell.ranger.consensus.seq[x]
-    refs <- imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"seq.nt"]
-    max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq), pattern = Biostrings::DNAStringSet(refs), type = "local", scoreOnly = T))
-    return(imgt_ref[which(imgt_ref$Allele %in% unlist(als)),"Allele"][max.ind])
+    seq <- J_unique$consensus_seq_cr[x]
+    refs <- imgt_ref[which(imgt_ref$Allele %in% als),]
+    max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq), pattern = Biostrings::DNAStringSet(refs[,"seq.nt"]), type = "local", scoreOnly = T))
+    max.ind <- sample(1:length(max.ind), 1) # if multiple matches with equal score, pick one randomly
+    return(refs[max.ind,"Allele"])
   }
 }))
 
 # join
-clonotype.data.long.format <-
-  clonotype.data.long.format %>%
-  dplyr::select(-c(J.allele, V.allele)) %>%
-  dplyr::left_join(V_unique, by = c("cell.ranger.consensus.seq", "clonotype_name")) %>%
-  dplyr::left_join(J_unique, by = c("cell.ranger.consensus.seq", "clonotype_name"))
+cl_long <-
+  cl_long %>%
+  dplyr::select(-c(J_imgt, V_imgt)) %>%
+  dplyr::left_join(V_unique, by = c("consensus_seq_cr", "clonotype_id_cr")) %>%
+  dplyr::left_join(J_unique, by = c("consensus_seq_cr", "clonotype_id_cr"))
 
 ```
 
 With the randomNames packages you may give your clonotypes a catchy name, as an alternative to e.g. "clonotype1001". The sampling from randomNames does not work perfect though, so we use a custom loop to avoid duplicate names.
 ```{r }
-# in this case we trust the clonotype assignment from CellRanger but one could also check that
-cls <- unique(clonotype.data.long.format$cell.ranger.clonotype.id)
+# in this case we trust the clonotype assignment from cr but one could also check that
+cls <- unique(cl_long$clonotype_id_cr)
 names <- c()
 for (i in seq_along(cls)) {
   name <- trimws(randomNames::randomNames(1, which.names = "first"))
@@ -207,7 +214,7 @@ for (i in seq_along(cls)) {
   names <- c(names, name)
 }
 cls <- stats::setNames(object = names, nm = cls)
-clonotype.data.long.format$clonotype_name <- cls[clonotype.data.long.format$cell.ranger.clonotype.id]
+cl_long$clonotype_name <- cls[cl_long$clonotype_id_cr]
 ```
 
 
@@ -219,20 +226,20 @@ Prepare a data frame in the wide format. Long or wide format may be useful in di
 collapse.fun <- function(x) {
   paste(x,collapse = ",")
 }
-clonotype.data.wide.format <-
-  clonotype.data.long.format %>%
-  dplyr::select(chain, Barcode, cell.ranger.clonotype.id, sample, CDR3.nt, CDR3.aa, V, J, C, cell.ranger.consensus.seq, cell.ranger.ref.seq, V.allele, J.allele, clonotype_name) %>%
-  tidyr::pivot_wider(names_from = chain, values_from = c(CDR3.nt, CDR3.aa, V, J, C, cell.ranger.consensus.seq, cell.ranger.ref.seq, V.allele, J.allele), values_fn = collapse.fun)
-clonotype.data.wide.format <- as.data.frame(clonotype.data.wide.format)
+cl_wide <-
+  cl_long %>%
+  dplyr::select(chain, Barcode, clonotype_id_cr, sample, CDR3.nt_cr, CDR3.aa_cr, V_cr, J_cr, C_cr, consensus_seq_cr, ref_seq_cr, V_imgt, J_imgt, clonotype_name) %>%
+  tidyr::pivot_wider(names_from = chain, values_from = c(CDR3.nt_cr, CDR3.aa_cr, V_cr, J_cr, C_cr, consensus_seq_cr, ref_seq_cr, V_imgt, J_imgt), values_fn = collapse.fun)
+cl_wide <- as.data.frame(cl_wide)
 ```
-```{r eval=T, include=F}
-clonotype.data.wide.format <- readRDS("clonotype_data.rds")[["wide"]]
+```{r  include=F}
+#cl_wide <- readRDS("clonotype_data.rds")[["wide"]]
 ```
-```{r eval=T}
-# test if every name is unique to cell.ranger.clonotype.id
+```{r }
+# test if every name is unique to clonotype_id_cr
 check <-
-  clonotype.data.wide.format %>%
-  dplyr::distinct(clonotype_name, CDR3.nt_TRA, CDR3.nt_TRB, cell.ranger.clonotype.id) %>%
+  cl_wide %>%
+  dplyr::distinct(clonotype_name, CDR3.nt_cr_TRA, CDR3.nt_cr_TRB, clonotype_id_cr) %>%
   dplyr::group_by(clonotype_name) %>%
   dplyr::summarise(levels.per.clonotype.name = n()) %>%
   dplyr::ungroup() %>%
@@ -242,12 +249,12 @@ all(check == 1)
 
 Save the processed clonotype data. The wide format may be used to create meta-data columns in the Seurat Object. That way the phenotype data are complemented with clonotype information which are then readily available e.g. as color code on a dimension reduction plot or so.
 ```{r }
-cl <- list(wide = clonotype.data.wide.format, long = clonotype.data.long.format)
+cl <- list(wide = cl_wide, long = cl_long)
 saveRDS(cl, "clonotype_data.rds")
 ```
 
 
-```{r, include=F, eval=T}
+```{r, include=F}
 cl <- readRDS("clonotype_data.rds")
 imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc"))
 ```
@@ -255,7 +262,7 @@ imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "i
 ## Align TCR sequencing data with IMGT references and obtain the V(D)J-range
 
 Now everything is set up to systematically align IMGT TCR reference gene segments to our sequencing data of TCRs.
-```{r, eval=T}
+```{r}
 # lets find an expanded clonotype_name
 top_expanded_clonotypes <- sort(table(cl[["wide"]]$clonotype_name), decreasing = T)
 head(top_expanded_clonotypes)
@@ -266,10 +273,10 @@ align_list_TRB <- igsc::align_imgt_ref_to_TCR_seq(chain = "TRB", TCR = setNames(
 ```
 
 The output of align_imgt_ref_to_TCR_seq contains several plots and sequence information.
-```{r, eval=T, fig.width=8, fig.height=4}
+```{r, fig.width=8, fig.height=4}
 names(align_list_TRA)
-# this plot shows how many different unique sequences existed in cl_long; source column is cell.ranger.consensus.seq
-# in different cells (single cell transcriptomes) the cell.ranger.consensus.seq may differ slightly but still the TCR is grouped into one clonotype
+# this plot shows how many different unique sequences existed in cl_long; source column is consensus_seq_cr
+# in different cells (single cell transcriptomes) the consensus_seq_cr may differ slightly but still the TCR is grouped into one clonotype
 # sometimes there are irrelevant sequence differences at the beginning or the end, which do not include the V(D)J-region
 # if there are at least 2 different ones the consensus is used for further processing
 align_list_TRA[[1]][[1]]
@@ -296,7 +303,7 @@ align_list_TRA[[5]][[1]]
 
 The obtained V(D)J-sequences can then be used to concatenate the complete TCR (attach the constant gene segment) or a whole expression cassette with additional elements like
 a P2A element, restriction sites, etc. Below one possible cassette is created. A fasta file with cassette elements is included in this package.
-```{r, eval=T}
+```{r}
 tcr_cassette_elements <- protr::readFASTA(system.file("extdata", "TCR_cassette_elements.fasta", package = "igsc"))
 
 # concatenate
