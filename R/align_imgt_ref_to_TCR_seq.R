@@ -17,7 +17,7 @@
 #' \dontrun{
 #'
 #' }
-align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "cell.ranger.consensus.seq", C_allele) {
+align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "consensus_seq_cr", C_allele) {
   chain <- match.arg(chain, c("TRA", "TRB"))
 
   cl_long <- cl[["long"]]
