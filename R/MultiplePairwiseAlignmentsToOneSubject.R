@@ -2,7 +2,7 @@
 #'
 #' This function is useful plot the alignment position of multiple patterns in one subject.
 #' It uses Biostrings::pairwiseAlignment(), retrieves the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-#' It does not work if the patterns have overlapping alignment ranges in the subect!
+#' It does not work if the patterns have overlapping alignment ranges in the subject!
 #'
 #' @param subject a character or DNAStringSet of one subject (to provide a name in final graphics, provide a named DNAStringSet)
 #' @param patterns a character vector or DNAStringSet of patterns to align to the subject sequence
@@ -14,14 +14,14 @@
 #' @param pattern.positions.size check
 #' @param print.subject.min.max check
 #' @param attach.length.to.name add the length of the string to the name on the axis
-#' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetical thing
+#' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
 #' @param title print a title to the alignment
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
 #' match.plot ggplot object of alignment shows patterns colored match, mismatch, etc,
 #' base.df = df and match.df are the respective data.frames used for plotting,
-#' seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start positiion of first aligned pattern, max = end position of the last aligned pattern)
+#' seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)
 #' @export
 #'
 #' @examples
