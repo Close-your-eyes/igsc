@@ -156,9 +156,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # get ranges
   subject.ranges <- lapply(split(data.frame(pa@subject@range), seq(nrow(data.frame(pa@subject@range)))), function (x) {x$start:x$end})
 
-  if (length(subject.ranges) > 1) {
-    is.subset <- unlist(lapply(which(!duplicated(subject.ranges)), function(i) {
-      any(unlist(lapply(which(!duplicated(subject.ranges)), function (j) {
+  ## error here, make new variable with
+  subject.ranges.unique <- subject.ranges[which(!duplicated(subject.ranges))]
+  pa.unique <- pa[which(!duplicated(subject.ranges))]
+
+  if (length(subject.ranges.unique) > 1) {
+    is.subset <- unlist(lapply(seq_along(subject.ranges.unique), function(i) {
+      any(unlist(lapply(seq_along(subject.ranges.unique), function (j) {
         if (i == j) {
           return(F)
         } else {
@@ -169,27 +173,30 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   } else {
     is.subset <- rep(F, length(subject.ranges))
   }
+  subject.ranges.unique <- subject.ranges.unique[which(!is.subset)]
+  pa.unique <- pa.unique[which(!is.subset)]
+
   # order alignment and subject ranges increasingly
-  pa.order <- pa[!is.subset][order(sapply(subject.ranges[which(!duplicated(subject.ranges))][!is.subset], function(x) min(x)))]
-  subject.ranges <- subject.ranges[!is.subset][order(sapply(subject.ranges[which(!duplicated(subject.ranges))][!is.subset], function(x) min(x)))]
+  pa.unique <- pa.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
+  subject.ranges.unique <- subject.ranges.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
 
   # paste together the complete subject
   total.subject.seq <- NULL
-  for (i in 1:length(subject.ranges)) {
+  for (i in 1:length(subject.ranges.unique)) {
     if (i == 1) {
-      total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, 1, (min(subject.ranges[[i]]) - 1)))
+      total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, 1, (min(subject.ranges.unique[[i]]) - 1)))
     } else {
       # correct for overlapping sequences
-      if (max(subject.ranges[[i-1]]) >= min(subject.ranges[[i]])) {
-        total.subject.seq <- stringr::str_sub(total.subject.seq, 1, max(subject.ranges[[i-1]]) - min(subject.ranges[[i]]) - 2)
+      if (max(subject.ranges.unique[[i-1]]) >= min(subject.ranges.unique[[i]])) {
+        total.subject.seq <- stringr::str_sub(total.subject.seq, 1, max(subject.ranges.unique[[i-1]]) - min(subject.ranges.unique[[i]]) - 2)
       } else {
-        total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, (max(subject.ranges[[i-1]]) + 1), (min(subject.ranges[[i]]) - 1)))
+        total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, (max(subject.ranges.unique[[i-1]]) + 1), (min(subject.ranges.unique[[i]]) - 1)))
       }
     }
-    total.subject.seq <- paste0(total.subject.seq, as.character(Biostrings::alignedSubject(pa.order[i])))
+    total.subject.seq <- paste0(total.subject.seq, as.character(Biostrings::alignedSubject(pa.unique[i])))
   }
   # paste the remaining seq behind the last alignment
-  total.subject.seq <- paste0(total.subject.seq, substr(as.character(pa.order@subject@unaligned), start = pa.order[length(subject.ranges)]@subject@range@start + pa.order[length(subject.ranges)]@subject@range@width, stop = nchar(as.character(pa.order@subject@unaligned))))
+  total.subject.seq <- paste0(total.subject.seq, substr(as.character(pa.unique@subject@unaligned), start = pa.unique[length(subject.ranges.unique)]@subject@range@start + pa.unique[length(subject.ranges.unique)]@subject@range@width, stop = nchar(as.character(pa.unique@subject@unaligned))))
 
 
   df <- data.frame(seq = strsplit(total.subject.seq, "")[[1]],
