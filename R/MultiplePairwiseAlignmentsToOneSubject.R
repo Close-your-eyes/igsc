@@ -52,6 +52,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                 "insertion" = "#000000",
                                 "ambiguous" = "#E69F00")
 
+  # fix missing
   if (missing(subject.name)) {
     if (is.null(names(subject))) {
       subject.name <- "subject"
@@ -149,7 +150,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     return(NULL)
   })
 
-
+# ??overlapping.range.vs.indels
   if (overlapping.range.vs.indels) {
     stop("overlapping ranges with indels cannot be handled.")
   }
