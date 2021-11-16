@@ -180,24 +180,25 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   pa.unique <- pa.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
   subject.ranges.unique <- subject.ranges.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
 
-  # paste together the complete subject
-  total.subject.seq <- NULL
-  for (i in 1:length(subject.ranges.unique)) {
-    if (i == 1) {
-      total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, 1, (min(subject.ranges.unique[[i]]) - 1)))
-    } else {
-      # correct for overlapping sequences
-      if (max(subject.ranges.unique[[i-1]]) >= min(subject.ranges.unique[[i]])) {
-        total.subject.seq <- stringr::str_sub(total.subject.seq, 1, max(subject.ranges.unique[[i-1]]) - min(subject.ranges.unique[[i]]) - 2)
-      } else {
-        total.subject.seq <- paste0(total.subject.seq, stringr::str_sub(subject, (max(subject.ranges.unique[[i-1]]) + 1), (min(subject.ranges.unique[[i]]) - 1)))
-      }
-    }
-    total.subject.seq <- paste0(total.subject.seq, as.character(Biostrings::alignedSubject(pa.unique[i])))
-  }
-  # paste the remaining seq behind the last alignment
-  total.subject.seq <- paste0(total.subject.seq, substr(as.character(pa.unique@subject@unaligned), start = pa.unique[length(subject.ranges.unique)]@subject@range@start + pa.unique[length(subject.ranges.unique)]@subject@range@width, stop = nchar(as.character(pa.unique@subject@unaligned))))
 
+  # paste together the complete subject
+  total.subject.seq <- stringr::str_sub(subject, 1, (min(subject.ranges.unique[[1]]) - 1))
+  for (i in rev(rev(seq_along(subject.ranges.unique))[-1])) {
+    # test if there is a gap between the ith and the i+1th alignment; if so, fill with original sequence
+    if (max(subject.ranges.unique[[i]]) < min(subject.ranges.unique[[i+1]])) {
+      # if yes use original subject
+      total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[i]])+1, min(subject.ranges.unique[[i+1]])-1))
+    } else {
+      # if not use seq from alignment
+      r <- min(subject.ranges.unique[[i]])
+      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
+    }
+    #print(total.subject.seq)
+  }
+  r <- min(subject.ranges.unique[[length(subject.ranges.unique)]])
+  total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[length(subject.ranges.unique)]@subject, 1, max(subject.ranges.unique[[length(subject.ranges.unique)]])+1-r))
+  ## attach the remaining sequence from subject
+  total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
 
   df <- data.frame(seq = strsplit(total.subject.seq, "")[[1]],
                    position = seq(1:length(strsplit(total.subject.seq, "")[[1]])))
