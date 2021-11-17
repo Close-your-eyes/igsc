@@ -1,13 +1,13 @@
 #' Align multiple DNA pattern sequences to one subject
 #'
 #' This function is useful plot the alignment position of multiple patterns in one subject.
-#' It uses Biostrings::pairwiseAlignment(), retrieves the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-#' It does not work if the patterns have overlapping alignment ranges in the subject!
+#' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
+#' The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
 #'
 #' @param subject a character or DNAStringSet of one subject (to provide a name in final graphics, provide a named DNAStringSet)
 #' @param patterns a character vector or DNAStringSet of patterns to align to the subject sequence
-#' @param subject.name optional provide a name for the subject; overwrites names provided with subject
-#' @param patterns.names optional provide names for the patterns; overwrites names provided with patterns
+#' @param subject.name optional, provide a name for the subject; overwrites names provided with subject
+#' @param patterns.names optional, provide names for the patterns; overwrites names provided with patterns
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
 #' @param subject.alignment.limits numeric vector of nt-positions (lower and upper) of the subject to manually limit (cut) the final graphic
 #' @param print.pattern.positions check
@@ -24,8 +24,15 @@
 #' seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)
 #' @export
 #'
+#' @importFrom magrittr %>%
+#'
 #' @examples
 #' \dontrun{
+#' s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
+#' s <- Biostrings::DNAStringSet(s)
+#' p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
+#' p <- Biostrings::DNAStringSet(p)
+#' als <- MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, type = "local")
 #'
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
@@ -211,7 +218,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   df.match <- df
   for (x in patterns.names) {
-    # without dplyr
     df.match[,x] <- ifelse(df.match[,x] == df.match[,subject.name], "match", ifelse(df.match[,x] == "-", "-", "mismatch"))
     df.match[,x] <- ifelse(df.match[,x] == "mismatch" & df.match[,subject.name] == "-", "insertion", df.match[,x])
     df.match[,x] <- ifelse(df.match[,x] == "-" & df.match[,subject.name] != "-", "gap", df.match[,x])
