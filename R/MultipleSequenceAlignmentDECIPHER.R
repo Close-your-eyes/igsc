@@ -1,9 +1,9 @@
 #' Have a Multiple Sequence Alignment calculated with DECIPHER, plotted as ggplot2 object
 #'
-#' @param input.set Vector of DNA sequences as character or DNAStringSet()
-#' @param add.consensus.seq logicle of a consensus sequence should be added to the alignment
-#' @param print.disamb.cons.seq.border logicle if to print the borders of longest stretch of disambiguate consensus sequence
-#' @param collapse.duplicate.seqs collapse identical sequences in the input.set to one sequence before alignemnt
+#' @param input.set Vector of DNA sequences as character or as DNAStringSet()
+#' @param add.consensus.seq logical of a consensus sequence should be added to the alignment
+#' @param print.disamb.cons.seq.border logical if to print the borders of longest stretch of disambiguate consensus sequence
+#' @param collapse.duplicate.seqs collapse identical sequences in the input.set to one sequence before alignment
 #' @param open.browser open the browser via DECIPHERs command DECIPHER::BrowseSeqs in addition to having the plot returned
 #'
 #' @return a ggplot object of the multiple sequence alignment

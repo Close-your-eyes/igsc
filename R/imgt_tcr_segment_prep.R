@@ -6,12 +6,12 @@
 #' All necessary files (human or mouse) are included in this package (Oct-2021) but may be downloaded manually from IMGT in case there are major updates.
 #' The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref/human", package = "igsc")), 'path to your folder') or
 #' file.copy(list.files(system.file("extdata", "IMGT_ref/mouse", package = "igsc")), 'path to your folder').
-#' This will also show you the required file names in case you provide your own folder.
-#' Readymade data frames are available with
+#' These files may also demonstrate the required file names and structures in case you want to provide updated data from IMGT.
+#' To skip this function and immediatly obtain its output, ready made data frames are available with
 #' imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc")) or
 #' imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc")).
-#' Sources and how to prepare the data yourself:
-#' Data for the xlsx-files are from
+#'
+#' Sources and how to prepare the data yourself. Data for the xlsx-files are from:
 #' http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&latin=Homo%20sapiens&group=TRAV,
 #' http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&latin=Homo%20sapiens&group=TRBV,
 #' http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&latin=Mus%20musculus&group=TRAV,

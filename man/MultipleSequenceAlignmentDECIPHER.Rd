@@ -13,13 +13,13 @@ MultipleSequenceAlignmentDECIPHER(
 )
 }
 \arguments{
-\item{input.set}{Vector of DNA sequences as character or DNAStringSet()}
+\item{input.set}{Vector of DNA sequences as character or as DNAStringSet()}
 
-\item{add.consensus.seq}{logicle of a consensus sequence should be added to the alignment}
+\item{add.consensus.seq}{logical of a consensus sequence should be added to the alignment}
 
-\item{print.disamb.cons.seq.border}{logicle if to print the borders of longest stretch of disambiguate consensus sequence}
+\item{print.disamb.cons.seq.border}{logical if to print the borders of longest stretch of disambiguate consensus sequence}
 
-\item{collapse.duplicate.seqs}{collapse identical sequences in the input.set to one sequence before alignemnt}
+\item{collapse.duplicate.seqs}{collapse identical sequences in the input.set to one sequence before alignment}
 
 \item{open.browser}{open the browser via DECIPHERs command DECIPHER::BrowseSeqs in addition to having the plot returned}
 }
