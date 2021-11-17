@@ -132,27 +132,17 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     }))
     if (any(indel.al.overlaps > 0)) {
       stop("Overlapping indels and aligment ranges on the subject cannot be handled, yet.")
-    } else {
-      overlapping.range.vs.indels <- F
     }
-  } else {
-    overlapping.range.vs.indels <- F
   }
 
   # check for indels, just for information
-  indels.found <- F
   lapply(pa, function(x) {
     if (length(x@subject@indel@unlistData@start) > 0) {
       print(paste0(x@pattern@unaligned@ranges@NAMES, " caused ", length(x@subject@indel@unlistData@start), " indel(s) in the subject."))
-      indels.found <- T
     }
     return(NULL)
   })
 
-
-  if (overlapping.range.vs.indels) {
-    stop("overlapping ranges with indels cannot be handled.")
-  }
   # get ranges
   subject.ranges <- lapply(split(data.frame(pa@subject@range), seq(nrow(data.frame(pa@subject@range)))), function (x) {x$start:x$end})
 
