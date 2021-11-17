@@ -9,7 +9,7 @@ align_imgt_ref_to_TCR_seq(
   TCR,
   cl,
   imgt_ref,
-  sequence_col = "cell.ranger.consensus.seq",
+  sequence_col = "consensus_seq_cr",
   C_allele
 )
 }

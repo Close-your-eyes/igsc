@@ -24,9 +24,9 @@ MultiplePairwiseAlignmentsToOneSubject(
 
 \item{patterns}{a character vector or DNAStringSet of patterns to align to the subject sequence}
 
-\item{subject.name}{optional provide a name for the subject; overwrites names provided with subject}
+\item{subject.name}{optional, provide a name for the subject; overwrites names provided with subject}
 
-\item{patterns.names}{optional provide names for the patterns; overwrites names provided with patterns}
+\item{patterns.names}{optional, provide names for the patterns; overwrites names provided with patterns}
 
 \item{type}{the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)}
 
@@ -40,7 +40,7 @@ MultiplePairwiseAlignmentsToOneSubject(
 
 \item{attach.length.to.name}{add the length of the string to the name on the axis}
 
-\item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetical thing}
+\item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing}
 
 \item{title}{print a title to the alignment}
 }
@@ -49,15 +49,20 @@ a list:
 base.plot ggplot object of alignment shows patterns colored by nt,
 match.plot ggplot object of alignment shows patterns colored match, mismatch, etc,
 base.df = df and match.df are the respective data.frames used for plotting,
-seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start positiion of first aligned pattern, max = end position of the last aligned pattern)
+seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)
 }
 \description{
 This function is useful plot the alignment position of multiple patterns in one subject.
-It uses Biostrings::pairwiseAlignment(), retrieves the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-It does not work if the patterns have overlapping alignment ranges in the subect!
+It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
+The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
 }
 \examples{
 \dontrun{
+s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
+s <- Biostrings::DNAStringSet(s)
+p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
+p <- Biostrings::DNAStringSet(p)
+als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, type = "global-local")
 
 }
 }

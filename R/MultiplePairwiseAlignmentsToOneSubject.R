@@ -32,7 +32,7 @@
 #' s <- Biostrings::DNAStringSet(s)
 #' p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
-#' als <- MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, type = "local")
+#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, type = "global-local")
 #'
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
@@ -59,7 +59,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                 "insertion" = "#000000",
                                 "ambiguous" = "#E69F00")
 
-  # fix missing
   if (missing(subject.name)) {
     if (is.null(names(subject))) {
       subject.name <- "subject"
@@ -144,12 +143,11 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
 
   # check for indels, just for information
-  lapply(pa, function(x) {
-    if (length(x@subject@indel@unlistData@start) > 0) {
-      print(paste0(x@pattern@unaligned@ranges@NAMES, " caused ", length(x@subject@indel@unlistData@start), " indel(s) in the subject."))
+  for (i in seq_along(pa)) {
+    if (length(pa[i]@subject@indel@unlistData@start) > 0) {
+      print(paste0(pa[i]@pattern@unaligned@ranges@NAMES, " caused ", length(pa[i]@subject@indel@unlistData@start), " indel(s) in the subject."))
     }
-    return(NULL)
-  })
+  }
 
   # get ranges
   subject.ranges <- lapply(split(data.frame(pa@subject@range), seq(nrow(data.frame(pa@subject@range)))), function (x) {x$start:x$end})
@@ -181,20 +179,16 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # paste together the complete subject
   total.subject.seq <- stringr::str_sub(subject, 1, (min(subject.ranges.unique[[1]]) - 1))
-  for (i in rev(rev(seq_along(subject.ranges.unique))[-1])) {
-    # test if there is a gap between the ith and the i+1th alignment; if so, fill with original sequence
-    if (max(subject.ranges.unique[[i]]) < min(subject.ranges.unique[[i+1]])) {
+  for (i in seq_along(subject.ranges.unique)) {
+    # test if there is a gap between the i-1th and the ith alignment; if so, fill with original sequence
+    if (i != 1 && max(subject.ranges.unique[[i-1]])+1 < min(subject.ranges.unique[[i]])) {
       # if yes use original subject
-      total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[i]])+1, min(subject.ranges.unique[[i+1]])-1))
-    } else {
-      # if not use seq from alignment
-      r <- min(subject.ranges.unique[[i]])
-      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
+      total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[i-1]])+1, min(subject.ranges.unique[[i]])-1))
     }
+    r <- min(subject.ranges.unique[[i]])
+    total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r+1, max(subject.ranges.unique[[i]])-r+1))
     #print(total.subject.seq)
   }
-  r <- min(subject.ranges.unique[[length(subject.ranges.unique)]])
-  total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[length(subject.ranges.unique)]@subject, 1, max(subject.ranges.unique[[length(subject.ranges.unique)]])+1-r))
   ## attach the remaining sequence from subject
   total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
 
