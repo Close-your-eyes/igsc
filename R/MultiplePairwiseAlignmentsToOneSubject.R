@@ -32,7 +32,7 @@
 #' s <- Biostrings::DNAStringSet(s)
 #' p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
-#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, type = "global-local")
+#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
 #'
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
