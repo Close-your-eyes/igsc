@@ -176,7 +176,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   pa.unique <- pa.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
   subject.ranges.unique <- subject.ranges.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
 
-
   # paste together the complete subject
   total.subject.seq <- stringr::str_sub(subject, 1, (min(subject.ranges.unique[[1]]) - 1))
   for (i in seq_along(subject.ranges.unique)) {
@@ -185,8 +184,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
       # if yes use original subject
       total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[i-1]])+1, min(subject.ranges.unique[[i]])-1))
     }
-    r <- min(subject.ranges.unique[[i]])
-    total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r+1, max(subject.ranges.unique[[i]])-r+1))
+    if (i < max(seq_along(subject.ranges.unique))) {
+      r <- min(subject.ranges.unique[[i]])
+      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
+    }
+    if (i == max(seq_along(subject.ranges.unique))) {
+      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r, max(subject.ranges.unique[[i]])-r+1))
+    }
     #print(total.subject.seq)
   }
   ## attach the remaining sequence from subject
