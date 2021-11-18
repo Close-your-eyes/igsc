@@ -32,8 +32,7 @@
 #' s <- Biostrings::DNAStringSet(s)
 #' p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
-#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
-#'
+#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black")
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    patterns,
@@ -48,16 +47,17 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    tile.border.color = NA,
                                                    title) {
 
-  alignment.colour.palette <- c("A" = "#ffafaf",
-                                "T" = "#fed7af",
-                                "C" = "#afffaf",
-                                "G" = "#afffff",
-                                "-" = "#ffffff",
-                                "match" = "#999999", ##d9d9d9
-                                "mismatch" = "#a51515",
-                                "gap" = "#9248d4",
-                                "insertion" = "#000000",
-                                "ambiguous" = "#E69F00")
+  #alignment.colour.palette
+  acp <- c("A" = "#ffafaf",
+           "T" = "#fed7af",
+           "C" = "#afffaf",
+           "G" = "#afffff",
+           "-" = "#ffffff",
+           "match" = "#999999", ##d9d9d9
+           "mismatch" = "#a51515",
+           "gap" = "#9248d4",
+           "insertion" = "#000000",
+           "ambiguous" = "#E69F00")
 
   if (missing(subject.name)) {
     if (is.null(names(subject))) {
@@ -221,29 +221,38 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   df <-
     df %>%
     tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq = ifelse(is.na(seq), "-", seq)) %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names))) %>%
-    dplyr::mutate(seq = factor(seq, levels = c(names(alignment.colour.palette)[1:4], names(alignment.colour.palette)[6:9], names(alignment.colour.palette)[5])))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
+  acp1 <- acp[which(names(acp) %in% unique(df$seq))]
+  df$seq <- factor(df$seq, levels = c(names(acp1)))
 
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq = ifelse(is.na(seq), "-", seq)) %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names))) %>%
-    dplyr::mutate(seq = factor(seq, levels = c(names(alignment.colour.palette)[1:4], names(alignment.colour.palette)[6:9], names(alignment.colour.palette)[5])))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
+  acp2 <- acp[which(names(acp) %in% unique(df.match$seq))]
+  df.match$seq <- factor(df.match$seq, levels = c(names(acp2)))
 
-  g1 <- ggplot2::ggplot(df, ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-    ggplot2::geom_tile(color = tile.border.color) +
+  g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
+    ggplot2::geom_tile() +
     ggplot2::theme_classic() +
-    ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
-    ggplot2::scale_fill_manual(values = alignment.colour.palette)
+    ggplot2::theme(legend.title = ggplot2::element_blank(), text=element_text(family = "Courier")) +
+    ggplot2::scale_fill_manual(values = acp1) +
+    ggplot2::scale_x_continuous(breaks = integer_breaks()) +
+    ylab("seq name")
 
 
-  g2 <- ggplot2::ggplot(df.match, ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-    ggplot2::geom_tile(color = tile.border.color) +
+  g2 <- ggplot2::ggplot(df.match %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
+    ggplot2::geom_tile() +
     ggplot2::theme_classic() +
-    ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
-    ggplot2::scale_fill_manual(values = alignment.colour.palette)
+    ggplot2::theme(legend.title = ggplot2::element_blank(), text=element_text(family = "Courier")) +
+    ggplot2::scale_fill_manual(values = acp2) +
+    ggplot2::scale_x_continuous(breaks = integer_breaks()) +
+    ylab("seq name")
+
+  if (!is.na(tile.border.color)) {
+    g1 <- g1 + ggplot2::geom_tile(data = df[which(df$seq != "-"), ], color = tile.border.color)
+    g2 <- g2 + ggplot2::geom_tile(data = df.match[which(df.match$seq != "-"), ], color = tile.border.color)
+  }
 
   ### pull positions of patterns
   if (print.pattern.positions) {
@@ -271,4 +280,15 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   return(list(base.plot = g1, match.plot = g2, base.df = df, match.df = df.match, min.max.subject.position = c(min.subj.pos, max.subj.pos)))
 }
+
+
+integer_breaks <- function(n = 5, ...) {
+  fxn <- function(x) {
+    breaks <- floor(base::pretty(x, n, ...))
+    names(breaks) <- attr(breaks, "labels")
+    breaks
+  }
+  return(fxn)
+}
+
 
