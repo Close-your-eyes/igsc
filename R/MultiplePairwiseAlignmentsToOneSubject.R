@@ -235,19 +235,19 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
     ggplot2::geom_tile() +
     ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text=element_text(family = "Courier")) +
+    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
     ggplot2::scale_fill_manual(values = acp1) +
     ggplot2::scale_x_continuous(breaks = integer_breaks()) +
-    ylab("seq name")
+    ggplot2::ylab("seq name")
 
 
   g2 <- ggplot2::ggplot(df.match %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
     ggplot2::geom_tile() +
     ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text=element_text(family = "Courier")) +
+    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
     ggplot2::scale_fill_manual(values = acp2) +
     ggplot2::scale_x_continuous(breaks = integer_breaks()) +
-    ylab("seq name")
+    ggplot2::ylab("seq name")
 
   if (!is.na(tile.border.color)) {
     g1 <- g1 + ggplot2::geom_tile(data = df[which(df$seq != "-"), ], color = tile.border.color)
