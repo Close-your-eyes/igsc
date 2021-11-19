@@ -30,7 +30,7 @@
 #' \dontrun{
 #' s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
 #' s <- Biostrings::DNAStringSet(s)
-#' p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
+#' p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
 #' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black")
 #' }
@@ -204,6 +204,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   pf <- list()
   gap.corr <- 0
+
+
+  #### FIX: USE AN ORDERED VERSION OF PA
   for (x in 1:length(pa)) {
     pf[[x]] <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
                           position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
@@ -222,12 +225,20 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
 
+
+  browser()
+
+
   df <-
     df %>%
     tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
   acp1 <- acp[which(names(acp) %in% unique(df$seq))]
   df$seq <- factor(df$seq, levels = c(names(acp1)))
+  df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
+
+  pa.unique[5]
+  patterns
 
   df.match <-
     df.match %>%
@@ -235,6 +246,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
   acp2 <- acp[which(names(acp) %in% unique(df.match$seq))]
   df.match$seq <- factor(df.match$seq, levels = c(names(acp2)))
+  df$df.match <- factor(df$df.match, levels = c(subject.name, patterns.names))
 
   g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
     ggplot2::geom_tile() +
