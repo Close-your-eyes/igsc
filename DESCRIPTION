@@ -1,6 +1,6 @@
 Package: igsc
 Title: Immunoglobolin sequences from scRNAseq
-Version: 0.0.0.9575
+Version: 0.0.0.9580
 Authors@R: 
     person(given = "Christopher Mark",
            family = "Skopnik",

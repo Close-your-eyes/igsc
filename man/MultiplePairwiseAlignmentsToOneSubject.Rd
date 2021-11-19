@@ -10,6 +10,7 @@ MultiplePairwiseAlignmentsToOneSubject(
   subject.name,
   patterns.names,
   type = "global-local",
+  order.patterns = F,
   subject.alignment.limits,
   print.pattern.positions = T,
   pattern.positions.size = 2,
@@ -29,6 +30,8 @@ MultiplePairwiseAlignmentsToOneSubject(
 \item{patterns.names}{optional, provide names for the patterns; overwrites names provided with patterns}
 
 \item{type}{the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)}
+
+\item{order.patterns}{order pattern increasingly by alignment position (start)}
 
 \item{subject.alignment.limits}{numeric vector of nt-positions (lower and upper) of the subject to manually limit (cut) the final graphic}
 
@@ -60,9 +63,9 @@ The function will not work if a gap is induced in the subject and at least two p
 \dontrun{
 s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
 s <- Biostrings::DNAStringSet(s)
-p <- stats::setNames(c("AAAA", "CCCC", "TTTT", "GGGG", "TTCC"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
+p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 p <- Biostrings::DNAStringSet(p)
-als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
-
+als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black")
+als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black", order.patterns = T)
 }
 }

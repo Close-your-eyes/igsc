@@ -16,6 +16,7 @@
 #' @param attach.length.to.name add the length of the string to the name on the axis
 #' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
 #' @param title print a title to the alignment
+#' @param order.patterns order pattern increasingly by alignment position (start)
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
@@ -33,12 +34,14 @@
 #' p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
 #' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black")
+#' als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black", order.patterns = T)
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    patterns,
                                                    subject.name,
                                                    patterns.names,
                                                    type = "global-local",
+                                                   order.patterns = F,
                                                    subject.alignment.limits,
                                                    print.pattern.positions = T,
                                                    pattern.positions.size = 2,
@@ -151,8 +154,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # get ranges
   subject.ranges <- lapply(split(data.frame(pa@subject@range), seq(nrow(data.frame(pa@subject@range)))), function (x) {x$start:x$end})
-
-  ## error here, make new variable with
   subject.ranges.unique <- subject.ranges[which(!duplicated(subject.ranges))]
   pa.unique <- pa[which(!duplicated(subject.ranges))]
 
@@ -189,7 +190,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
       total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
     }
     if (i == max(seq_along(subject.ranges.unique))) {
-      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique[i]@subject, min(subject.ranges.unique[[i]])-r, max(subject.ranges.unique[[i]])-r+1))
+      total.subject.seq <- paste0(total.subject.seq, pa.unique[i]@subject)
     }
     #print(total.subject.seq)
   }
@@ -205,8 +206,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   pf <- list()
   gap.corr <- 0
 
-
-  #### FIX: USE AN ORDERED VERSION OF PA
+  pa <- pa[order(sapply(subject.ranges, function(x) min(x)))]
   for (x in 1:length(pa)) {
     pf[[x]] <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
                           position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
@@ -225,10 +225,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
 
-
-  browser()
-
-
   df <-
     df %>%
     tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
@@ -236,9 +232,11 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   acp1 <- acp[which(names(acp) %in% unique(df$seq))]
   df$seq <- factor(df$seq, levels = c(names(acp1)))
   df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
-
-  pa.unique[5]
-  patterns
+  if (order.patterns) {
+    df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names[order(sapply(subject.ranges, function(x) min(x)))]))
+  } else {
+    df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
+  }
 
   df.match <-
     df.match %>%
@@ -246,7 +244,11 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
   acp2 <- acp[which(names(acp) %in% unique(df.match$seq))]
   df.match$seq <- factor(df.match$seq, levels = c(names(acp2)))
-  df$df.match <- factor(df$df.match, levels = c(subject.name, patterns.names))
+  if (order.patterns) {
+    df.match$seq.name <- factor(df.match$seq.name, levels = c(subject.name, patterns.names[order(sapply(subject.ranges, function(x) min(x)))]))
+  } else {
+    df.match$seq.name <- factor(df.match$seq.name, levels = c(subject.name, patterns.names))
+  }
 
   g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
     ggplot2::geom_tile() +
