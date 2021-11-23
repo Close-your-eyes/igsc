@@ -133,7 +133,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
 read_fasta <- function(file, legacy.mode = T, seqonly = F) {
   # taken from the protr package - needs one modification
-  lines <- readLines(file)
+  lines <- readLines(file, warn = F)
   if (legacy.mode) {
     comments <- grep("^;", lines)
     if (length(comments) > 0) {
