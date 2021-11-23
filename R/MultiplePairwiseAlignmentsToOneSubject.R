@@ -42,7 +42,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    patterns.names,
                                                    type = "global-local",
                                                    order.patterns = F,
-                                                   subject.alignment.limits,
                                                    print.pattern.positions = T,
                                                    pattern.positions.size = 2,
                                                    print.subject.min.max = F,
@@ -106,17 +105,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   names(subject) <- subject.name
 
   type <- match.arg(type, choices = c("global", "local", "overlap", "global-local", "local-global"))
-
-  # alignment limits
-  if (!missing(subject.alignment.limits)) {
-    if (length(subject.alignment.limits) != 2) {
-      return("Please provide an upper and lower limit for the aligment.")
-    }
-    if (subject.alignment.limits[1] > subject.alignment.limits[2]) {
-      subject.alignment.limits <- rev(subject.alignment.limits)
-    }
-    subject <- stringr::str_sub(subject, subject.alignment.limits[1], subject.alignment.limits[2])
-  }
 
   # calculate all alignments
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
