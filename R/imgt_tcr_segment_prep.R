@@ -62,7 +62,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
   files <- list.files(path, "\\.fasta", recursive = T, full.names = T)
   files <- files[which(!grepl("leader", basename(files)))]
   ts <- dplyr::bind_rows(lapply(files, function(x) {
-    utils::stack(.read_fasta(x))
+    utils::stack(read_fasta(x))
   })) %>%
     dplyr::rename("seq.nt" = values, "meta" = ind)
   ts$Allele <- stringr::str_replace(sapply(stringr::str_split(ts$meta, "\\|"), "[", 2),"/", "")
@@ -80,7 +80,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
     }
   }))
 
-  leader.seq <- utils::stack(.read_fasta(list.files(path, "TRV_leader_aa.fasta", recursive = T, full.names = T))) %>%
+  leader.seq <- utils::stack(read_fasta(list.files(path, "TRV_leader_aa.fasta", recursive = T, full.names = T))) %>%
     dplyr::rename("LEADER" = values, "meta" = ind) %>%
     dplyr::distinct()
   leader.seq$Allele <- stringr::str_replace(sapply(stringr::str_split(leader.seq$meta, "\\|"), "[", 2), "/", "")
@@ -131,7 +131,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 }
 
 
-.read_fasta <- function(file, legacy.mode = T, seqonly = F) {
+read_fasta <- function(file, legacy.mode = T, seqonly = F) {
   # taken from the protr package - needs one modification
   lines <- readLines(file)
   if (legacy.mode) {
