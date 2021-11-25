@@ -7,7 +7,7 @@
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param pattern.lim.size print the limits of aligned patterns (at which nt does the alignment to the subject starts and ends)
+#' @param pattern.lim.size size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting
 #' @param subject.lim.lines print vertical lines at the outermost subject-nts of all aligned patterns
 #' @param attach.nt add the length of the string to the name on the axis
 #' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
