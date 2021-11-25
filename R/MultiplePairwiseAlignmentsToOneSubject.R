@@ -4,19 +4,15 @@
 #' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
 #' The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
 #'
-#' @param subject a character or DNAStringSet of one subject (to provide a name in final graphics, provide a named DNAStringSet)
-#' @param patterns a character vector or DNAStringSet of patterns to align to the subject sequence
-#' @param subject.name optional, provide a name for the subject; overwrites names provided with subject
-#' @param patterns.names optional, provide names for the patterns; overwrites names provided with patterns
+#' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
+#' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param subject.alignment.limits numeric vector of nt-positions (lower and upper) of the subject to manually limit (cut) the final graphic
-#' @param print.pattern.positions check
-#' @param pattern.positions.size check
-#' @param print.subject.min.max check
-#' @param attach.length.to.name add the length of the string to the name on the axis
+#' @param pattern.lim.size print the limits of aligned patterns (at which nt does the alignment to the subject starts and ends)
+#' @param subject.lim.lines print vertical lines at the outermost subject-nts of all aligned patterns
+#' @param attach.nt add the length of the string to the name on the axis
 #' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
-#' @param title print a title to the alignment
 #' @param order.patterns order pattern increasingly by alignment position (start)
+#' @param perfect.matches.only filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
@@ -38,18 +34,15 @@
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    patterns,
-                                                   subject.name,
-                                                   patterns.names,
                                                    type = "global-local",
+                                                   perfect.matches.only = F,
                                                    order.patterns = F,
-                                                   print.pattern.positions = T,
-                                                   pattern.positions.size = 2,
-                                                   print.subject.min.max = F,
-                                                   attach.length.to.name = T,
-                                                   tile.border.color = NA,
-                                                   title) {
+                                                   pattern.lim.size = 2,
+                                                   subject.lim.lines = F,
+                                                   attach.nt = T,
+                                                   tile.border.color = NA) {
 
-  #alignment.colour.palette
+  #alignment.color.palette
   acp <- c("A" = "#ffafaf",
            "T" = "#fed7af",
            "C" = "#afffaf",
@@ -61,39 +54,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
            "insertion" = "#000000",
            "ambiguous" = "#E69F00")
 
-  if (missing(subject.name)) {
-    if (is.null(names(subject))) {
-      subject.name <- "subject"
-      names(subject) <- subject.name
-    } else {
-      subject.name <- names(subject)
-    }
-  }
-
-  if (missing(patterns.names)) {
-    if (is.null(names(patterns))) {
-      patterns.names <- paste0("pattern ", seq(1:length(patterns)))
-      names(patterns) <- patterns.names
-    } else {
-      patterns.names <- names(patterns)
-    }
-  } else {
-    if (length(patterns.names) != length(patterns)) {
-      stop("patterns.names must have same length as patterns.")
-    }
-    if (length(unique(patterns.names)) != length(patterns.names)) {
-      stop("patterns.names must be unique.")
-    }
-  }
-
-  if (attach.length.to.name) {
-    patterns.names <- paste0(patterns.names, "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
-    subject.name <- paste0(subject.name, "_", nchar(as.character(subject)), "nt")
-  }
-
-  patterns.names <- make.names(patterns.names)
-  subject.name <- make.names(subject.name)
-
   if (class(patterns) != "DNAStringSet") {
     patterns <- Biostrings::DNAStringSet(patterns)
   }
@@ -101,10 +61,32 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     subject <- Biostrings::DNAStringSet(subject)
   }
 
-  names(patterns) <- patterns.names
-  names(subject) <- subject.name
+  if (is.null(names(subject))) {
+    names(subject) <- "subject"
+  }
+  names(subject) <- make.names(names(subject))
+  if (is.null(names(patterns))) {
+    names(patterns) <- paste0("pattern_", seq(1,length(patterns)))
+  }
+  names(patterns)[which(is.na(names(patterns)))] <- paste0("pattern_", which(is.na(names(patterns))))
+  names(patterns) <- make.unique(names(patterns))
+  names(patterns) <- make.names(names(patterns))
+
+  if (attach.nt) {
+    names(subject) <- paste0(names(subject), "_", nchar(as.character(subject)), "nt")
+    names(patterns) <- paste0(names(patterns), "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
+  }
+
+  patterns.names <- names(patterns)
+  subject.name <- names(subject)
 
   type <- match.arg(type, choices = c("global", "local", "overlap", "global-local", "local-global"))
+
+  if (perfect.matches.only) {
+    perf <- Biostrings::vwhichPDict(subject = subject, pdict = Biostrings::PDict(patterns))[[1]]
+    print(paste0(length(perf), " of ", length(patterns), " patterns found to perfectly match the subject."))
+    patterns <- patterns[perf]
+  }
 
   # calculate all alignments
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
@@ -261,12 +243,12 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
 
   ### pull positions of patterns
-  if (print.pattern.positions) {
+  if (pattern.lim.size > 0) {
     pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
     for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
     pattern.ranges <- pattern.ranges %>% tidyr::pivot_longer(cols = c(start, end), names_to = "pos", values_to = "values")
     pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(df.match$position) + 2)
-    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.positions.size, inherit.aes = F)
+    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, inherit.aes = F)
   }
 
   min.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
@@ -275,16 +257,16 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   max.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(position)
   max.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)
 
-  if (print.subject.min.max) {
+  if (subject.lim.lines) {
+    g1 <- g1 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
     g2 <- g2 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
   }
 
-  if (!missing(title)) {
-    g1 <- g1 + ggplot2::ggtitle(title)
-    g2 <- g2 + ggplot2::ggtitle(title)
-  }
-
-  return(list(base.plot = g1, match.plot = g2, base.df = df, match.df = df.match, min.max.subject.position = c(min.subj.pos, max.subj.pos)))
+  return(list(base.plot = g1,
+              match.plot = g2,
+              base.df = df,
+              match.df = df.match,
+              min.max.subject.position = c(min.subj.pos, max.subj.pos)))
 }
 
 
