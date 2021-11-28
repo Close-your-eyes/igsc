@@ -87,6 +87,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     print(paste0(length(perf), " of ", length(patterns), " patterns found to perfectly match the subject."))
     patterns <- patterns[perf]
   }
+  if (length(patterns) == 0) {
+    stop("No pattern with perfect match left.")
+  }
 
   # calculate all alignments
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
