@@ -7,45 +7,33 @@
 MultiplePairwiseAlignmentsToOneSubject(
   subject,
   patterns,
-  subject.name,
-  patterns.names,
   type = "global-local",
+  perfect.matches.only = F,
   order.patterns = F,
-  subject.alignment.limits,
-  print.pattern.positions = T,
-  pattern.positions.size = 2,
-  print.subject.min.max = F,
-  attach.length.to.name = T,
-  tile.border.color = NA,
-  title
+  pattern.lim.size = 2,
+  subject.lim.lines = F,
+  attach.nt = T,
+  tile.border.color = NA
 )
 }
 \arguments{
-\item{subject}{a character or DNAStringSet of one subject (to provide a name in final graphics, provide a named DNAStringSet)}
+\item{subject}{a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)}
 
-\item{patterns}{a character vector or DNAStringSet of patterns to align to the subject sequence}
-
-\item{subject.name}{optional, provide a name for the subject; overwrites names provided with subject}
-
-\item{patterns.names}{optional, provide names for the patterns; overwrites names provided with patterns}
+\item{patterns}{a named character vector or named DNAStringSet of patterns to align to the subject sequence}
 
 \item{type}{the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)}
 
+\item{perfect.matches.only}{filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment}
+
 \item{order.patterns}{order pattern increasingly by alignment position (start)}
 
-\item{subject.alignment.limits}{numeric vector of nt-positions (lower and upper) of the subject to manually limit (cut) the final graphic}
+\item{pattern.lim.size}{size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting}
 
-\item{print.pattern.positions}{check}
+\item{subject.lim.lines}{print vertical lines at the outermost subject-nts of all aligned patterns}
 
-\item{pattern.positions.size}{check}
-
-\item{print.subject.min.max}{check}
-
-\item{attach.length.to.name}{add the length of the string to the name on the axis}
+\item{attach.nt}{add the length of the string to the name on the axis}
 
 \item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing}
-
-\item{title}{print a title to the alignment}
 }
 \value{
 a list:
