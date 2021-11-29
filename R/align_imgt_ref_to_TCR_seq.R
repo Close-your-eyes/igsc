@@ -20,8 +20,8 @@
 align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "consensus_seq_cr", C_allele) {
   chain <- match.arg(chain, c("TRA", "TRB"))
 
-  cl_long <- cl[["long"]]
-  cl_wide <- cl[["wide"]]
+  cl_long <- as.data.frame(cl[["long"]])
+  cl_wide <- as.data.frame(cl[["wide"]])
 
   V_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V_imgt"])
   if (length(V_imgt.name) > 1) {
@@ -35,7 +35,7 @@ align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "
     print("Splitting output by those. Double check results, please.")
   }
 
-  pairs <- paste(strsplit(unique(cl_wide[which(cl_wide$clonotype_name == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide$clonotype_name == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
+  pairs <- paste(strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
 
   out <- lapply(pairs, function(x) {
     v <- strsplit(x, ",")[[1]][1]
