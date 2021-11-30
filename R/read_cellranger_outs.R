@@ -1,8 +1,8 @@
 read_cellranger_outs <- function(vdj_path) {
 
-  vdj_path <- "/Users/vonskopnik/Documents/scRNAseq/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/arranged_for_Seurat/filtered_feature_bc_matrix/VDJ"
+  vdj_path <- "/Volumes/AG_Hiepe/Christopher.Skopnik/2019_scRNAseq/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/arranged_for_Seurat/filtered_feature_bc_matrix/VDJ"
 
-  vdj_dirs <- list.dirs(vdj_path)
+  vdj_dirs <- list.dirs(vdj_path, recursive = F)
   if (length(vdj_dirs) > 1) {
     vdj_dirs <- vdj_dirs[-1]
   }
@@ -35,7 +35,8 @@ read_cellranger_outs <- function(vdj_path) {
 
   consensus_annotations <-
     dplyr::bind_rows(lapply(cons_ann, rcsv)) %>%
-    dplyr::rename("clonotype_id_cr" = clonotype_id, "consensus_id_cr" = consensus_id)
+    dplyr::rename("clonotype_id_cr" = clonotype_id, "consensus_id_cr" = consensus_id)  %>%
+    dplyr::mutate(consensus_id_cr = stringr::str_extract(consensus_id_cr, "[:digit:]{1,}$"))
 
   consensus_fasta <-
     dplyr::bind_rows(lapply(cons_fast, rfasta, vn = "consensus_seq_cr")) %>%
@@ -61,20 +62,20 @@ read_cellranger_outs <- function(vdj_path) {
   consensus_data <-
     consensus_annotations %>%
     dplyr::full_join(consensus_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "consensus_id_cr", "sample" = "sample")) %>%
-    dplyr::full_join(consensus_ref_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "refseq_id_cr", "sample" = "sample"))
+    dplyr::full_join(consensus_ref_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "refseq_id_cr", "sample" = "sample")) %>%
+    dplyr::mutate(clonotype_id_cr = stringr::str_extract(clonotype_id_cr, "[:digit:]{1,}$"))
 
   contig_data_barcodes <-
     contig_annotations %>%
     dplyr::full_join(contig_fasta, by = c("contiq_id_cr" = "contiq_id_cr", "Barcode" = "Barcode", "sample" = "sample")) %>%
     dplyr::distinct(sample, clonotype_id_cr, Barcode) %>%
+    dplyr::mutate(clonotype_id_cr = stringr::str_extract(clonotype_id_cr, "[:digit:]{1,}$")) %>%
     dplyr::mutate(Barcode = stringr::str_replace(Barcode, "-1$", ""))
 
   cl_long <-
     dplyr::left_join(consensus_data, contig_data_barcodes, by = c("clonotype_id_cr", "sample")) %>%
-    dplyr::mutate(consensus_id_cr = stringr::str_extract(consensus_id_cr, "[:digit:]{1,}$")) %>%
-    dplyr::mutate(clonotype_id_cr = stringr::str_extract(clonotype_id_cr, "[:digit:]{1,}$")) %>%
     dplyr::mutate(clonotype_id_cr = paste0(sample, "_", clonotype_id_cr)) %>%
     dplyr::rename("V_cr" = v_gene, "D_cr" = d_gene, "J_cr" = j_gene, "C_cr" = c_gene, "CDR3_aa_cr" = cdr3, "CDR3_nt_cr" = cdr3_nt)
-#check rows
+
   return(cl_long)
 }
