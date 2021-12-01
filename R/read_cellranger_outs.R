@@ -1,6 +1,16 @@
+#' Read necessary file from 10X Genomics' cellranger output and return a concatenated data frame
+#'
+#' Required files in each subfolder of vdj_path are consensus_annotations.csv, filtered_contig_annotations.csv, consensus.fasta, concat_ref.fasta, filtered_contig.fasta.
+#' If one or more are missing this subfolder is excluded. clonotype_id and consensus_id are suffixed with _cr for cellranger; entries from consensus.fasta becomes consensus_seq_cr.
+#' ...
+#'
+#' @param vdj_path path to the parent folder containing one or multiple subfolders with cellrangers VDJ outs
+#'
+#' @return data frame (cl_long)
+#' @export
+#'
+#' @examples
 read_cellranger_outs <- function(vdj_path) {
-
-  vdj_path <- "/Volumes/AG_Hiepe/Christopher.Skopnik/2019_scRNAseq/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/arranged_for_Seurat/filtered_feature_bc_matrix/VDJ"
 
   vdj_dirs <- list.dirs(vdj_path, recursive = F)
   if (length(vdj_dirs) > 1) {
@@ -29,9 +39,6 @@ read_cellranger_outs <- function(vdj_path) {
   cons_fast <- list.files(vdj_path, "consensus\\.fasta$", recursive = T, full.names = T)
   cons_ref_fast <- list.files(vdj_path, "concat_ref\\.fasta$", recursive = T, full.names = T)
   filt_cont_fast <- list.files(vdj_path, "filtered_contig\\.fasta$", recursive = T, full.names = T)
-
-  rcsv <- function(x) {dplyr::mutate(read.csv(x, sep = ","), sample = basename(dirname(x)))}
-  rfasta <- function(x, vn) {dplyr::mutate(stack(read_fasta(x)), sample = basename(dirname(x))) %>% dplyr::rename(!!vn := values)}
 
   consensus_annotations <-
     dplyr::bind_rows(lapply(cons_ann, rcsv)) %>%
@@ -79,3 +86,6 @@ read_cellranger_outs <- function(vdj_path) {
 
   return(cl_long)
 }
+
+rcsv <- function(x) {dplyr::mutate(utils::read.csv(x, sep = ","), sample = basename(dirname(x)))}
+rfasta <- function(x, vn) {dplyr::mutate(utils::stack(read_fasta(x)), sample = basename(dirname(x))) %>% dplyr::rename(!!vn := values)}

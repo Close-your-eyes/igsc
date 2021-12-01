@@ -22,8 +22,10 @@ Imports:
     openxlsx,
     parallel,
     pbapply,
+    stats,
     stringr,
-    tidyr
+    tidyr,
+    utils
 Suggests: 
     rmarkdown,
     knitr,
