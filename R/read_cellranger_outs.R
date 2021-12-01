@@ -16,6 +16,7 @@ read_cellranger_outs <- function(vdj_path) {
   if (length(vdj_dirs) > 1) {
     vdj_dirs <- vdj_dirs[-1]
   }
+
   ff <- c("concat_ref.fasta", "consensus_annotations.csv", "consensus.fasta", "filtered_contig_annotations.csv", "filtered_contig.fasta")
   pattern <- "consensus_annotations\\.csv$|filtered_contig_annotations\\.csv$|consensus\\.fasta$|concat_ref\\.fasta$|filtered_contig\\.fasta$"
 
@@ -65,7 +66,6 @@ read_cellranger_outs <- function(vdj_path) {
     tidyr::separate(ind, into = c("Barcode", "temp", "contiq_id_cr"), sep = "_") %>%
     dplyr::select(-c(temp))
 
-
   consensus_data <-
     consensus_annotations %>%
     dplyr::full_join(consensus_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "consensus_id_cr", "sample" = "sample")) %>%
@@ -81,7 +81,6 @@ read_cellranger_outs <- function(vdj_path) {
 
   cl_long <-
     dplyr::left_join(consensus_data, contig_data_barcodes, by = c("clonotype_id_cr", "sample")) %>%
-    dplyr::mutate(clonotype_id_cr = paste0(sample, "_", clonotype_id_cr)) %>%
     dplyr::rename("V_cr" = v_gene, "D_cr" = d_gene, "J_cr" = j_gene, "C_cr" = c_gene, "CDR3_aa_cr" = cdr3, "CDR3_nt_cr" = cdr3_nt)
 
   return(cl_long)
@@ -89,3 +88,5 @@ read_cellranger_outs <- function(vdj_path) {
 
 rcsv <- function(x) {dplyr::mutate(utils::read.csv(x, sep = ","), sample = basename(dirname(x)))}
 rfasta <- function(x, vn) {dplyr::mutate(utils::stack(read_fasta(x)), sample = basename(dirname(x))) %>% dplyr::rename(!!vn := values)}
+
+
