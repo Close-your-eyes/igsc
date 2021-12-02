@@ -58,26 +58,26 @@ read_cellranger_outs <- function(vdj_path) {
 
   contig_annotations <-
     dplyr::bind_rows(lapply(filt_cont_ann, rcsv)) %>%
-    dplyr::rename("Barcode" = barcode, "contiq_id_cr" = contig_id, "clonotype_id_cr" = raw_clonotype_id, "consensus_id_cr" = raw_consensus_id) %>%
+    dplyr::rename("contiq_id_cr" = contig_id, "clonotype_id_cr" = raw_clonotype_id, "consensus_id_cr" = raw_consensus_id) %>%
     dplyr::mutate(contiq_id_cr = stringr::str_extract(contiq_id_cr, "[:digit:]{1,}$"))
 
   contig_fasta <-
     dplyr::bind_rows(lapply(filt_cont_fast, rfasta, vn = "contiq_seq_cr")) %>%
-    tidyr::separate(ind, into = c("Barcode", "temp", "contiq_id_cr"), sep = "_") %>%
+    tidyr::separate(ind, into = c("barcode", "temp", "contiq_id_cr"), sep = "_") %>%
     dplyr::select(-c(temp))
 
   consensus_data <-
     consensus_annotations %>%
-    dplyr::full_join(consensus_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "consensus_id_cr", "sample" = "sample")) %>%
+    dplyr::full_join(consensus_fasta, by = c("clonotype_id_cr", "consensus_id_cr", "sample")) %>%
     dplyr::full_join(consensus_ref_fasta, by = c("clonotype_id_cr" = "clonotype_id_cr", "consensus_id_cr" = "refseq_id_cr", "sample" = "sample")) %>%
     dplyr::mutate(clonotype_id_cr = stringr::str_extract(clonotype_id_cr, "[:digit:]{1,}$"))
 
   contig_data_barcodes <-
     contig_annotations %>%
-    dplyr::full_join(contig_fasta, by = c("contiq_id_cr" = "contiq_id_cr", "Barcode" = "Barcode", "sample" = "sample")) %>%
-    dplyr::distinct(sample, clonotype_id_cr, Barcode) %>%
+    dplyr::full_join(contig_fasta, by = c("contiq_id_cr", "barcode", "sample")) %>%
+    dplyr::distinct(sample, clonotype_id_cr, barcode) %>%
     dplyr::mutate(clonotype_id_cr = stringr::str_extract(clonotype_id_cr, "[:digit:]{1,}$")) %>%
-    dplyr::mutate(Barcode = stringr::str_replace(Barcode, "-1$", ""))
+    dplyr::mutate(barcode = stringr::str_replace(barcode, "-1$", ""))
 
   cl_long <-
     dplyr::left_join(consensus_data, contig_data_barcodes, by = c("clonotype_id_cr", "sample")) %>%
