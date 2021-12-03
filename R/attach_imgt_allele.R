@@ -34,7 +34,7 @@ attach_imgt_alleles <- function(cl_long,
   lapply_fun <- match.fun(lapply_fun)
 
   uniques <- lapply(c("V", "J"), function(i) {
-    matches <- match_imgt(unique(cl_long[,paste0(i, "_cr"),drop=T]))
+    matches <- match_imgt(unique(cl_long[,paste0(i, "_cr"),drop=T]), imgt_ref = imgt_ref)
     cl_long[[paste0(i, "_imgt")]] <- matches[cl_long[,paste0(i, "_cr"),drop=T]]
 
     unique <- dplyr::distinct(cl_long, consensus_seq_cr, clonotype_id_cr, sample, !!sym(paste0(i, "_imgt")))
@@ -68,7 +68,7 @@ attach_imgt_alleles <- function(cl_long,
 }
 
 
-match_imgt <- function(alleles) {
+match_imgt <- function(alleles, imgt_ref) {
   sapply(alleles, function(x) {
     ref_al <- imgt_ref$Allele[which(grepl(stringr::str_extract(x, "^[:alpha:]{1,}[:digit:]{1,}"), imgt_ref$Allele))]
     dists <- utils::adist(x, ref_al, ignore.case = T)
