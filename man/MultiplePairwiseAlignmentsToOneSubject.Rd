@@ -13,7 +13,8 @@ MultiplePairwiseAlignmentsToOneSubject(
   pattern.lim.size = 2,
   subject.lim.lines = F,
   attach.nt = T,
-  tile.border.color = NA
+  tile.border.color = NA,
+  fix_indels = F
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ MultiplePairwiseAlignmentsToOneSubject(
 \item{attach.nt}{add the length of the string to the name on the axis}
 
 \item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing}
+
+\item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
 }
 \value{
 a list:

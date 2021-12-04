@@ -13,6 +13,7 @@
 #' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
 #' @param order.patterns order pattern increasingly by alignment position (start)
 #' @param perfect.matches.only filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment
+#' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
@@ -40,7 +41,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    pattern.lim.size = 2,
                                                    subject.lim.lines = F,
                                                    attach.nt = T,
-                                                   tile.border.color = NA) {
+                                                   tile.border.color = NA,
+                                                   fix_indels = F) {
 
   #alignment.color.palette
   acp <- c("A" = "#ffafaf",
@@ -94,35 +96,49 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # calculate all alignments
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
 
-  # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
-  rr <-
-    as.data.frame(pa@subject@range) %>%
-    dplyr::mutate(alignment = seq(1, nrow(as.data.frame(pa@subject@range)), 1)) %>%
-    dplyr::select(-c(width)) %>%
-    dplyr::left_join(as.data.frame(pa@subject@indel) %>% dplyr::rename("alignment" = group, "indel.start" = start, "indel.end" = end, "indel.width" = width) %>% dplyr::select(-c(group_name)), by = "alignment") %>%
-    tidyr::drop_na() %>%
-    dplyr::mutate(indel.start.corr = indel.start + start - 1) %>%
-    dplyr::mutate(indel.end.corr = indel.start.corr + indel.width - 1)
-
-  combs <- expand.grid(unique(rr$alignment), unique(rr$alignment))
-  combs <- as.matrix(combs[which(combs$Var1 != combs$Var2),])
-  if (nrow(combs) > 0) {
-    indel.al.overlaps <- unlist(lapply(split(combs, seq(nrow(combs))), function(x) {
-      al.range <- unique(rr[which(rr$alignment == x[1]),"start"]):unique(rr[which(rr$alignment == x[1]),"end"])
-      unlist(lapply(c(apply(as.matrix(rr[which(rr$alignment == x[2]),c("indel.start.corr", "indel.end.corr")]), 1, function(y) {seq(y[1], y[2], 1)})), function (z) {
-        length(intersect(al.range, z))
-      }))
-    }))
-    if (any(indel.al.overlaps > 0)) {
-      stop("Overlapping indels and aligment ranges on the subject cannot be handled, yet.")
-    }
-  }
-
-  # check for indels, just for information
+  # check for indels induced in the subject
   for (i in seq_along(pa)) {
     if (length(pa[i]@subject@indel@unlistData@start) > 0) {
       print(paste0(pa[i]@pattern@unaligned@ranges@NAMES, " caused ", length(pa[i]@subject@indel@unlistData@start), " indel(s) in the subject."))
     }
+  }
+
+  # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
+  ind <- as.data.frame(pa@subject@range)
+  names(ind) <- c("al_start", "al_end", "al_width")
+  ind$group <- 1:nrow(ind)
+  ind <- dplyr::left_join(ind, as.data.frame(pa@subject@indel)[,-2], by = "group")
+  ind$indel_start <- ind$start + ind$al_start - 1
+  ind$indel_end <- ind$indel_start + ind$width - 1
+  ind$corr_end <- NA
+
+  als <- mapply(seq, ind$al_start, ind$al_end)
+  inds <- mapply(seq, ind$indel_start[!is.na(ind$indel_start)], ind$indel_end[!is.na(ind$indel_end)])
+
+  do_fix <- F
+  for (i in seq_along(als)) {
+    for (j in seq_along(inds)) {
+      if (i != j) {
+        if (length(intersect(als[[i]],inds[[j]])) > 0) {
+          if (!fix_indels) {
+            stop("Overlapping indel and subject alignment range found. This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
+                 To do so, set fix_indels = T.")
+          }
+          do_fix <- T
+          ind[j,"corr_end"] <- ind[j,"start"] - 1
+        }
+      }
+    }
+  }
+
+  if (do_fix && fix_indels) {
+    for (k in seq_along(patterns)) {
+      if (any(!is.na(ind[which(ind$group == k), "corr_end"]))) {
+        print(paste0(names(patterns)[k], " is cut at position ", min(ind[which(ind$group == k), "corr_end"], na.rm = T), " to avoid indel overlap with another's pattern range on the subject. Experimental, yet."))
+        patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(ind[which(ind$group == k), "corr_end"], na.rm = T))
+      }
+    }
+    pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
   }
 
   # get ranges

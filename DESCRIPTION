@@ -23,7 +23,9 @@ Imports:
     parallel,
     pbapply,
     randomNames,
+    reshape2,
     stats,
+    stringdist,
     stringr,
     tidyr,
     utils
