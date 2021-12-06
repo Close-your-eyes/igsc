@@ -10,7 +10,7 @@
 #'
 #' @param tcrs data frame of TCR data from sequencing, first column indicating the chain TRA or TRB, second the aa sequence of CDR3
 #' @param vdjdb data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3;
-#' if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used
+#' if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table from 12-06-2021)
 #' @param vdj_tr_col column (name) which codes the TCR chain (TRA or TRB) in the vdjdb reference data frame
 #' @param tcr_tr_col column (name) which codes the TCR chain (TRA or TRB) in the tcrs data frame
 #' @param vdj_cdr3_col column (name) which codes the CDR3s in the vdjdb reference data frame
