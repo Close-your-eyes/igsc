@@ -66,6 +66,9 @@ vdjdb_hits <- function(vdjdb,
     stop(paste0(tcr_tr_col, " column of tcrs should only contain TRA and/or TRB."))
   }
 
+  #utils::untar(base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc"), exdir = tempdir())
+  #vdjdb <- read.table(file.path(tempdir(), "vdjdb.tsv"), sep = "\t", header = T)
+
   mapply_fun <- match.fun(mapply_fun)
   vdjdb <- dplyr::distinct(vdjdb, !!sym(vdj_cdr3_col), !!sym(vdj_tr_col))
   tcrs <- dplyr::distinct(tcrs, !!sym(tcr_tr_col), !!sym(tcr_cdr3_col))
