@@ -15,13 +15,13 @@ vdjdb_hits(
   max_lvdist = 3,
   PAM30_similarity = F,
   mapply_fun = mapply,
-  nthread = getOption("sd_num_thread"),
+  lapply_fun = lapply,
   ...
 )
 }
 \arguments{
 \item{vdjdb}{data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3;
-if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used}
+if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table from 12-06-2021)}
 
 \item{tcrs}{data frame of TCR data from sequencing, first column indicating the chain TRA or TRB, second the aa sequence of CDR3}
 
@@ -41,9 +41,9 @@ if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc
 
 \item{mapply_fun}{mapply function for PAM30_similarity, suggested are mapply, pbapply::pbmapply, parallel::mcmapply}
 
-\item{nthread}{number of threads (cores) to use for levensthein distance calculation}
+\item{lapply_fun}{lapply function for stringdist calculation, suggested are lapply, pblapply::pbmapply, parallel::mclapply}
 
-\item{...}{arguments passed to mapply_fun, most relevant: mc.cores (e.g parallel::detectCores())}
+\item{...}{arguments passed to mapply_fun and lapply_fun, most relevant: mc.cores (e.g parallel::detectCores())}
 }
 \value{
 data frame of matched CDR3s from tcrs and vdjdb, column lv indicates the levensthein

@@ -19,8 +19,8 @@
 #' @param max_lvdist maximum levensthein distance between CDR3s for return data frame (also filtering before PAM30 similarity calculation)
 #' @param PAM30_similarity logical whether to calculate the similarity between CDR3s based on PAM30 substitution matrix
 #' @param mapply_fun mapply function for PAM30_similarity, suggested are mapply, pbapply::pbmapply, parallel::mcmapply
-#' @param nthread number of threads (cores) to use for levensthein distance calculation
-#' @param ... arguments passed to mapply_fun, most relevant: mc.cores (e.g parallel::detectCores())
+#' @param ... arguments passed to mapply_fun and lapply_fun, most relevant: mc.cores (e.g parallel::detectCores())
+#' @param lapply_fun lapply function for stringdist calculation, suggested are lapply, pblapply::pbmapply, parallel::mclapply
 #'
 #' @return data frame of matched CDR3s from tcrs and vdjdb, column lv indicates the levensthein
 #' between CDR3 from vdjdb and tcrs
@@ -51,7 +51,7 @@ vdjdb_hits <- function(vdjdb,
                        max_lvdist = 3,
                        PAM30_similarity = F,
                        mapply_fun = mapply,
-                       nthread = getOption("sd_num_thread"),
+                       lapply_fun = lapply,
                        ...) {
 
 
@@ -65,7 +65,6 @@ vdjdb_hits <- function(vdjdb,
   if (missing(vdjdb)) {
     vdjdb <- readRDS(system.file("extdata", "vdjdb.tsv.rds", package = "igsc"))
   }
-
   if (missing(tcrs)) {
     stop("Please provide a tcrs data frame.")
   }
@@ -80,6 +79,7 @@ vdjdb_hits <- function(vdjdb,
   }
 
   mapply_fun <- match.fun(mapply_fun)
+  lapply_fun <- match.fun(lapply_fun)
   vdjdb <- dplyr::distinct(vdjdb, !!sym(vdj_cdr3_col), !!sym(vdj_tr_col))
   tcrs <- dplyr::distinct(tcrs, !!sym(tcr_tr_col), !!sym(tcr_cdr3_col))
 
@@ -92,8 +92,9 @@ vdjdb_hits <- function(vdjdb,
                                    tcr_tr_col = tcr_tr_col,
                                    vdj_cdr3_col = vdj_cdr3_col,
                                    tcr_cdr3_col = tcr_cdr3_col,
-                                   nthread = nthread))
-  matches <- matches[which(matches$lv <= max_lvdist),]
+                                   max_lvdist = max_lvdist,
+                                   lapply_fun = lapply_fun,
+                                   ...))
 
   if (PAM30_similarity) {
     matches$PAM30 <- mapply_fun(Biostrings::pairwiseAlignment,
@@ -128,21 +129,32 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
                                  tcr_tr_col,
                                  vdj_cdr3_col,
                                  tcr_cdr3_col,
-                                 nthread) {
-  matches <- mapply(stringdist::stringdistmatrix,
-                    split(vdjdb[,vdj_cdr3_col,drop=T], vdjdb[,vdj_tr_col,drop=T])[sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc)],
-                    split(tcrs[,tcr_cdr3_col,drop=T], tcrs[,tcr_tr_col,drop=T])[sort(unique(tcrs[,tcr_tr_col,drop=T]))],
-                    method = "lv",
-                    useNames = "strings",
-                    SIMPLIFY = F,
-                    nthread = nthread)
-  names(matches) <- paste(sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc), sort(unique(tcrs[,tcr_tr_col,drop=T])), sep = "_")
-  matches <- sapply(matches, reshape2::melt, simplify = F, c(vdj_cdr3_col, tcr_cdr3_col), value.name = "lv")
-  matches <- do.call(rbind, matches)
-  matches[,vdj_tr_col] <- sapply(strsplit(sapply(strsplit(rownames(matches), "\\."), "[", 1), "_"), "[", 1)
-  matches[,tcr_tr_col] <- sapply(strsplit(sapply(strsplit(rownames(matches), "\\."), "[", 1), "_"), "[", 2)
-  rownames(matches) <- NULL
+                                 max_lvdist,
+                                 lapply_fun,
+                                 ...) {
 
+  tcrs_split <- split(tcrs, ceiling(1:nrow(tcrs)/(nrow(tcrs)/256)))
+  matches <- lapply_fun(tcrs_split, function(x) {
+    matches <- mapply(stringdist::stringdistmatrix,
+                      split(vdjdb[,vdj_cdr3_col,drop=T], vdjdb[,vdj_tr_col,drop=T])[sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc)],
+                      split(x[,tcr_cdr3_col,drop=T], x[,tcr_tr_col,drop=T])[sort(unique(x[,tcr_tr_col,drop=T]))],
+                      method = "lv",
+                      useNames = "strings",
+                      SIMPLIFY = F,
+                      nthread = 1)
+    matches <- sapply(matches, function(y) y[which(apply(y, 1, min) <= max_lvdist), which(apply(y, 2, min) <= max_lvdist)])
+    matches <- sapply(matches, reshape2::melt, simplify = F, c(vdj_cdr3_col, tcr_cdr3_col), value.name = "lv")
+    names(matches) <- paste(sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc), sort(unique(x[,tcr_tr_col,drop=T])), sep = "_")
+    matches <- do.call(rbind, matches)
+    matches <- matches[which(matches$lv <= max_lvdist),]
+    matches[,vdj_tr_col] <- sapply(strsplit(sapply(strsplit(rownames(matches), "\\."), "[", 1), "_"), "[", 1)
+    matches[,tcr_tr_col] <- sapply(strsplit(sapply(strsplit(rownames(matches), "\\."), "[", 1), "_"), "[", 2)
+    rownames(matches) <- NULL
+    return(matches)
+  }, ...)
+
+  matches <- do.call(rbind, matches)
+  rownames(matches) <- NULL
 
   return(matches)
 }
