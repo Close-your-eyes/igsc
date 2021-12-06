@@ -63,7 +63,7 @@ vdjdb_hits <- function(vdjdb,
   }
 
   if (missing(vdjdb)) {
-    vdjdb <- readRDS(file.path(tempdir(), "vdjdb.tsv.rds"))
+    vdjdb <- readRDS(system.file("extdata", "vdjdb.tsv.rds", package = "igsc"))
   }
 
   if (missing(tcrs)) {
