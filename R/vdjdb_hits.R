@@ -34,21 +34,10 @@ vdj_hits <- function(vdjdb,
   }
 
   mapply_fun <- match.fun(mapply_fun)
-
-  tcrs <- cl_long
+  vdjdb_orig <- vdjdb
+  tcrs_orig <- tcrs
+  vdjdb <- dplyr::distinct(vdjdb, !!sym(vdj_cdr3_col), !!sym(vdj_tr_col))
   tcrs <- dplyr::distinct(tcrs, !!sym(tcr_tr_col), !!sym(tcr_cdr3_col))
-
-  #/Volumes/AG_Hiepe/Christopher.Skopnik/2019_scRNAseq/R_scRNAseq/2019_SLE_LN/data/20211020_vdjdb.tsv
-  #"/Users/vonskopnik/Documents/scRNAseq/R_scRNAseq/2019_SLE_LN/data/20211020_vdjdb.tsv"
-  vdjdb <-
-    read.csv("/Users/vonskopnik/Documents/scRNAseq/R_scRNAseq/2019_SLE_LN/data/20211020_vdjdb.tsv", sep = "\t", header = T) %>%
-    dplyr::filter(Species == "HomoSapiens") %>%
-    dplyr::distinct(!!sym(vdj_cdr3_col), !!sym(vdj_tr_col))
-
-  vdjdb <- vdjdb %>% dplyr::group_by(Gene) %>% dplyr::slice(1:200)
-  tcrs <- tcrs %>% dplyr::group_by(chain) %>% dplyr::slice(1:200)
-
-
 
   matches <- do.call(rbind, lapply(unique(c(F, TRAxTRB)),
                                    vdjdb_tcrs_match_fun,
@@ -84,8 +73,10 @@ vdj_hits <- function(vdjdb,
   }
 
 
-  matches2 <- dplyr::left_join(matches, tcrs) %>% dplyr::left_join(vdjdb) %>% dplyr::distinct(CDR3, CDR3_aa_cr, lv, Gene, chain, clonotype_id_cr, sample,
-                                                                                              Species, Epitope, Epitope.gene, Epitope.species, Score)
+  matches2 <-
+    dplyr::left_join(matches, tcrs) %>%
+    dplyr::left_join(vdjdb) %>%
+    dplyr::distinct(CDR3, CDR3_aa_cr, lv, Gene, chain, clonotype_id_cr, sample, Species, Epitope, Epitope.gene, Epitope.species, Score)
 
   ggplot(matches2, aes(x = chain, y = lv, fill = Epitope.species, color = Gene)) +
     geom_jitter(width = 0.15, height = 0.15, shape = 21) +
@@ -93,6 +84,7 @@ vdj_hits <- function(vdjdb,
     theme_bw() +
     theme(panel.grid = element_blank()) +
     scale_color_manual(values = c("#000000", "#999999")) +
+    guides(fill = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
     facet_grid(rows = vars(Score), cols = vars(clonotype_id_cr))
 
 
@@ -122,3 +114,20 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
   rownames(matches) <- NULL
   return(matches)
 }
+
+
+
+tcrs <- cl_long
+tcrs <- dplyr::distinct(tcrs, !!sym(tcr_tr_col), !!sym(tcr_cdr3_col))
+
+#/Volumes/AG_Hiepe/Christopher.Skopnik/2019_scRNAseq/R_scRNAseq/2019_SLE_LN/data/20211020_vdjdb.tsv
+#"/Users/vonskopnik/Documents/scRNAseq/R_scRNAseq/2019_SLE_LN/data/20211020_vdjdb.tsv"
+vdjdb <-
+  read.csv("/Users/vonskopnik/Documents/scRNAseq/R_scRNAseq/2019_SLE_LN/data/20211020_vdjdb.tsv", sep = "\t", header = T) %>%
+  dplyr::filter(Species == "HomoSapiens") %>%
+  dplyr::distinct(!!sym(vdj_cdr3_col), !!sym(vdj_tr_col))
+
+vdjdb <- vdjdb %>% dplyr::group_by(Gene) %>% dplyr::slice(1:200)
+tcrs <- tcrs %>% dplyr::group_by(chain) %>% dplyr::slice(1:200)
+
+
