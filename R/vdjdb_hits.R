@@ -9,7 +9,8 @@
 #' though that these columns have different names in vdjdb and tcrs.
 #'
 #' @param tcrs data frame of TCR data from sequencing, first column indicating the chain TRA or TRB, second the aa sequence of CDR3
-#' @param vdjdb data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3
+#' @param vdjdb data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3;
+#' if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used
 #' @param vdj_tr_col column (name) which codes the TCR chain (TRA or TRB) in the vdjdb reference data frame
 #' @param tcr_tr_col column (name) which codes the TCR chain (TRA or TRB) in the tcrs data frame
 #' @param vdj_cdr3_col column (name) which codes the CDR3s in the vdjdb reference data frame
@@ -53,21 +54,31 @@ vdjdb_hits <- function(vdjdb,
                        nthread = getOption("sd_num_thread"),
                        ...) {
 
+
   if (vdj_tr_col == tcr_tr_col) {
     stop("Please avoid same names for tcr_tr_col and vdj_tr_col.")
   }
   if (vdj_cdr3_col == tcr_cdr3_col) {
     stop("Please avoid same names for tcr_cdr3_col and vdj_cdr3_col")
   }
+
+  if (missing(vdjdb)) {
+    utils::untar(base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc"), exdir = tempdir())
+    vdjdb <- read.csv(file.path(tempdir(), "vdjdb.tsv"), sep = "\t", header = T)
+  }
+
+  if (missing(tcrs)) {
+    stop("Please provide a tcrs data frame.")
+  }
+
+  # check if columns exist
+
   if (!identical(sort(unique(vdjdb[,vdj_tr_col,drop=T])), c("TRA", "TRB"))) {
     stop(paste0(vdj_tr_col, " column of vdjdb should only contain TRA and/or TRB."))
   }
   if (!identical(sort(unique(tcrs[,tcr_tr_col,drop=T])), c("TRA", "TRB"))) {
     stop(paste0(tcr_tr_col, " column of tcrs should only contain TRA and/or TRB."))
   }
-
-  #utils::untar(base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc"), exdir = tempdir())
-  #vdjdb <- read.table(file.path(tempdir(), "vdjdb.tsv"), sep = "\t", header = T)
 
   mapply_fun <- match.fun(mapply_fun)
   vdjdb <- dplyr::distinct(vdjdb, !!sym(vdj_cdr3_col), !!sym(vdj_tr_col))

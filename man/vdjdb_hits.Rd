@@ -20,7 +20,8 @@ vdjdb_hits(
 )
 }
 \arguments{
-\item{vdjdb}{data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3}
+\item{vdjdb}{data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3;
+if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used}
 
 \item{tcrs}{data frame of TCR data from sequencing, first column indicating the chain TRA or TRB, second the aa sequence of CDR3}
 
