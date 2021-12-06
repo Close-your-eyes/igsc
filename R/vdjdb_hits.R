@@ -63,8 +63,7 @@ vdjdb_hits <- function(vdjdb,
   }
 
   if (missing(vdjdb)) {
-    utils::untar(base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc"), exdir = tempdir())
-    vdjdb <- read.csv(file.path(tempdir(), "vdjdb.tsv"), sep = "\t", header = T)
+    vdjdb <- readRDS(file.path(tempdir(), "vdjdb.tsv.rds"))
   }
 
   if (missing(tcrs)) {
