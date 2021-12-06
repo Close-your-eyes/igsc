@@ -133,7 +133,10 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
                                  lapply_fun,
                                  ...) {
 
+  ## split into chunks with target rownumber ~100
   tcrs_split <- split(tcrs, ceiling(1:nrow(tcrs)/(nrow(tcrs)/256)))
+
+
   matches <- lapply_fun(tcrs_split, function(x) {
     matches <- mapply(stringdist::stringdistmatrix,
                       split(vdjdb[,vdj_cdr3_col,drop=T], vdjdb[,vdj_tr_col,drop=T])[sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc)],
