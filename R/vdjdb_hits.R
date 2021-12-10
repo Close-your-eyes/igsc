@@ -10,7 +10,7 @@
 #'
 #' @param tcrs data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present
 #' @param vdjdb data frame of TCR data from vdjdb; vdj_cdr3_col and vdj_tr_col must be present;
-#' if not provided system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table downloaded 06/12/2021)
+#' if not provided system.file("extdata", "vdjdb.tsv.rds", package = "igsc") is used (table downloaded 06/12/2021)
 #' @param vdj_tr_col column which codes the TCR chain in the vdjdb reference data frame (should contain TRA and/or TRB only)
 #' @param tcr_tr_col column which codes the TCR chain in the tcrs data frame (should contain TRA and/or TRB only)
 #' @param vdj_cdr3_col column which codes the CDR3s in the vdjdb reference data frame
