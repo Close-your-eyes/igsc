@@ -9,8 +9,8 @@
 #' though that these columns have different names in vdjdb and tcrs.
 #'
 #' @param tcrs data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present
-#' @param vdjdb data frame of TCR data from vdjdb, vdj_cdr3_col and vdj_tr_col must be present;
-#' if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table from 12-06-2021)
+#' @param vdjdb data frame of TCR data from vdjdb; vdj_cdr3_col and vdj_tr_col must be present;
+#' if not provided system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table downloaded 06/12/2021)
 #' @param vdj_tr_col column which codes the TCR chain in the vdjdb reference data frame (should contain TRA and/or TRB only)
 #' @param tcr_tr_col column which codes the TCR chain in the tcrs data frame (should contain TRA and/or TRB only)
 #' @param vdj_cdr3_col column which codes the CDR3s in the vdjdb reference data frame
@@ -133,9 +133,7 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
                                  lapply_fun,
                                  ...) {
 
-  ## split into chunks with target rownumber ~100
-  tcrs_split <- split(tcrs, ceiling(1:nrow(tcrs)/(nrow(tcrs)/256)))
-
+  tcrs_split <- split(tcrs, ceiling(1:nrow(tcrs)/100))
 
   matches <- lapply_fun(tcrs_split, function(x) {
     matches <- mapply(stringdist::stringdistmatrix,
@@ -145,7 +143,7 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
                       useNames = "strings",
                       SIMPLIFY = F,
                       nthread = 1)
-    matches <- sapply(matches, function(y) y[which(apply(y, 1, min) <= max_lvdist), which(apply(y, 2, min) <= max_lvdist)])
+    matches <- sapply(matches, function(y) y[which(apply(y, 1, min) <= max_lvdist), which(apply(y, 2, min) <= max_lvdist), drop = F])
     matches <- sapply(matches, reshape2::melt, simplify = F, c(vdj_cdr3_col, tcr_cdr3_col), value.name = "lv")
     names(matches) <- paste(sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc), sort(unique(x[,tcr_tr_col,drop=T])), sep = "_")
     matches <- do.call(rbind, matches)
