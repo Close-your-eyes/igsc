@@ -20,28 +20,28 @@ vdjdb_hits(
 )
 }
 \arguments{
-\item{vdjdb}{data frame of TCR data from vdjdb, first column indicating the chain TRA or TRB, second the aa sequence of CDR3;
+\item{vdjdb}{data frame of TCR data from vdjdb, vdj_cdr3_col and vdj_tr_col must be present;
 if not provided base::system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table from 12-06-2021)}
 
-\item{tcrs}{data frame of TCR data from sequencing, first column indicating the chain TRA or TRB, second the aa sequence of CDR3}
+\item{tcrs}{data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present}
 
-\item{vdj_tr_col}{column (name) which codes the TCR chain (TRA or TRB) in the vdjdb reference data frame}
+\item{vdj_tr_col}{column which codes the TCR chain in the vdjdb reference data frame (should contain TRA and/or TRB only)}
 
-\item{tcr_tr_col}{column (name) which codes the TCR chain (TRA or TRB) in the tcrs data frame}
+\item{tcr_tr_col}{column which codes the TCR chain in the tcrs data frame (should contain TRA and/or TRB only)}
 
-\item{vdj_cdr3_col}{column (name) which codes the CDR3s in the vdjdb reference data frame}
+\item{vdj_cdr3_col}{column which codes the CDR3s in the vdjdb reference data frame}
 
-\item{tcr_cdr3_col}{column (name) which codes the CDR3s in the tcrs data frame}
+\item{tcr_cdr3_col}{column which codes the CDR3s in the tcrs data frame}
 
 \item{TRAxTRB}{logical, apart from comparing TRA vs TRA and TRB vs TRB between tcrs and vdjdb also check for TRA vs TRB?}
 
 \item{max_lvdist}{maximum levensthein distance between CDR3s for return data frame (also filtering before PAM30 similarity calculation)}
 
-\item{PAM30_similarity}{logical whether to calculate the similarity between CDR3s based on PAM30 substitution matrix}
+\item{PAM30_similarity}{logical whether to calculate the similarity (pairwise alignment) between CDR3s based on PAM30 substitution matrix}
 
 \item{mapply_fun}{mapply function for PAM30_similarity, suggested are mapply, pbapply::pbmapply, parallel::mcmapply}
 
-\item{lapply_fun}{lapply function for stringdist calculation, suggested are lapply, pblapply::pbmapply, parallel::mclapply}
+\item{lapply_fun}{lapply function for levensthein distance calculation, suggested are lapply, pblapply::pblapply, parallel::mclapply}
 
 \item{...}{arguments passed to mapply_fun and lapply_fun, most relevant: mc.cores (e.g parallel::detectCores())}
 }
