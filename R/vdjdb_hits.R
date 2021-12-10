@@ -136,6 +136,7 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
   tcrs_split <- split(tcrs, ceiling(1:nrow(tcrs)/100))
 
   matches <- lapply_fun(tcrs_split, function(x) {
+    #print(which(mapply(identical, tcrs_split, list(x))))
     matches <- mapply(stringdist::stringdistmatrix,
                       split(vdjdb[,vdj_cdr3_col,drop=T], vdjdb[,vdj_tr_col,drop=T])[sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc)],
                       split(x[,tcr_cdr3_col,drop=T], x[,tcr_tr_col,drop=T])[sort(unique(x[,tcr_tr_col,drop=T]))],
@@ -143,7 +144,7 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
                       useNames = "strings",
                       SIMPLIFY = F,
                       nthread = 1)
-    matches <- sapply(matches, function(y) y[which(apply(y, 1, min) <= max_lvdist), which(apply(y, 2, min) <= max_lvdist), drop = F])
+    matches <- sapply(matches, function(y) y[which(apply(y, 1, min) <= max_lvdist), which(apply(y, 2, min) <= max_lvdist), drop = F], simplify = F)
     matches <- sapply(matches, reshape2::melt, simplify = F, c(vdj_cdr3_col, tcr_cdr3_col), value.name = "lv")
     names(matches) <- paste(sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc), sort(unique(x[,tcr_tr_col,drop=T])), sep = "_")
     matches <- do.call(rbind, matches)
