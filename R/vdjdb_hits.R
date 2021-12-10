@@ -85,7 +85,7 @@ vdjdb_hits <- function(vdjdb,
 
   # what if only TRA or TRB is provided in one of the two? - duplicate results due to mapply?
   matches <- do.call(rbind, lapply(unique(c(F, TRAxTRB)),
-                                   vdjdb_tcrs_match_fun,
+                                   .vdjdb_tcrs_match_fun,
                                    vdjdb = vdjdb,
                                    tcrs = tcrs,
                                    vdj_tr_col = vdj_tr_col,
@@ -122,7 +122,7 @@ vdjdb_hits <- function(vdjdb,
 
 }
 
-vdjdb_tcrs_match_fun <- function(sort_desc,
+.vdjdb_tcrs_match_fun <- function(sort_desc,
                                  vdjdb,
                                  tcrs,
                                  vdj_tr_col,
@@ -149,6 +149,9 @@ vdjdb_tcrs_match_fun <- function(sort_desc,
     names(matches) <- paste(sort(unique(vdjdb[,vdj_tr_col,drop=T]), decreasing = sort_desc), sort(unique(x[,tcr_tr_col,drop=T])), sep = "_")
     matches <- do.call(rbind, matches)
     matches <- matches[which(matches$lv <= max_lvdist),]
+    if (nrow(matches) == 0) {
+      return(NULL)
+    }
     matches[,vdj_tr_col] <- sapply(strsplit(sapply(strsplit(rownames(matches), "\\."), "[", 1), "_"), "[", 1)
     matches[,tcr_tr_col] <- sapply(strsplit(sapply(strsplit(rownames(matches), "\\."), "[", 1), "_"), "[", 2)
     rownames(matches) <- NULL
