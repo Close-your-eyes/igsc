@@ -26,6 +26,8 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       sequence_col = "consensus_seq_cr",
                                       C_allele) {
   chain <- match.arg(chain, c("TRA", "TRB"))
+  cl_long <- as.data.frame(cl_long)
+  cl_wide <- as.data.frame(cl_wide)
 
   V_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V_imgt"])
   if (length(V_imgt.name) > 1) {
