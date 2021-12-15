@@ -7,7 +7,8 @@
 align_imgt_ref_to_TCR_seq(
   chain,
   TCR,
-  cl,
+  cl_long,
+  cl_wide,
   imgt_ref,
   sequence_col = "consensus_seq_cr",
   C_allele
@@ -18,11 +19,13 @@ align_imgt_ref_to_TCR_seq(
 
 \item{TCR}{a named vector; which of your TCRs to align, the name indicates which column name of cl_long to use, the value indicates what to look for in that column}
 
-\item{cl}{the prepared list of clonotype data (wide and long data frames, named "wide" and "long")}
+\item{cl_long}{clonotype data frame long format}
+
+\item{cl_wide}{clonotype data frame wide format}
 
 \item{imgt_ref}{the prepared data.frame of IMGT references}
 
-\item{sequence_col}{name of the column to pull sequences from, defaults to "cell.ranger.consensus.seq"}
+\item{sequence_col}{name of the column to pull sequences from}
 
 \item{C_allele}{optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame}
 }

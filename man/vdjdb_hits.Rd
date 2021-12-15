@@ -21,7 +21,7 @@ vdjdb_hits(
 }
 \arguments{
 \item{vdjdb}{data frame of TCR data from vdjdb; vdj_cdr3_col and vdj_tr_col must be present;
-if not provided system.file("extdata", "vdjdb.tsv.tar.gz", package = "igsc") is used (table downloaded 06/12/2021)}
+if not provided system.file("extdata", "vdjdb.tsv.rds", package = "igsc") is used (table downloaded 06/12/2021)}
 
 \item{tcrs}{data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present}
 
