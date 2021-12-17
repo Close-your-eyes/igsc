@@ -8,7 +8,7 @@
 #' vdj_cdr3_col, tcr_cdr3_col) are kept in the returned data frame to allow easy subsequent joining of vdjdb and tcrs. It requires
 #' though that these columns have different names in vdjdb and tcrs.
 #'
-#' @param tcrs data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present
+#' @param tcrs data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present; e.g. c_long from clonotype prep
 #' @param vdjdb data frame of TCR data from vdjdb; vdj_cdr3_col and vdj_tr_col must be present;
 #' if not provided system.file("extdata", "vdjdb.tsv.rds", package = "igsc") is used (table downloaded 06/12/2021)
 #' @param vdj_tr_col column which codes the TCR chain in the vdjdb reference data frame (should contain TRA and/or TRB only)
@@ -28,18 +28,28 @@
 #'
 #' @examples
 #' \dontrun{
-#' vdjdb <- dplyr::filter(read.csv("vdjdb.tsv", sep = "\t", header = T) , Species == "HomoSapiens")
+#' # tcrs data frame with sequencing data from TCRs has to be created (cl_long is appropriate)
 #' matches <- vdjdb_hits(vdjdb, tcrs, mapply_fun = parallel::mcmapply, mc.cores = parallel::detectCores(), nthread = parallel::detectCores())
-#' matches <- matches %>% dplyr::left_join(tcrs) %>% dplyr::left_join(vdjdb) %>% dplyr::distinct(complex.id, CDR3, CDR3_aa_cr, lv, Gene, chain, clonotype_id_cr, sample, Epitope, Epitope.gene, Epitope.species, Score)
+#' matches_append <- matches %>% dplyr::left_join(tcrs) %>% dplyr::left_join(vdjdb)
 #'
-#' ggplot(matches, aes(x = chain, y = lv, fill = Epitope.species, color = Gene)) +
-#' geom_jitter(width = 0.15, height = 0.15, shape = 21) +
-#' scale_y_continuous(breaks = fcexpr::int_breaks(n = 3)) +
-#' theme_bw() +
-#' theme(panel.grid.major.x = element_blank()) +
-#' scale_color_manual(values = c("#000000", "#999999")) +
-#' guides(fill = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
-#' facet_grid(rows = vars(Score), cols = vars(clonotype_id_cr))
+#' df <-
+#' df %>%
+#' dplyr::distinct(CDR3, CDR3_aa_cr, lv, Gene, chain, cl_name, patient, Epitope, Epitope.gene, Epitope.species, Score) %>%
+#' tidyr::drop_na() %>%
+#' dplyr::filter(cl_name %in% c("Madalyn", "Mikaylla", "Morgan")) %>%
+#' dplyr::filter(lv < 3) %>%
+#' dplyr::filter(Score > 0)
+#'
+#' # use jitter for many hits (when beeswarms become overlapping)
+#' ggplot(df, aes(x = Score, y = lv, color = Epitope.species)) +
+#'  ggbeeswarm::geom_beeswarm(groupOnX = F, cex = 4, size = 2.5) +
+#'  #geom_jitter(width = 0.15, height = 0.15, size = 3) +
+#'  theme_bw() +
+#'  theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank(), strip.background = element_rect(fill = "white"), text = element_text(family = "Courier")) +
+#'  scale_x_continuous(breaks = fcexpr::int_breaks(n = 3), limits = c(0.8,3.2)) +
+#'  scale_y_reverse(breaks = fcexpr::int_breaks(n = 3)) +
+#'  guides(fill = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
+#'  facet_grid(rows = vars(chain), cols = vars(patient, cl_name))
 #' }
 vdjdb_hits <- function(vdjdb,
                        tcrs,

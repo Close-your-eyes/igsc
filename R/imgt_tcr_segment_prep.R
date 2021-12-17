@@ -1,13 +1,13 @@
 #' Prepare a data frame with TCR gene segment reference data from IMGT
 #'
 #' Immunoglobulin (IG) reference data from IMGT do not come in a handy format for processing in R.
-#' For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared xlsx) to
+#' For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared table) to
 #' create a data frame that can be used subsequently to align TCR sequences from scRNAseq (or other).
 #' All necessary files (human or mouse) are included in this package (Oct-2021) but may be downloaded manually from IMGT in case there are major updates.
-#' The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref/human", package = "igsc")), 'path to your folder') or
-#' file.copy(list.files(system.file("extdata", "IMGT_ref/mouse", package = "igsc")), 'path to your folder').
-#' These files may also demonstrate the required file names and structures in case you want to provide updated data from IMGT.
-#' To skip this function and immediatly obtain its output, ready made data frames are available with
+#' The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref", package = "igsc")), 'path to your folder').
+#' These files demonstrate the required file names and formats in case you want to provide updated data from IMGT.
+#'
+#' To skip this function and immediately obtain its output, ready made data frames are available with
 #' imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc")) or
 #' imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc")).
 #'
