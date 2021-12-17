@@ -6,9 +6,10 @@
 #' @param chain character which TCR chain to align, currently only TRA and TRB
 #' @param TCR a named vector; which of your TCRs to align, the name indicates which column name of cl_long to use, the value indicates what to look for in that column
 #' @param imgt_ref the prepared data.frame of IMGT references
-#' @param sequence_col name of the column to pull sequences from, defaults to "cell.ranger.consensus.seq"
+#' @param sequence_col name of the column to pull sequences from
+#' @param cl_long clonotype data frame long format
+#' @param cl_wide clonotype data frame wide format
 #' @param C_allele optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame
-#' @param cl the prepared list of clonotype data (wide and long data frames, named "wide" and "long")
 #'
 #' @return a list
 #' @export
@@ -17,11 +18,16 @@
 #' \dontrun{
 #'
 #' }
-align_imgt_ref_to_TCR_seq <- function(chain, TCR, cl, imgt_ref, sequence_col = "consensus_seq_cr", C_allele) {
+align_imgt_ref_to_TCR_seq <- function(chain,
+                                      TCR,
+                                      cl_long,
+                                      cl_wide,
+                                      imgt_ref,
+                                      sequence_col = "consensus_seq_cr",
+                                      C_allele) {
   chain <- match.arg(chain, c("TRA", "TRB"))
-
-  cl_long <- as.data.frame(cl[["long"]])
-  cl_wide <- as.data.frame(cl[["wide"]])
+  cl_long <- as.data.frame(cl_long)
+  cl_wide <- as.data.frame(cl_wide)
 
   V_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V_imgt"])
   if (length(V_imgt.name) > 1) {
