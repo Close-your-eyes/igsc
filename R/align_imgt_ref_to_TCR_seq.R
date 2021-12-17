@@ -25,6 +25,14 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       imgt_ref,
                                       sequence_col = "consensus_seq_cr",
                                       C_allele) {
+
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+  if (!requireNamespace("DECIPHER", quietly = T)){
+    BiocManager::install("DECIPHER")
+  }
+
   chain <- match.arg(chain, c("TRA", "TRB"))
   cl_long <- as.data.frame(cl_long)
   cl_wide <- as.data.frame(cl_wide)

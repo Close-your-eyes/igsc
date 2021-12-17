@@ -44,6 +44,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    tile.border.color = NA,
                                                    fix_indels = F) {
 
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+
   #alignment.color.palette
   acp <- c("A" = "#ffafaf",
            "T" = "#fed7af",
@@ -216,7 +220,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   df <-
     df %>%
-    tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
+    tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
   acp1 <- acp[which(names(acp) %in% unique(df$seq))]
   df$seq <- factor(df$seq, levels = c(names(acp1)))
@@ -229,7 +233,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   df.match <-
     df.match %>%
-    tidyr::pivot_longer(cols = all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
+    tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
   acp2 <- acp[which(names(acp) %in% unique(df.match$seq))]
   df.match$seq <- factor(df.match$seq, levels = c(names(acp2)))

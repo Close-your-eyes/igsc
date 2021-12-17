@@ -20,21 +20,24 @@ MultipleSequenceAlignmentDECIPHER <- function(input.set,
                                               print.disamb.cons.seq.border = T,
                                               collapse.duplicate.seqs = T,
                                               open.browser = F) {
-  if (!"BiocManager" %in% rownames(utils::installed.packages())) {utils::install.packages("BiocManager")}
-  if (!"Biostrings" %in% rownames(utils::installed.packages())) {BiocManager::install("Biostrings")}
-  if (!"DECIPHER" %in% rownames(utils::installed.packages())) {BiocManager::install("DECIPHER")}
 
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+  if (!requireNamespace("DECIPHER", quietly = T)){
+    BiocManager::install("DECIPHER")
+  }
 
-  alignment.colour.palette <- c("A" = "#ffafaf",
-                                "T" = "#fed7af",
-                                "C" = "#afffaf",
-                                "G" = "#afffff",
-                                "-" = "#ffffff",
-                                "match" = "#999999",
-                                "mismatch" = "#a51515",
-                                "gap" = "#9248d4",
-                                "insertion" = "#000000",
-                                "ambiguous" = "#E69F00")
+  acp <- c("A" = "#ffafaf",
+           "T" = "#fed7af",
+           "C" = "#afffaf",
+           "G" = "#afffff",
+           "-" = "#ffffff",
+           "match" = "#999999",
+           "mismatch" = "#a51515",
+           "gap" = "#9248d4",
+           "insertion" = "#000000",
+           "ambiguous" = "#E69F00")
 
   if (add.consensus.seq) {
     if ("consensus" %in% names(input.set)) {
@@ -90,14 +93,16 @@ MultipleSequenceAlignmentDECIPHER <- function(input.set,
   out$case <- ifelse(out$seq.name == "consensus", out$seq, out$case)
   out$case <- ifelse(out$case == "gap" & out$seq.name != "consensus", out$seq, out$case)
   out$case <- ifelse(out$case %in% c(names(Biostrings::IUPAC_CODE_MAP[-c(1:4)]), "+"), "ambiguous", out$case)
-  out$case <- factor(out$case, levels = names(alignment.colour.palette))
+  acp <- acp[which(names(acp) %in% unique(out$case))]
+
+  out$case <- factor(out$case, levels = names(acp))
   out$seq.name <- factor(out$seq.name, levels = c("consensus", names(input.set)[-length(input.set)]))
 
   g2 <- ggplot2::ggplot(out, ggplot2::aes(x = position, y = seq.name, fill = case)) +
     ggplot2::geom_raster() +
     ggplot2::theme_classic() +
     ggplot2::theme(axis.title.y = ggplot2::element_blank(), legend.title = ggplot2::element_blank()) +
-    ggplot2::scale_fill_manual(values = alignment.colour.palette)
+    ggplot2::scale_fill_manual(values = acp)
 
   if (print.disamb.cons.seq.border & add.consensus.seq) {
     cons.seq.disam <- consecutive.disambiguate.consensus.seq.from.decipher.consensus(cons.seq)

@@ -41,8 +41,8 @@
 
 <meta property="og:title" content="Align multiple DNA pattern sequences to one subject — MultiplePairwiseAlignmentsToOneSubject" />
 <meta property="og:description" content="This function is useful plot the alignment position of multiple patterns in one subject.
-It uses Biostrings::pairwiseAlignment(), retrieves the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-It does not work if the patterns have overlapping alignment ranges in the subect!" />
+It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
+The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap." />
 
 
 
@@ -74,7 +74,7 @@ It does not work if the patterns have overlapping alignment ranges in the subect
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">igsc</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.0.0.9555</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.0.0.9700</span>
       </span>
     </div>
 
@@ -124,23 +124,21 @@ It does not work if the patterns have overlapping alignment ranges in the subect
 
     <div class="ref-description">
     <p>This function is useful plot the alignment position of multiple patterns in one subject.
-It uses Biostrings::pairwiseAlignment(), retrieves the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-It does not work if the patterns have overlapping alignment ranges in the subect!</p>
+It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
+The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.</p>
     </div>
 
     <pre class="usage"><span class='fu'>MultiplePairwiseAlignmentsToOneSubject</span><span class='op'>(</span>
   <span class='va'>subject</span>,
   <span class='va'>patterns</span>,
-  <span class='va'>subject.name</span>,
-  <span class='va'>patterns.names</span>,
   type <span class='op'>=</span> <span class='st'>"global-local"</span>,
-  <span class='va'>subject.alignment.limits</span>,
-  print.pattern.positions <span class='op'>=</span> <span class='cn'>T</span>,
-  pattern.positions.size <span class='op'>=</span> <span class='fl'>2</span>,
-  print.subject.min.max <span class='op'>=</span> <span class='cn'>F</span>,
-  attach.length.to.name <span class='op'>=</span> <span class='cn'>T</span>,
+  perfect.matches.only <span class='op'>=</span> <span class='cn'>F</span>,
+  order.patterns <span class='op'>=</span> <span class='cn'>F</span>,
+  pattern.lim.size <span class='op'>=</span> <span class='fl'>2</span>,
+  subject.lim.lines <span class='op'>=</span> <span class='cn'>F</span>,
+  attach.nt <span class='op'>=</span> <span class='cn'>T</span>,
   tile.border.color <span class='op'>=</span> <span class='cn'>NA</span>,
-  <span class='va'>title</span>
+  fix_indels <span class='op'>=</span> <span class='cn'>F</span>
 <span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
@@ -148,51 +146,43 @@ It does not work if the patterns have overlapping alignment ranges in the subect
     <colgroup><col class="name" /><col class="desc" /></colgroup>
     <tr>
       <th>subject</th>
-      <td><p>a character or DNAStringSet of one subject (to provide a name in final graphics, provide a named DNAStringSet)</p></td>
+      <td><p>a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)</p></td>
     </tr>
     <tr>
       <th>patterns</th>
-      <td><p>a character vector or DNAStringSet of patterns to align to the subject sequence</p></td>
-    </tr>
-    <tr>
-      <th>subject.name</th>
-      <td><p>optional provide a name for the subject; overwrites names provided with subject</p></td>
-    </tr>
-    <tr>
-      <th>patterns.names</th>
-      <td><p>optional provide names for the patterns; overwrites names provided with patterns</p></td>
+      <td><p>a named character vector or named DNAStringSet of patterns to align to the subject sequence</p></td>
     </tr>
     <tr>
       <th>type</th>
       <td><p>the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)</p></td>
     </tr>
     <tr>
-      <th>subject.alignment.limits</th>
-      <td><p>numeric vector of nt-positions (lower and upper) of the subject to manually limit (cut) the final graphic</p></td>
+      <th>perfect.matches.only</th>
+      <td><p>filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment</p></td>
     </tr>
     <tr>
-      <th>print.pattern.positions</th>
-      <td><p>check</p></td>
+      <th>order.patterns</th>
+      <td><p>order pattern increasingly by alignment position (start)</p></td>
     </tr>
     <tr>
-      <th>pattern.positions.size</th>
-      <td><p>check</p></td>
+      <th>pattern.lim.size</th>
+      <td><p>size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting</p></td>
     </tr>
     <tr>
-      <th>print.subject.min.max</th>
-      <td><p>check</p></td>
+      <th>subject.lim.lines</th>
+      <td><p>print vertical lines at the outermost subject-nts of all aligned patterns</p></td>
     </tr>
     <tr>
-      <th>attach.length.to.name</th>
+      <th>attach.nt</th>
       <td><p>add the length of the string to the name on the axis</p></td>
     </tr>
     <tr>
       <th>tile.border.color</th>
-      <td><p>character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetical thing</p></td>
+      <td><p>character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing</p></td>
     </tr>
     <tr>
-      <th>title</th>
-      <td><p>print a title to the alignment</p></td>
+      <th>fix_indels</th>
+      <td><p>in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels</p></td>
     </tr>
     </table>
 
@@ -202,13 +192,18 @@ It does not work if the patterns have overlapping alignment ranges in the subect
 base.plot ggplot object of alignment shows patterns colored by nt,
 match.plot ggplot object of alignment shows patterns colored match, mismatch, etc,
 base.df = df and match.df are the respective data.frames used for plotting,
-seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start positiion of first aligned pattern, max = end position of the last aligned pattern)</p>
+seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)</p>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><div class='input'><span class='kw'>if</span> <span class='op'>(</span><span class='cn'>FALSE</span><span class='op'>)</span> <span class='op'>{</span>
-
-<span class='op'>}</span>
-</div></pre>
+    <pre class="examples"><span class='r-in'><span class='kw'>if</span> <span class='op'>(</span><span class='cn'>FALSE</span><span class='op'>)</span> <span class='op'>{</span></span>
+<span class='r-in'><span class='va'>s</span> <span class='op'>&lt;-</span> <span class='fu'>stats</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/r/stats/setNames.html'>setNames</a></span><span class='op'>(</span><span class='st'>"AAAACCCCTTTTGGGGAACCTTCC"</span>, <span class='st'>"sub"</span><span class='op'>)</span></span>
+<span class='r-in'><span class='va'>s</span> <span class='op'>&lt;-</span> <span class='fu'>Biostrings</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/Biostrings/man/XStringSet-class.html'>DNAStringSet</a></span><span class='op'>(</span><span class='va'>s</span><span class='op'>)</span></span>
+<span class='r-in'><span class='va'>p</span> <span class='op'>&lt;-</span> <span class='fu'>stats</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/r/stats/setNames.html'>setNames</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"TTCC"</span>, <span class='st'>"CCCC"</span>, <span class='st'>"TTTT"</span>, <span class='st'>"GGGG"</span>, <span class='st'>"AAAA"</span><span class='op'>)</span>, <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"pat1"</span>, <span class='st'>"pat2"</span>, <span class='st'>"pat3"</span>, <span class='st'>"pat4"</span>, <span class='st'>"pat5"</span><span class='op'>)</span><span class='op'>)</span></span>
+<span class='r-in'><span class='va'>p</span> <span class='op'>&lt;-</span> <span class='fu'>Biostrings</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/Biostrings/man/XStringSet-class.html'>DNAStringSet</a></span><span class='op'>(</span><span class='va'>p</span><span class='op'>)</span></span>
+<span class='r-in'><span class='va'>als</span> <span class='op'>&lt;-</span> <span class='fu'>igsc</span><span class='fu'>::</span><span class='fu'>MultiplePairwiseAlignmentsToOneSubject</span><span class='op'>(</span>subject <span class='op'>=</span> <span class='va'>s</span>, patterns <span class='op'>=</span> <span class='va'>p</span>, tile.border.color <span class='op'>=</span> <span class='st'>"black"</span><span class='op'>)</span></span>
+<span class='r-in'><span class='va'>als_ordered</span> <span class='op'>&lt;-</span> <span class='fu'>igsc</span><span class='fu'>::</span><span class='fu'>MultiplePairwiseAlignmentsToOneSubject</span><span class='op'>(</span>subject <span class='op'>=</span> <span class='va'>s</span>, patterns <span class='op'>=</span> <span class='va'>p</span>, tile.border.color <span class='op'>=</span> <span class='st'>"black"</span>, order.patterns <span class='op'>=</span> <span class='cn'>T</span><span class='op'>)</span></span>
+<span class='r-in'><span class='op'>}</span></span>
+</pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
     <nav id="toc" data-toggle="toc" class="sticky-top">

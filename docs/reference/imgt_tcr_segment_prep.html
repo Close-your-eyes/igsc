@@ -41,26 +41,11 @@
 
 <meta property="og:title" content="Prepare a data frame with TCR gene segment reference data from IMGT — imgt_tcr_segment_prep" />
 <meta property="og:description" content="Immunoglobulin (IG) reference data from IMGT do not come in a handy format for processing in R.
-For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared xlsx) to
+For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared table) to
 create a data frame that can be used subsequently to align TCR sequences from scRNAseq (or other).
 All necessary files (human or mouse) are included in this package (Oct-2021) but may be downloaded manually from IMGT in case there are major updates.
-The files included can be retrieved with file.copy(list.files(system.file(&quot;extdata&quot;, &quot;IMGT_ref/human&quot;, package = &quot;igsc&quot;)), 'path to your folder') or
-file.copy(list.files(system.file(&quot;extdata&quot;, &quot;IMGT_ref/mouse&quot;, package = &quot;igsc&quot;)), 'path to your folder').
-This will also show you the required file names in case you provide your own folder.
-Readymade data frames are available with
-imgt_ref &amp;lt;- readRDS(system.file(&quot;extdata&quot;, &quot;IMGT_ref/human/hs.rds&quot;, package = &quot;igsc&quot;)) or
-imgt_ref &amp;lt;- readRDS(system.file(&quot;extdata&quot;, &quot;IMGT_ref/mouse/mm.rds&quot;, package = &quot;igsc&quot;)).
-Sources and how to prepare the data yourself:
-Data for the xlsx-files are from
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&amp;amp;latin=Homo%20sapiens&amp;amp;group=TRAV,
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&amp;amp;latin=Homo%20sapiens&amp;amp;group=TRBV,
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&amp;amp;latin=Mus%20musculus&amp;amp;group=TRAV,
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&amp;amp;latin=Mus%20musculus&amp;amp;group=TRBV.
-Fasta-files are made from the data found here:
-http://www.imgt.org/vquest/refseqh.html.
-Leader sequences are from &quot;L-PART1+L-PART2&quot; artificially spliced sets, nucleotides (F+ORF+all P).
-Others are from &quot;L-PART1+V-EXON&quot; artificially spliced sets and Constant gene artificially spliced exons sets.
-Fasta-formatted sequences from there have to be copied manually and saved as .fasta files in a folder. This folder then becomes the path argument." />
+The files included can be retrieved with file.copy(list.files(system.file(&quot;extdata&quot;, &quot;IMGT_ref&quot;, package = &quot;igsc&quot;)), 'path to your folder').
+These files demonstrate the required file names and formats in case you want to provide updated data from IMGT." />
 
 
 
@@ -92,7 +77,7 @@ Fasta-formatted sequences from there have to be copied manually and saved as .fa
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">igsc</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.0.0.9555</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">0.0.0.9700</span>
       </span>
     </div>
 
@@ -142,26 +127,11 @@ Fasta-formatted sequences from there have to be copied manually and saved as .fa
 
     <div class="ref-description">
     <p>Immunoglobulin (IG) reference data from IMGT do not come in a handy format for processing in R.
-For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared xlsx) to
+For T cell receptor (TCR) gene segments, this functions uses data from IMGT (fasta files and one manually prepared table) to
 create a data frame that can be used subsequently to align TCR sequences from scRNAseq (or other).
 All necessary files (human or mouse) are included in this package (Oct-2021) but may be downloaded manually from IMGT in case there are major updates.
-The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref/human", package = "igsc")), 'path to your folder') or
-file.copy(list.files(system.file("extdata", "IMGT_ref/mouse", package = "igsc")), 'path to your folder').
-This will also show you the required file names in case you provide your own folder.
-Readymade data frames are available with
-imgt_ref &lt;- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc")) or
-imgt_ref &lt;- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc")).
-Sources and how to prepare the data yourself:
-Data for the xlsx-files are from
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&amp;latin=Homo%20sapiens&amp;group=TRAV,
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&amp;latin=Homo%20sapiens&amp;group=TRBV,
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&amp;latin=Mus%20musculus&amp;group=TRAV,
-http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&amp;latin=Mus%20musculus&amp;group=TRBV.
-Fasta-files are made from the data found here:
-http://www.imgt.org/vquest/refseqh.html.
-Leader sequences are from "L-PART1+L-PART2" artificially spliced sets, nucleotides (F+ORF+all P).
-Others are from "L-PART1+V-EXON" artificially spliced sets and Constant gene artificially spliced exons sets.
-Fasta-formatted sequences from there have to be copied manually and saved as .fasta files in a folder. This folder then becomes the path argument.</p>
+The files included can be retrieved with file.copy(list.files(system.file("extdata", "IMGT_ref", package = "igsc")), 'path to your folder').
+These files demonstrate the required file names and formats in case you want to provide updated data from IMGT.</p>
     </div>
 
     <pre class="usage"><span class='fu'>imgt_tcr_segment_prep</span><span class='op'>(</span><span class='va'>path</span>, organism <span class='op'>=</span> <span class='st'>"human"</span>, mc <span class='op'>=</span> <span class='cn'>F</span><span class='op'>)</span></pre>
@@ -186,14 +156,29 @@ Fasta-formatted sequences from there have to be copied manually and saved as .fa
     <h2 class="hasAnchor" id="value"><a class="anchor" href="#value"></a>Value</h2>
 
     <p>a data frame</p>
+    <h2 class="hasAnchor" id="details"><a class="anchor" href="#details"></a>Details</h2>
+
+    <p>To skip this function and immediately obtain its output, ready made data frames are available with
+imgt_ref &lt;- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc")) or
+imgt_ref &lt;- readRDS(system.file("extdata", "IMGT_ref/mouse/mm.rds", package = "igsc")).</p>
+<p>Sources and how to prepare the data yourself. Data for the xlsx-files are from:
+http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&amp;latin=Homo%20sapiens&amp;group=TRAV,
+http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=human&amp;latin=Homo%20sapiens&amp;group=TRBV,
+http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&amp;latin=Mus%20musculus&amp;group=TRAV,
+http://www.imgt.org/IMGTrepertoire/Proteins/proteinDisplays.php?species=house%20mouse&amp;latin=Mus%20musculus&amp;group=TRBV.
+Fasta-files are made from the data found here:
+http://www.imgt.org/vquest/refseqh.html.
+Leader sequences are from "L-PART1+L-PART2" artificially spliced sets, nucleotides (F+ORF+all P).
+Others are from "L-PART1+V-EXON" artificially spliced sets and Constant gene artificially spliced exons sets.
+Fasta-formatted sequences from there have to be copied manually and saved as .fasta files in a folder. This folder then becomes the path argument.</p>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><div class='input'><span class='kw'>if</span> <span class='op'>(</span><span class='cn'>FALSE</span><span class='op'>)</span> <span class='op'>{</span>
-<span class='va'>imgt_df</span> <span class='op'>&lt;-</span> <span class='fu'>imgt_tcr_segment_prep</span><span class='op'>(</span><span class='op'>)</span>
-<span class='fu'>openxlsx</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/openxlsx/man/write.xlsx.html'>write.xlsx</a></span><span class='op'>(</span><span class='va'>imgt_df</span>, <span class='st'>"imgt_ref_df.xlsx"</span><span class='op'>)</span>
-<span class='fu'><a href='https://rdrr.io/r/base/readRDS.html'>saveRDS</a></span><span class='op'>(</span><span class='va'>imgt_df</span>, <span class='st'>"imgt_ref_df.rds"</span><span class='op'>)</span>
-<span class='op'>}</span>
-</div></pre>
+    <pre class="examples"><span class='r-in'><span class='kw'>if</span> <span class='op'>(</span><span class='cn'>FALSE</span><span class='op'>)</span> <span class='op'>{</span></span>
+<span class='r-in'><span class='va'>imgt_df</span> <span class='op'>&lt;-</span> <span class='fu'>imgt_tcr_segment_prep</span><span class='op'>(</span><span class='op'>)</span></span>
+<span class='r-in'><span class='fu'>openxlsx</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/openxlsx/man/write.xlsx.html'>write.xlsx</a></span><span class='op'>(</span><span class='va'>imgt_df</span>, <span class='st'>"imgt_ref_df.xlsx"</span><span class='op'>)</span></span>
+<span class='r-in'><span class='fu'><a href='https://rdrr.io/r/base/readRDS.html'>saveRDS</a></span><span class='op'>(</span><span class='va'>imgt_df</span>, <span class='st'>"imgt_ref_df.rds"</span><span class='op'>)</span></span>
+<span class='r-in'><span class='op'>}</span></span>
+</pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
     <nav id="toc" data-toggle="toc" class="sticky-top">

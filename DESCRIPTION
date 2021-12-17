@@ -1,6 +1,6 @@
 Package: igsc
 Title: Immunoglobolin sequences from scRNAseq
-Version: 0.0.0.9600
+Version: 0.0.0.9700
 Authors@R: 
     person(given = "Christopher Mark",
            family = "Skopnik",
@@ -14,8 +14,6 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Imports: 
     BiocManager,
-    Biostrings,
-    DECIPHER,
     dplyr,
     ggplot2,
     magrittr,
@@ -32,6 +30,9 @@ Imports:
 Suggests: 
     rmarkdown,
     knitr,
-    protr,
-    tidyverse
+    tidyverse,
+    ggbeeswarm,
+    fcexpr,
+    DECIPHER,
+    Biostrings
 VignetteBuilder: knitr
