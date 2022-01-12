@@ -1,0 +1,208 @@
+#' Print pairwise alignments of DNA or AA to console or txt file
+#'
+#' @param alignments
+#' @param linewidth
+#' @param match_dots
+#' @param print_pos
+#' @param print_pos_end
+#' @param use_align_starts
+#' @param out_file
+#'
+#' @return
+#' @export
+#'
+#' @examples
+printPairwiseAlignment <- function(alignments,
+                                   linewidth = 50,
+                                   match_dots = NULL,
+                                   print_pos = T,
+                                   print_pos_end = F,
+                                   use_align_starts = T,
+                                   out_file = NULL) {
+
+  if (!is.null(out_file)) {
+    sink(out_file)
+  }
+
+  lapply(alignments, function(alignment) {
+
+    if (is.null(alignment@pattern@unaligned@ranges@NAMES)) {
+      print("In order to pass names to a pairwiseAligment object, create DNAStringSets (not DNAStrings) of the sequences.")
+      p_name <- "pattern"
+    } else {
+      p_name <- alignment@pattern@unaligned@ranges@NAMES
+    }
+
+    if (is.null(alignment@subject@unaligned@ranges@NAMES)) {
+      print("In order to pass names to a pairwiseAligment object, create DNAStringSets (not DNAStrings) of the sequences.")
+      s_name <- "subject"
+    } else {
+      s_name <- alignment@subject@unaligned@ranges@NAMES
+    }
+
+    # make seq names equal in length
+    seq.names <- c(p_name, s_name)
+    seq.names[which.max(nchar(seq.names))] <- paste0(seq.names[which.max(nchar(seq.names))], "  ")
+    seq.names[which.min(nchar(seq.names))] <- paste0(seq.names[which.min(nchar(seq.names))], paste(rep(" ", max(nchar(seq.names)) - min(nchar(seq.names))), collapse = ""))
+    p_name <- seq.names[1]
+    s_name <- seq.names[2]
+
+    ## extend subject?? - handle gaps!
+    pattern <- as.character(Biostrings::pattern(alignment))
+    subject <- as.character(Biostrings::subject(alignment))
+
+    if (nchar(subject) != nchar(pattern)) {
+      stop("pattern and subject differ in length which cannot be handled.")
+    }
+    linewidth <- min(c(linewidth, nchar(pattern)))
+
+    if (use_align_starts) {
+      p_start <- alignment@pattern@range@start
+      s_start <- alignment@subject@range@start
+    } else {
+      p_start <- 1
+      s_start <- 1
+    }
+
+    if (!is.null(match_dots)) {
+      match_dots <- match.arg(match_dots, c("subject", "pattern"))
+      pattern <- strsplit(pattern, "")[[1]]
+      subject <- strsplit(subject, "")[[1]]
+      for (j in 1:length(pattern)) {
+        if (pattern[j] == subject[j]) {
+          if (match_dots == "subject") {
+            subject[j] <- "."
+          }
+          if (match_dots == "pattern") {
+            pattern[j] <- "."
+          }
+        }
+      }
+      pattern <- paste(pattern, collapse = "")
+      subject <- paste(subject, collapse = "")
+    }
+
+    pattern <- strsplit(pattern, "")[[1]]
+    subject <- strsplit(subject, "")[[1]]
+
+    p_sym <- .get_symbols(s = pattern, start.pos = p_start)
+    s_sym <- .get_symbols(s = subject, start.pos = s_start)
+
+    pattern <- paste(pattern, collapse = "")
+    subject <- paste(subject, collapse = "")
+    p_sym <- paste(p_sym, collapse = "")
+    s_sym <- paste(s_sym, collapse = "")
+
+    len  <- nchar(pattern)
+    starts <- seq(1, len, by = linewidth)
+    n <- length(starts)
+
+    p_res <- 0
+    s_res <- 0
+    p_pos <- p_start - 1
+    s_pos <- s_start - 1
+
+    ## this is done to make the previous function work which expects start at 0
+    while (p_pos %% 5 != 0) {
+      p_pos <- p_pos - 1
+    }
+    while (s_pos %% 5 != 0) {
+      s_pos <- s_pos - 1
+    }
+
+    for (i in 1:n) {
+      p_chunk <- substring(pattern, starts[i], starts[i]+linewidth-1)
+      s_chunk <- substring(subject, starts[i], starts[i]+linewidth-1)
+      p_sym.chunk <- substring(p_sym, starts[i], starts[i]+linewidth-1)
+      s_sym.chunk <- substring(s_sym, starts[i], starts[i]+linewidth-1)
+
+      p_res <- p_res + linewidth - Biostrings::countPattern("-",p_chunk)
+      s_res <- s_res + linewidth - Biostrings::countPattern("-",s_chunk)
+
+      p_sym.line <- paste0(paste(rep(" ", nchar(p_name)), collapse = ""), p_sym.chunk)
+      s_sym.line <- paste0(paste(rep(" ", nchar(s_name)), collapse = ""), s_sym.chunk)
+
+      if (print_pos_end) {
+        p_line <- paste0(p_name, p_chunk, "  ", p_res + p_start - 1)
+        s_line <- paste0(s_name, s_chunk, "  ", s_res + s_start - 1)
+      } else {
+        p_line <- paste0(p_name, p_chunk, "  ")
+        s_line <- paste0(s_name, s_chunk, "  ")
+      }
+
+      p_res <- .get_pos_line(name = p_name, chunk = p_sym.chunk, pos = p_pos)
+      p_pos.line <- p_res[[1]]
+      p_pos <- p_res[[2]]
+
+      s_res <- .get_pos_line(name = s_name, chunk = s_sym.chunk, pos = s_pos)
+      s_pos.line <- s_res[[1]]
+      s_pos <- s_res[[2]]
+
+      if (print_pos) {
+        cat(p_pos.line, "\n")
+        cat(p_sym.line, "\n")
+      }
+      cat(p_line, "\n")
+      cat(s_line, "\n")
+      if (print_pos) {
+        cat(s_sym.line, "\n")
+        cat(s_pos.line, "\n")
+      }
+      cat(paste(" "), "\n")
+
+    }
+  })
+
+  if (!is.null(out_file)) {
+    closeAllConnections()
+  }
+}
+
+
+.get_pos_line <- function(name, chunk, pos) {
+  pos_line <- paste(rep(" ", nchar(name)), collapse = "")
+  skip = 0
+  corr.100.per.line <- F
+  for (j in 1:nchar(chunk)) {
+    if (stringr::str_sub(chunk, j, j) == "|") {
+      pos <- pos + 5
+      if (nchar(pos) == 3 & !corr.100.per.line) {
+        corr.100.per.line <- T
+        pos_line <- stringr::str_sub(pos_line, 1, -2)
+      }
+      if (pos %% 10 == 0) {
+        pos_line <- paste0(pos_line, pos)
+        skip <- skip + nchar(pos) - 1
+      } else {
+        if (skip == 0) {
+          pos_line <- paste0(pos_line, " ")
+        } else {
+          skip <- skip - 1
+        }
+      }
+    } else {
+      if (skip == 0) {
+        pos_line <- paste0(pos_line, " ")
+      } else {
+        skip <- skip - 1
+      }
+    }
+  }
+  return(list(pos_line, pos))
+}
+
+.get_symbols <- function(s, start.pos = 1) {
+  corr.pos <- 0
+  s.sym <- ""
+  for (j in start.pos:(length(s) + start.pos - 1)) {
+    if (s[j- start.pos + 1] != "-" & (j-corr.pos) %% 5 != 0) {
+      s.sym <- c(s.sym, ".")
+    } else if (s[j- start.pos + 1] != "-" & (j-corr.pos) %% 5 == 0) {
+      s.sym <- c(s.sym, "|")
+    } else if (s[j- start.pos + 1] == "-") {
+      s.sym <- c(s.sym, " ")
+      corr.pos <- corr.pos + 1
+    }
+  }
+  return(strsplit(paste(s.sym, collapse = ""), "")[[1]])
+}

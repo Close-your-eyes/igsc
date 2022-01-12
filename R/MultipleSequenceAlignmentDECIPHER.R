@@ -28,17 +28,6 @@ MultipleSequenceAlignmentDECIPHER <- function(input.set,
     BiocManager::install("DECIPHER")
   }
 
-  acp <- c("A" = "#ffafaf",
-           "T" = "#fed7af",
-           "C" = "#afffaf",
-           "G" = "#afffff",
-           "-" = "#ffffff",
-           "match" = "#999999",
-           "mismatch" = "#a51515",
-           "gap" = "#9248d4",
-           "insertion" = "#000000",
-           "ambiguous" = "#E69F00")
-
   if (add.consensus.seq) {
     if ("consensus" %in% names(input.set)) {
       stop("consensus cannot be the name of either of the input sequences.")

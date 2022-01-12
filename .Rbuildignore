@@ -6,3 +6,4 @@
 ^docs$
 ^pkgdown$
 ^ignore_folder$
+^data-raw$
