@@ -26,6 +26,9 @@ printPairwiseAlignment <- function(alignments,
                                    use_align_starts = T,
                                    out_file = NULL) {
 
+  # Alignment formats
+  #http://emboss.sourceforge.net/docs/themes/AlignFormats.html
+
   if (!is.null(out_file)) {
     if (!grepl("\\.txt", out_file)) {
       print("You may want to save the output to a .txt file. If so, have a file with .txt in the out_file path.")
