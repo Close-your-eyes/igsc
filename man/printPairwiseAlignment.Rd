@@ -15,10 +15,28 @@ printPairwiseAlignment(
 )
 }
 \arguments{
-\item{out_file}{}
+\item{alignments}{one alignment or a list of multiple alignments created with
+Biostrings::pariwiseAlignment}
+
+\item{linewidth}{numeric, how many letters of alignment to print per line}
+
+\item{match_dots}{should matching position be printed as dots for easier
+recognition of differences; 'subject' to have dots in the subject, 'pattern' to
+have them in the pattern}
+
+\item{print_pos}{print the positions of pattern and subject above and below
+respectively}
+
+\item{print_pos_end}{print positions on the end of each line}
+
+\item{use_align_starts}{if TRUE, the first positions are not 1 but refer to
+postion of alignment within the provided sequences}
+
+\item{out_file}{path to a file where to print results to; if NULL results are
+printed in console}
 }
 \value{
-
+alignment in printed format in console or file
 }
 \description{
 Print pairwise alignments of DNA or AA to console or txt file

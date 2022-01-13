@@ -1,14 +1,20 @@
 #' Print pairwise alignments of DNA or AA to console or txt file
 #'
-#' @param alignments
-#' @param linewidth
-#' @param match_dots
-#' @param print_pos
-#' @param print_pos_end
-#' @param use_align_starts
-#' @param out_file
+#' @param alignments one alignment or a list of multiple alignments created with
+#' Biostrings::pariwiseAlignment
+#' @param linewidth numeric, how many letters of alignment to print per line
+#' @param match_dots should matching position be printed as dots for easier
+#' recognition of differences; 'subject' to have dots in the subject, 'pattern' to
+#' have them in the pattern
+#' @param print_pos print the positions of pattern and subject above and below
+#' respectively
+#' @param print_pos_end print positions on the end of each line
+#' @param use_align_starts if TRUE, the first positions are not 1 but refer to
+#' postion of alignment within the provided sequences
+#' @param out_file path to a file where to print results to; if NULL results are
+#' printed in console
 #'
-#' @return
+#' @return alignment in printed format in console or file
 #' @export
 #'
 #' @examples
@@ -21,6 +27,9 @@ printPairwiseAlignment <- function(alignments,
                                    out_file = NULL) {
 
   if (!is.null(out_file)) {
+    if (!grepl("\\.txt", out_file)) {
+      print("You may want to save the output to a .txt file. If so, have a file with .txt in the out_file path.")
+    }
     sink(out_file)
   }
 
