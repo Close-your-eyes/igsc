@@ -57,6 +57,7 @@ printPairwiseAlignment <- function(alignments,
     s_name <- seq.names[2]
 
     ## extend subject?? - handle gaps!
+    ## allow to define limits for subject or pattern
     pattern <- as.character(Biostrings::pattern(alignment))
     subject <- as.character(Biostrings::subject(alignment))
 
@@ -160,6 +161,10 @@ printPairwiseAlignment <- function(alignments,
       cat(paste(" "), "\n")
 
     }
+
+    cat(paste(" "), "\n")
+    cat(paste(" "), "\n")
+    cat(paste(" "), "\n")
   })
 
   if (!is.null(out_file)) {
