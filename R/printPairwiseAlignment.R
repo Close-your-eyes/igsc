@@ -10,7 +10,7 @@
 #' respectively
 #' @param print_pos_end print positions on the end of each line
 #' @param use_align_starts if TRUE, the first positions are not 1 but refer to
-#' postion of alignment within the provided sequences
+#' position of alignment within the provided sequences
 #' @param out_file path to a file where to print results to; if NULL results are
 #' printed in console
 #'
