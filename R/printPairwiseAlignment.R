@@ -24,10 +24,13 @@ printPairwiseAlignment <- function(alignments,
                                    print_pos = T,
                                    print_pos_end = F,
                                    use_align_starts = T,
+                                   #subject_lim = NULL
+                                   #pattern_lim = NULL,
                                    out_file = NULL) {
 
   # Alignment formats
   #http://emboss.sourceforge.net/docs/themes/AlignFormats.html
+  # how colour output with crayon?
 
   if (!is.null(out_file)) {
     if (!grepl("\\.txt", out_file)) {
@@ -60,9 +63,28 @@ printPairwiseAlignment <- function(alignments,
     s_name <- seq.names[2]
 
     ## extend subject?? - handle gaps!
-    ## allow to define limits for subject or pattern
     pattern <- as.character(Biostrings::pattern(alignment))
     subject <- as.character(Biostrings::subject(alignment))
+
+    ## allow to define limits for subject or pattern - handle gaps (=insertion) & deletions - difficult
+    # general method needed to absolutely define each nt position in alignedSeqs based on start, gaps and deletions
+'    if (!is.null(subject_lim) && !is.null(pattern_lim)) {
+      stop("Please only provide pattern_lim OR subject_lim, not both. Leave the other NULL.")
+    }
+    if (!is.null(subject_lim)) {
+      if (length(subject_lim) != 2) {
+        stop()
+        alignment@pattern@range@start
+        alignment@subject@range@start
+      }
+    }
+    if (!is.null(pattern_lim)) {
+      if (length(pattern_lim) != 2) {
+
+      }
+    }
+'
+
 
     if (nchar(subject) != nchar(pattern)) {
       stop("pattern and subject differ in length which cannot be handled.")
