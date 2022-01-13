@@ -36,14 +36,14 @@ printPairwiseAlignment <- function(alignments,
   lapply(alignments, function(alignment) {
 
     if (is.null(alignment@pattern@unaligned@ranges@NAMES)) {
-      print("In order to pass names to a pairwiseAligment object, create DNAStringSets (not DNAStrings) of the sequences.")
+      print("In order to pass names to a pairwiseAligment object, create XStringSets (not XStrings; X for DNA, RNA or AA) of the sequences.")
       p_name <- "pattern"
     } else {
       p_name <- alignment@pattern@unaligned@ranges@NAMES
     }
 
     if (is.null(alignment@subject@unaligned@ranges@NAMES)) {
-      print("In order to pass names to a pairwiseAligment object, create DNAStringSets (not DNAStrings) of the sequences.")
+      print("In order to pass names to a pairwiseAligment object, create XStringSets (not XStrings; X for DNA, RNA or AA) of the sequences.")
       s_name <- "subject"
     } else {
       s_name <- alignment@subject@unaligned@ranges@NAMES
@@ -139,13 +139,13 @@ printPairwiseAlignment <- function(alignments,
         s_line <- paste0(s_name, s_chunk, "  ")
       }
 
-      p_res <- .get_pos_line(name = p_name, chunk = p_sym.chunk, pos = p_pos)
-      p_pos.line <- p_res[[1]]
-      p_pos <- p_res[[2]]
+      p_list <- .get_pos_line(name = p_name, chunk = p_sym.chunk, pos = p_pos)
+      p_pos.line <- p_list[[1]]
+      p_pos <- p_list[[2]]
 
-      s_res <- .get_pos_line(name = s_name, chunk = s_sym.chunk, pos = s_pos)
-      s_pos.line <- s_res[[1]]
-      s_pos <- s_res[[2]]
+      s_list <- .get_pos_line(name = s_name, chunk = s_sym.chunk, pos = s_pos)
+      s_pos.line <- s_list[[1]]
+      s_pos <- s_list[[2]]
 
       if (print_pos) {
         cat(p_pos.line, "\n")
