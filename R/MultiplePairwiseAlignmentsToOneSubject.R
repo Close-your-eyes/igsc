@@ -138,18 +138,19 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   subject.ranges.unique <- subject.ranges[which(!duplicated(subject.ranges))]
   pa.unique <- pa[which(!duplicated(subject.ranges))]
 
+  # maybe make it mapply
   if (length(subject.ranges.unique) > 1) {
     is.subset <- unlist(lapply(seq_along(subject.ranges.unique), function(i) {
       any(unlist(lapply(seq_along(subject.ranges.unique), function (j) {
         if (i == j) {
           return(F)
         } else {
-          all(subject.ranges[[i]] %in% subject.ranges[[j]])
+          all(subject.ranges.unique[[i]] %in% subject.ranges.unique[[j]])
         }
       })))
     }))
   } else {
-    is.subset <- rep(F, length(subject.ranges))
+    is.subset <- rep(F, length(subject.ranges.unique))
   }
   subject.ranges.unique <- subject.ranges.unique[which(!is.subset)]
   pa.unique <- pa.unique[which(!is.subset)]
@@ -236,7 +237,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     ggplot2::theme_classic() +
     ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
     ggplot2::scale_fill_manual(values = acp1) +
-    ggplot2::scale_x_continuous(breaks = integer_breaks()) +
+    ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
     ggplot2::ylab("seq name")
 
 
@@ -245,7 +246,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     ggplot2::theme_classic() +
     ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
     ggplot2::scale_fill_manual(values = acp2) +
-    ggplot2::scale_x_continuous(breaks = integer_breaks()) +
+    ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
     ggplot2::ylab("seq name")
 
   if (!is.na(tile.border.color)) {
@@ -281,7 +282,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 }
 
 
-integer_breaks <- function(n = 5, ...) {
+.integer_breaks <- function(n = 5, ...) {
   fxn <- function(x) {
     breaks <- floor(base::pretty(x, n, ...))
     names(breaks) <- attr(breaks, "labels")
