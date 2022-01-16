@@ -10,9 +10,10 @@
 #' respectively
 #' @param print_pos_end print positions on the end of each line
 #' @param use_align_starts if TRUE, the first positions are not 1 but refer to
-#' postion of alignment within the provided sequences
+#' position of alignment within the provided sequences
 #' @param out_file path to a file where to print results to; if NULL results are
 #' printed in console
+#' @param col_out color the printed alignment?
 #'
 #' @return alignment in printed format in console or file
 #' @export
@@ -24,6 +25,7 @@ printPairwiseAlignment <- function(alignments,
                                    print_pos = T,
                                    print_pos_end = F,
                                    use_align_starts = T,
+                                   col_out = T,
                                    out_file = NULL) {
 
   if (!is.null(out_file)) {
@@ -35,15 +37,17 @@ printPairwiseAlignment <- function(alignments,
 
   lapply(alignments, function(alignment) {
 
-    if (is.null(alignment@pattern@unaligned@ranges@NAMES)) {
+    if (is.null(alignment@subject@unaligned@ranges@NAMES) || is.null(alignment@pattern@unaligned@ranges@NAMES)) {
       print("In order to pass names to a pairwiseAligment object, create XStringSets (not XStrings; X for DNA, RNA or AA) of the sequences.")
+    }
+
+    if (is.null(alignment@pattern@unaligned@ranges@NAMES)) {
       p_name <- "pattern"
     } else {
       p_name <- alignment@pattern@unaligned@ranges@NAMES
     }
 
     if (is.null(alignment@subject@unaligned@ranges@NAMES)) {
-      print("In order to pass names to a pairwiseAligment object, create XStringSets (not XStrings; X for DNA, RNA or AA) of the sequences.")
       s_name <- "subject"
     } else {
       s_name <- alignment@subject@unaligned@ranges@NAMES
@@ -94,13 +98,12 @@ printPairwiseAlignment <- function(alignments,
     pattern <- strsplit(pattern, "")[[1]]
     subject <- strsplit(subject, "")[[1]]
 
-    p_sym <- .get_symbols(s = pattern, start.pos = p_start)
-    s_sym <- .get_symbols(s = subject, start.pos = s_start)
+    p_sym <- paste(.get_symbols(s = pattern, start.pos = p_start), collapse = "")
+    s_sym <- paste(.get_symbols(s = subject, start.pos = s_start), collapse = "")
 
     pattern <- paste(pattern, collapse = "")
     subject <- paste(subject, collapse = "")
-    p_sym <- paste(p_sym, collapse = "")
-    s_sym <- paste(s_sym, collapse = "")
+
 
     len  <- nchar(pattern)
     starts <- seq(1, len, by = linewidth)
@@ -122,6 +125,10 @@ printPairwiseAlignment <- function(alignments,
     for (i in 1:n) {
       p_chunk <- substring(pattern, starts[i], starts[i]+linewidth-1)
       s_chunk <- substring(subject, starts[i], starts[i]+linewidth-1)
+      if (col_out) {
+        p_chunk <- .col.letter.fun(p_chunk)
+        s_chunk <- .col.letter.fun(s_chunk)
+      }
       p_sym.chunk <- substring(p_sym, starts[i], starts[i]+linewidth-1)
       s_sym.chunk <- substring(s_sym, starts[i], starts[i]+linewidth-1)
 
@@ -214,4 +221,75 @@ printPairwiseAlignment <- function(alignments,
     }
   }
   return(strsplit(paste(s.sym, collapse = ""), "")[[1]])
+}
+
+
+.col.letter.fun <- function(x) {
+
+  black <- crayon::make_style("black")
+  whiter <- crayon::make_style(rgb(1, 1, 1))
+
+  x <- strsplit(x, "")[[1]]
+  if (all(x %in% unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N")))) {
+
+    dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B")
+    cols <- RColorBrewer::brewer.pal(6, "Set2")[-c(4,5)]
+
+    x <- sapply(x, function(y) {
+      if (y == "A") {
+        #crayon::make_style(acp[["A"]], bg = T)(black("A"))
+        crayon::make_style(cols[1], bg = T)(black("A"))
+      } else if (y == "T" || y == "U") {
+        #crayon::make_style(acp[["T"]], bg = T)(black("T"))
+        crayon::make_style(cols[2], bg = T)(black(y))
+      } else if (y == "C") {
+        #crayon::make_style(acp[["C"]], bg = T)(black("C"))
+        crayon::make_style(cols[3], bg = T)(black("C"))
+      } else if (y == "G") {
+        #crayon::make_style(acp[["G"]], bg = T)(black("G"))
+        crayon::make_style(cols[4], bg = T)(black("G"))
+      } else if (y == "N") {
+        #crayon::make_style("grey95", bg = T)(black("N"))
+        crayon::make_style("grey40", bg = T)(whiter("N"))
+      } else if (y %in% dark_grey_bg_letters) {
+        crayon::make_style("grey30", bg = T)(whiter(y))
+      } else {
+        y
+      }
+    })
+
+  } else if (all(x %in% c(Biostrings::AA_ALPHABET, "N"))) {
+
+    cols <- RColorBrewer::brewer.pal(7, "Set2")[-c(4:5)]
+
+    aa_non_polar <- c("A","V","L","I","M","W","F","Y")
+    aa_polar <- c("S","T","N","Q")
+    aa_pos_charge <- c("K","R","H")
+    aa_neg_charge <- c("D","E")
+    aa_special <- c("C", "G", "P")
+
+    x <- sapply(x, function(y) {
+      if (y %in% aa_non_polar) {
+        crayon::make_style(cols[1], bg = T)(black(y))
+      } else if (y %in% aa_polar) {
+        crayon::make_style(cols[2], bg = T)(black(y))
+      } else if (y %in% aa_pos_charge) {
+        crayon::make_style(cols[3], bg = T)(black(y))
+      } else if (y %in% aa_neg_charge) {
+        crayon::make_style(cols[4], bg = T)(black(y))
+      } else if (y %in% aa_special) {
+        crayon::make_style(cols[5], bg = T)(black(y))
+      } else if (y == "N") {
+        crayon::make_style("grey40", bg = T)(whiter("N"))
+      } else {
+        crayon::make_style("grey30", bg = T)(whiter(y))
+      }
+    })
+  } else {
+    print("AA, DNA or RNA could not be identified.")
+  }
+
+  x <- paste(x,collapse = "")
+
+  return(x)
 }
