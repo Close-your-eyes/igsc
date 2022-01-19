@@ -32,7 +32,6 @@ printPairwiseAlignment <- function(alignments,
 
   # Alignment formats
   #http://emboss.sourceforge.net/docs/themes/AlignFormats.html
-  # how colour output with crayon?
 
   if (!is.null(out_file)) {
     if (!grepl("\\.txt", out_file)) {
