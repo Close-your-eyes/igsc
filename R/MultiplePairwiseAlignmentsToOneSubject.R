@@ -42,6 +42,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    subject.lim.lines = F,
                                                    attach.nt = T,
                                                    tile.border.color = NA,
+                                                   font.family = font.family,
                                                    fix_indels = F) {
 
   if (!requireNamespace("Biostrings", quietly = T)){
@@ -236,7 +237,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
     ggplot2::geom_tile() +
     ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
+    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = font.family)) +
     ggplot2::scale_fill_manual(values = acp1) +
     ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
     ggplot2::ylab("seq name")
@@ -245,7 +246,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   g2 <- ggplot2::ggplot(df.match %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
     ggplot2::geom_tile() +
     ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
+    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = font.family)) +
     ggplot2::scale_fill_manual(values = acp2) +
     ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
     ggplot2::ylab("seq name")
@@ -261,7 +262,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
     pattern.ranges <- pattern.ranges %>% tidyr::pivot_longer(cols = c(start, end), names_to = "pos", values_to = "values")
     pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(df.match$position) + 2)
-    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, inherit.aes = F)
+    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, family = font.family, inherit.aes = F)
   }
 
   min.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
