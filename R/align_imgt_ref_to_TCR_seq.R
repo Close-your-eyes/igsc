@@ -24,7 +24,9 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       cl_wide,
                                       imgt_ref,
                                       sequence_col = "consensus_seq_cr",
-                                      C_allele) {
+                                      C_allele,
+                                      type = "local",
+                                      ...) {
 
   if (!requireNamespace("Biostrings", quietly = T)){
     BiocManager::install("Biostrings")
@@ -118,14 +120,22 @@ align_imgt_ref_to_TCR_seq <- function(chain,
   p2 <- lapply(pairs, function (x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
-    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]), patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v], imgt_j_allele_seq[j], C.allele.seq)), type = "local", pattern.lim.size = 4, subject.lim.lines = T)
+    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
+                                           patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v],imgt_j_allele_seq[j], C.allele.seq)),
+                                           type = type,
+                                           pattern.lim.size = 4,
+                                           subject.lim.lines = T, ...)
   })
   names(p2) <- pairs
 
   p3 <- lapply(pairs, function (x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
-    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]), patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v], imgt_j_allele_seq[j])), type = "local", pattern.lim.size = 4, subject.lim.lines = T)
+    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
+                                           patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v], imgt_j_allele_seq[j])),
+                                           type = type,
+                                           pattern.lim.size = 4,
+                                           subject.lim.lines = T, ...)
   })
   names(p3) <- pairs
 

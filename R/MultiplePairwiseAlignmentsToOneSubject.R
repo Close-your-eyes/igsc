@@ -113,8 +113,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
       if (i != j) {
         if (length(intersect(als[[i]],inds[[j]])) > 0) {
           if (!fix_indels) {
-            stop("Overlapping indel and subject alignment range found. This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
+            warning("Overlapping indel and subject alignment range found. This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
                  To do so, set fix_indels = T.")
+            return(NULL)
           }
           do_fix <- T
           ind[j,"corr_end"] <- ind[j,"start"] - 1
