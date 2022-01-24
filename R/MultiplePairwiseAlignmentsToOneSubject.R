@@ -42,7 +42,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    subject.lim.lines = F,
                                                    attach.nt = T,
                                                    tile.border.color = NA,
-                                                   font.family = font.family,
+                                                   font.family = "Courier",
                                                    fix_indels = F) {
 
   if (!requireNamespace("Biostrings", quietly = T)){
