@@ -105,7 +105,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   ind$indel_end <- ind$indel_start + ind$width - 1
   ind$corr_end <- NA
 
-  als <- mapply(seq, ind$al_start, ind$al_end)
+  als <- mapply(seq, ind$al_start, ind$al_end, SIMPLIFY = F)
   inds <- mapply(seq, ind$indel_start[!is.na(ind$indel_start)], ind$indel_end[!is.na(ind$indel_end)], SIMPLIFY = F)
 
   do_fix <- F
