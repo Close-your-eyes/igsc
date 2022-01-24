@@ -14,6 +14,8 @@
 #' @param order.patterns order pattern increasingly by alignment position (start)
 #' @param perfect.matches.only filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment
 #' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
+#' @param font.family which font for plotting
+#' @param ... additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
@@ -43,7 +45,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    attach.nt = T,
                                                    tile.border.color = NA,
                                                    font.family = "Courier",
-                                                   fix_indels = F) {
+                                                   fix_indels = F,
+                                                   ...) {
 
   if (!requireNamespace("Biostrings", quietly = T)){
     BiocManager::install("Biostrings")
@@ -132,7 +135,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
         patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(ind[which(ind$group == k), "corr_end"], na.rm = T))
       }
     }
-    pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
+    pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
   }
 
   # get ranges
