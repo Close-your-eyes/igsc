@@ -14,6 +14,7 @@
 #' @param out_file path to a file where to print results to; if NULL results are
 #' printed in console
 #' @param col_out color the printed alignment?
+#' @param extend_subject
 #'
 #' @return alignment in printed format in console or file
 #' @export
@@ -26,8 +27,7 @@ printPairwiseAlignment <- function(alignments,
                                    print_pos_end = F,
                                    use_align_starts = T,
                                    col_out = T,
-                                   #subject_lim = NULL
-                                   #pattern_lim = NULL,
+                                   extend_subject = c(0,0),
                                    out_file = NULL) {
 
   # Alignment formats
@@ -65,9 +65,29 @@ printPairwiseAlignment <- function(alignments,
     p_name <- seq.names[1]
     s_name <- seq.names[2]
 
-    ## extend subject?? - handle gaps!
-    pattern <- as.character(Biostrings::pattern(alignment))
-    subject <- as.character(Biostrings::subject(alignment))
+    ## extend subject?? - handle gaps - no not necessary, no gaps anyway
+    pattern <- as.character(alignment@pattern) #Biostrings::pattern(alignment)
+    subject <- as.character(alignment@subject) #Biostrings::subject(alignment)
+
+    if (!identical(extend_subject), c(0,0)) {
+      # work on it
+      if (any(extend_subject) < 0) {
+        stop("both extend_subject > 0!")
+      }
+      if (length(extend_subject) != 2) {
+        stop("extend_subject has to be of length 2.")
+      }
+      if (!is.numeric(extend_subject)) {
+        stop("extend_subject has to be numeric.")
+      }
+      pattern <- paste0(paste(rep("-", extend_subject[1]), collapse = ""), pattern)
+      pattern <- paste0(pattern, paste(rep("-", extend_subject[2]), collapse = ""))
+
+      subject <- paste0(substr(as.character(alignment@subject@unaligned[[1]]), start = alignment@subject@range@start - extend_subject[1], stop = alignment@subject@range@start-1), subject)
+      subject <- paste0(subject, substr(as.character(alignment@subject@unaligned[[1]]), start = alignment@subject@range@start+alignment@subject@range@width, stop = alignment@subject@range@start+alignment@subject@range@width-1+extend_subject[2]))
+    }
+
+
 
     ## allow to define limits for subject or pattern - handle gaps (=insertion) & deletions - difficult
     # general method needed to absolutely define each nt position in alignedSeqs based on start, gaps and deletions
