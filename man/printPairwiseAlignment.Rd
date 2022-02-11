@@ -11,7 +11,8 @@ printPairwiseAlignment(
   print_pos = T,
   print_pos_end = F,
   use_align_starts = T,
-  col_out = F,
+  col_out = T,
+  extend_subject = c(0, 0),
   out_file = NULL
 )
 }
@@ -31,9 +32,11 @@ respectively}
 \item{print_pos_end}{print positions on the end of each line}
 
 \item{use_align_starts}{if TRUE, the first positions are not 1 but refer to
-postion of alignment within the provided sequences}
+position of alignment within the provided sequences}
 
 \item{col_out}{color the printed alignment?}
+
+\item{extend_subject}{}
 
 \item{out_file}{path to a file where to print results to; if NULL results are
 printed in console}

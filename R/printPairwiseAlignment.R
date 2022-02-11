@@ -69,9 +69,9 @@ printPairwiseAlignment <- function(alignments,
     pattern <- as.character(alignment@pattern) #Biostrings::pattern(alignment)
     subject <- as.character(alignment@subject) #Biostrings::subject(alignment)
 
-    if (!identical((extend_subject), c(0,0))) {
+    if (!identical(extend_subject, c(0,0))) {
       # work on it
-      if (any(extend_subject) < 0) {
+      if (any(extend_subject < 0)) {
         stop("both extend_subject > 0!")
       }
       if (length(extend_subject) != 2) {
@@ -80,11 +80,16 @@ printPairwiseAlignment <- function(alignments,
       if (!is.numeric(extend_subject)) {
         stop("extend_subject has to be numeric.")
       }
-      pattern <- paste0(paste(rep("-", extend_subject[1]), collapse = ""), pattern)
-      pattern <- paste0(pattern, paste(rep("-", extend_subject[2]), collapse = ""))
+
+      # avoid diff length of pattern and subject
+      extend_subject[1] <- min(c(alignment@subject@range@start-1, extend_subject[1]))
+      extend_subject[2] <- min(c(nchar(as.character(alignment@subject@unaligned[[1]]))-c(alignment@subject@range@start+alignment@subject@range@width-1), extend_subject[2]))
 
       subject <- paste0(substr(as.character(alignment@subject@unaligned[[1]]), start = alignment@subject@range@start - extend_subject[1], stop = alignment@subject@range@start-1), subject)
       subject <- paste0(subject, substr(as.character(alignment@subject@unaligned[[1]]), start = alignment@subject@range@start+alignment@subject@range@width, stop = alignment@subject@range@start+alignment@subject@range@width-1+extend_subject[2]))
+
+      pattern <- paste0(paste(rep("-", extend_subject[1]), collapse = ""), pattern)
+      pattern <- paste0(pattern, paste(rep("-", extend_subject[2]), collapse = ""))
     }
 
 

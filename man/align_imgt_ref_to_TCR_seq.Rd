@@ -11,7 +11,9 @@ align_imgt_ref_to_TCR_seq(
   cl_wide,
   imgt_ref,
   sequence_col = "consensus_seq_cr",
-  C_allele
+  C_allele,
+  type = "local",
+  ...
 )
 }
 \arguments{

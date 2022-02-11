@@ -14,7 +14,9 @@ MultiplePairwiseAlignmentsToOneSubject(
   subject.lim.lines = F,
   attach.nt = T,
   tile.border.color = NA,
-  fix_indels = F
+  font.family = "Courier",
+  fix_indels = F,
+  ...
 )
 }
 \arguments{
@@ -36,7 +38,11 @@ MultiplePairwiseAlignmentsToOneSubject(
 
 \item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing}
 
+\item{font.family}{which font for plotting}
+
 \item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
+
+\item{...}{additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type}
 }
 \value{
 a list:
