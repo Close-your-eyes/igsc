@@ -69,7 +69,7 @@ printPairwiseAlignment <- function(alignments,
     pattern <- as.character(alignment@pattern) #Biostrings::pattern(alignment)
     subject <- as.character(alignment@subject) #Biostrings::subject(alignment)
 
-    if (!identical(extend_subject), c(0,0)) {
+    if (!identical((extend_subject), c(0,0))) {
       # work on it
       if (any(extend_subject) < 0) {
         stop("both extend_subject > 0!")
