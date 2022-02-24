@@ -81,6 +81,7 @@ printPairwiseAlignment <- function(alignments,
         stop("extend_subject has to be numeric.")
       }
 
+      #browser()
       # avoid diff length of pattern and subject
       extend_subject[1] <- min(c(alignment@subject@range@start-1, extend_subject[1]))
       extend_subject[2] <- min(c(nchar(as.character(alignment@subject@unaligned[[1]]))-c(alignment@subject@range@start+alignment@subject@range@width-1), extend_subject[2]))
@@ -121,7 +122,7 @@ printPairwiseAlignment <- function(alignments,
 
     if (use_align_starts) {
       p_start <- alignment@pattern@range@start
-      s_start <- alignment@subject@range@start
+      s_start <- alignment@subject@range@start - extend_subject[1]
     } else {
       p_start <- 1
       s_start <- 1
