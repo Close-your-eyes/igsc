@@ -285,7 +285,12 @@ printPairwiseAlignment <- function(alignments,
   whiter <- crayon::make_style(rgb(1, 1, 1))
 
   x <- strsplit(x, "")[[1]]
-  if (all(x %in% unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N")))) {
+
+  if (all(x == "-")) {
+    x <- sapply(x, function(y) {
+      crayon::make_style("grey30", bg = T)(whiter(y))
+    })
+  } else if (all(x %in% unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N")))) {
 
     dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B")
     cols <- RColorBrewer::brewer.pal(6, "Set2")[-c(4,5)]
