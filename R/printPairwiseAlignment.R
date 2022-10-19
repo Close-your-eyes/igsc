@@ -281,6 +281,31 @@ printPairwiseAlignment <- function(alignments,
 
 .col.letter.fun <- function(x) {
 
+
+  ## add an option to color by specific aa properties or by groups
+  '
+  ## from Peptides::aaComp
+aa_list <- list(tiny = c("A", "C", "G", "S", "T"),
+                small = c("A", "B", "C", "D", "G", "N", "P", "S", "T", "V"),
+                aliphatic = c("A", "I", "L", "V"),
+                aromatic = c("F", "H", "W", "Y"),
+                nonpolar = c("A", "C", "F", "G", "I", "L", "M", "P", "V", "W", "Y"),
+                polar = c("D", "E", "H", "K", "N", "Q", "R", "S", "T", "Z"),
+                charged = c("B", "D", "E", "H", "K", "R", "Z"), ## all that are basic or acidic
+                basic = c("H", "K", "R"),
+                acidic = c("B", "D", "E", "Z"))
+
+aa_df <- stack(aa_list)
+aa_df <- aa_df[which(aa_df$values %in% Peptides::aaList()),] #Biostrings::AA_STANDARD
+unstack(aa_df[,c(2,1)])
+
+Peptides::aIndex(Peptides::aaList()) # aliphaticness
+sort(setNames(Peptides::charge(Peptides::aaList()), Peptides::aaList())) # charge = dist to zero (neg or pos); polar = has charge and nonpolar = has no charge (roughly, not 100 %, e.g. S is polar without charge)
+sort(setNames(Peptides::hydrophobicity(Peptides::aaList(), scale = "Eisenberg"), Peptides::aaList())) # polarity: all negative ones are polar, all positives nonpolar
+setNames(Peptides::pI(Peptides::aaList()), Peptides::aaList()) # low pI = acidic, high pI = basic
+sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly size
+  '
+
   black <- crayon::make_style("black")
   whiter <- crayon::make_style(grDevices::rgb(1, 1, 1))
 
