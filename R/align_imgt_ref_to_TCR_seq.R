@@ -10,6 +10,8 @@
 #' @param cl_long clonotype data frame long format
 #' @param cl_wide clonotype data frame wide format
 #' @param C_allele optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame
+#' @param type type of alignment
+#' @param ...  arguments to MultiplePairwiseAlignmentsToOneSubject
 #'
 #' @return a list
 #' @export

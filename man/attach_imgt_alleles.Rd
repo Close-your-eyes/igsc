@@ -14,7 +14,7 @@ attach_imgt_alleles(
 }
 \arguments{
 \item{seq}{data frame with clonotype data in long format, e.g. cl_long preferentially from igsc::read_cellranger_outs or
-a named vector of consensus sequences, named by V and J segments, separated by "___"; e.g. stats::setNames(object = cl_long$consensus_seq_cr, nm = paste0(cl_long$V_cr, '___', cl_long$J_cr))}
+a named vector of consensus sequences, named by V and J segments, separated by "\emph{\strong{"; e.g. stats::setNames(object = cl_long$consensus_seq_cr, nm = paste0(cl_long$V_cr, '}}', cl_long$J_cr))}
 
 \item{imgt_ref}{IMGT reference data frame created with igsc::imgt_tcr_segment_prep or a named vector of sequences and respective allele names;
 e.g. stats::setNames(imgt_ref$seq.nt, imgt_ref$Allele)}

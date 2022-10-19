@@ -10,11 +10,7 @@ MultiplePairwiseAlignmentsToOneSubject(
   type = "global-local",
   perfect.matches.only = F,
   order.patterns = F,
-  pattern.lim.size = 2,
-  subject.lim.lines = F,
   attach.nt = T,
-  tile.border.color = NA,
-  font.family = "Courier",
   fix_indels = F,
   ...
 )
@@ -30,15 +26,7 @@ MultiplePairwiseAlignmentsToOneSubject(
 
 \item{order.patterns}{order pattern increasingly by alignment position (start)}
 
-\item{pattern.lim.size}{size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting}
-
-\item{subject.lim.lines}{print vertical lines at the outermost subject-nts of all aligned patterns}
-
 \item{attach.nt}{add the length of the string to the name on the axis}
-
-\item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing}
-
-\item{font.family}{which font for plotting}
 
 \item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
 
@@ -53,8 +41,9 @@ seq min.max.subject.position indicates the outer limits of all aligned patterns 
 }
 \description{
 This function is useful plot the alignment position of multiple patterns in one subject.
-It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
+It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
+the results to a ggplot object with a few optional complementing information (see arguments).
+The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 }
 \examples{
 \dontrun{

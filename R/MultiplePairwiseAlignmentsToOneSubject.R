@@ -1,20 +1,17 @@
 #' Align multiple DNA pattern sequences to one subject
 #'
 #' This function is useful plot the alignment position of multiple patterns in one subject.
-#' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-#' The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
+#' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
+#' the results to a ggplot object with a few optional complementing information (see arguments).
+#' The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 #'
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param pattern.lim.size size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting
-#' @param subject.lim.lines print vertical lines at the outermost subject-nts of all aligned patterns
 #' @param attach.nt add the length of the string to the name on the axis
-#' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
 #' @param order.patterns order pattern increasingly by alignment position (start)
 #' @param perfect.matches.only filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment
 #' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
-#' @param font.family which font for plotting
 #' @param ... additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type
 #'
 #' @return a list:
@@ -40,22 +37,20 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    type = "global-local",
                                                    perfect.matches.only = F,
                                                    order.patterns = F,
-                                                   pattern.lim.size = 2,
-                                                   subject.lim.lines = F,
                                                    attach.nt = T,
-                                                   tile.border.color = NA,
-                                                   font.family = "Courier",
                                                    fix_indels = F,
                                                    ...) {
 
-  if (!requireNamespace("Biostrings", quietly = T)){
+  if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
 
-  if (class(patterns) != "DNAStringSet") {
+
+  ## to do: also allow AAString, perform check
+  if (!methods::is(patterns, "DNAStringSet")) {
     patterns <- Biostrings::DNAStringSet(patterns)
   }
-  if (class(subject) != "DNAStringSet") {
+  if (!methods::is(subject, "DNAStringSet")) {
     subject <- Biostrings::DNAStringSet(subject)
   }
 
@@ -79,15 +74,17 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   subject.name <- names(subject)
 
   type <- match.arg(type, choices = c("global", "local", "overlap", "global-local", "local-global"))
+  font.family <- match.arg(font.family, choices = c("sans", "mono", "serif"))
 
   if (perfect.matches.only) {
     perf <- Biostrings::vwhichPDict(subject = subject, pdict = Biostrings::PDict(patterns))[[1]]
     print(paste0(length(perf), " of ", length(patterns), " patterns found to perfectly match the subject."))
     patterns <- patterns[perf]
+    if (length(patterns) == 0) {
+      stop("No pattern with perfect match left.")
+    }
   }
-  if (length(patterns) == 0) {
-    stop("No pattern with perfect match left.")
-  }
+
 
   # calculate all alignments
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
@@ -184,24 +181,17 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   ## attach the remaining sequence from subject
   total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
 
-  df <- data.frame(seq = strsplit(total.subject.seq, "")[[1]],
-                   position = seq(1:length(strsplit(total.subject.seq, "")[[1]])))
 
+  ## create data frame for plotting
+  df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), subject.name)), position = dplyr::row_number())
   df[df$seq != "-", "subject.position"] <- seq(1:nrow(df[df$seq != "-", ]))
-  names(df)[1] <- subject.name
-
-  pf <- list()
   gap.corr <- 0
-
-  pa <- pa[order(sapply(subject.ranges, function(x) min(x)))]
+  pa <- pa[order(purrr::map_int(subject.ranges, min))]
   for (x in 1:length(pa)) {
-    pf[[x]] <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
-                          position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
+    temp <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
+                       position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
     gap.corr <- gap.corr + sum(data.frame(pa[x]@subject@indel@unlistData)$width)
-  }
-
-  for (i in 1:length(pf)) {
-    df <- df %>% dplyr::left_join(pf[[i]], by = "position")
+    df <- dplyr::left_join(df, temp, by = "position")
   }
 
   df.match <- df
@@ -212,88 +202,197 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
 
+  acp1 <- acp[which(names(acp) %in% unique(df[,subject.name]))]
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
-  acp1 <- acp[which(names(acp) %in% unique(df$seq))]
-  df$seq <- factor(df$seq, levels = c(names(acp1)))
-  df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
-  if (order.patterns) {
-    df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names[order(sapply(subject.ranges, function(x) min(x)))]))
-  } else {
-    df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
-  }
+    dplyr::mutate(seq = factor(seq, levels = names(acp1))) %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
+  acp2 <- acp[which(names(acp) %in% unique(unlist(df.match[,c(subject.name, patterns.names)])))]
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
-  acp2 <- acp[which(names(acp) %in% unique(df.match$seq))]
-  df.match$seq <- factor(df.match$seq, levels = c(names(acp2)))
-  if (order.patterns) {
-    df.match$seq.name <- factor(df.match$seq.name, levels = c(subject.name, patterns.names[order(sapply(subject.ranges, function(x) min(x)))]))
-  } else {
-    df.match$seq.name <- factor(df.match$seq.name, levels = c(subject.name, patterns.names))
-  }
+    dplyr::mutate(seq = factor(seq, levels = names(acp2))) %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
-  g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-    ggplot2::geom_tile() +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = font.family)) +
-    ggplot2::scale_fill_manual(values = acp1) +
-    ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
-    ggplot2::ylab("seq name")
+  g1 <- algnmt_plot(algnmt = df,
+                    tile.border.color = NA,
+                    font.family = "sans",
+                    pattern.lim.size = 2,
+                    pa = pa,
+                    subject.lim.lines = F)
 
-
-  g2 <- ggplot2::ggplot(df.match %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-    ggplot2::geom_tile() +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = font.family)) +
-    ggplot2::scale_fill_manual(values = acp2) +
-    ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
-    ggplot2::ylab("seq name")
-
-  if (!is.na(tile.border.color)) {
-    g1 <- g1 + ggplot2::geom_tile(data = df[which(df$seq != "-"), ], color = tile.border.color)
-    g2 <- g2 + ggplot2::geom_tile(data = df.match[which(df.match$seq != "-"), ], color = tile.border.color)
-  }
-
-  ### pull positions of patterns
-  if (pattern.lim.size > 0) {
-    pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
-    for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
-    pattern.ranges <- pattern.ranges %>% tidyr::pivot_longer(cols = c(start, end), names_to = "pos", values_to = "values")
-    pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(df.match$position) + 2)
-    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, family = font.family, inherit.aes = F)
-  }
-
-  min.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
-  min.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position)
-
-  max.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(position)
-  max.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)
-
-  if (subject.lim.lines) {
-    g1 <- g1 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
-    g2 <- g2 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
-  }
+  g2 <- algnmt_plot(algnmt = df.match,
+                    tile.border.color = NA,
+                    font.family = "sans",
+                    pattern.lim.size = 2,
+                    pa = pa,
+                    subject.lim.lines = F)
 
   return(list(base.plot = g1,
               match.plot = g2,
               base.df = df,
               match.df = df.match,
-              min.max.subject.position = c(min.subj.pos, max.subj.pos)))
+              min.max.subject.position = c(df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position),
+                                           df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position))))
 }
-
 
 .integer_breaks <- function(n = 5, ...) {
   fxn <- function(x) {
     breaks <- floor(base::pretty(x, n, ...))
     names(breaks) <- attr(breaks, "labels")
-    breaks
+    return(breaks[intersect(which(breaks > 0), which(breaks < max(x)))])
   }
   return(fxn)
 }
 
+algnmt_plot <- function(algnmt,
+                        color_values = NULL,
+                        tile.border.color = NA,
+                        tile.border.on.NA = F,
+                        text = F,
+                        font.family = c("sans", "mono", "serif"),
+                        theme = ggplot2::theme_bw(base_family = font.family),
+                        legend.position = "none",
+                        pattern.lim.size = 2,
+                        pa = NULL,
+                        subject.lim.lines = F,
+                        ylab = "seq name",
+                        legend.title = "",
+                        pos_col = "position",
+                        seq_col = "seq",
+                        name_col = "seq.name",
+                        coord_fixed_ratio = NULL,
+                        x.breaks = NULL,
+                        ...) {
+
+  # color_values see igsc:::scheme_NT; igsc:::scheme_AA
+
+  # coord_fixed_ratio
+  # if !is.null(coord_fixed_ratio)
+  # example: length(unique(algnmt[,pos_col,drop=T]))/length(unique(algnmt[,name_col,drop=T]))*0.5
+
+
+  ## checks
+  algnmt_type <- NULL
+  if (methods::is(algnmt, "DNAStringSet") || methods::is(algnmt, "RNAStringSet") || methods::is(algnmt, "AAStringSet")) {
+    if (methods::is(algnmt, "DNAStringSet") || methods::is(algnmt, "RNAStringSet")) {
+      algnmt_type <- "NT"
+    }
+    if (methods::is(algnmt, "AAStringSet")) {
+      algnmt_type <- "AA"
+    }
+    algnmt <- XStringSet_to_df(algnmt)
+  }
+
+  if (!all(c(pos_col, seq_col, name_col) %in% names(algnmt))) {
+    stop("algnmt at least has to contain columns named: ", pos_col, ", ", seq_col, ", ", name_col, ".Alternative change function arguments.")
+  }
+
+  if (is.null(algnmt_type)) {
+    inds <- intersect(which(!is.na(algnmt[,seq_col,drop=T])), which(!algnmt[,seq_col,drop=T] %in% c("match", "mismatch", "gap", "insertion", "ambiguous")))
+    if (all(algnmt[,seq_col,drop=T][inds] %in% unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N")))) {
+      algnmt_type <- "NT"
+    } else if (all(algnmt[,seq_col,drop=T][inds] %in% c(Biostrings::AA_ALPHABET, "N"))) {
+      algnmt_type <- "AA"
+    }
+  }
+
+  # use preset colors
+  if (is.null(color_values)) {
+    if (algnmt_type == "NT") {
+      color_values <- names(scheme_NT)[1]
+    }
+    if (algnmt_type == "AA") {
+      color_values <- names(scheme_AA)[1]
+    }
+  }
+  if (length(color_values) == 1) {
+    if (algnmt_type == "NT") {
+      color_values <- stats::setNames(scheme_NT[,match.arg(color_values, choices = names(scheme_NT)),drop=T], rownames(scheme_NT))
+    } else if (algnmt_type == "AA") {
+      color_values <- stats::setNames(scheme_AA[,match.arg(color_values, choices = names(scheme_AA)),drop=T], rownames(scheme_AA))
+    } else {
+      message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")
+      color_values <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
+    }
+  } else {
+    # provide own colors
+    if (is.null(names(color_values))) {
+      if (length(color_values) < length(unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))) {
+        stop("Not enough color_values provided.")
+      }
+    } else {
+      if (any(!unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]) %in% names(color_values))) {
+        stop("Not all values in algnmt[,seq_col] found in names(color_values).")
+      }
+    }
+  }
+
+  # make sure it is not a factor
+  algnmt[,pos_col,drop=T] <- as.numeric(as.character(algnmt[,pos_col,drop=T]))
+
+  # https://stackoverflow.com/questions/45493163/ggplot-remove-na-factor-level-in-legend
+  # --> na.translate = F
+
+  #ex<-names(as.list(formals(ggplot2::theme)))
+  if (is.null(x.breaks)) {
+    x.breaks <- floor(base::pretty(algnmt[,pos_col,drop=T], n = 5))
+    x.breaks <- x.breaks[which(x.breaks > 0)]
+    x.breaks <- x.breaks[which(x.breaks < max(algnmt[,pos_col,drop=T]))]
+  }
+
+  plot <-
+    ggplot2::ggplot(algnmt, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(name_col))) +
+    theme +
+    ggplot2::theme(legend.position = legend.position,
+                   panel.grid = ggplot2::element_blank(),
+                   text = ggplot2::element_text(family = font.family),
+                   ...) +
+    ggplot2::labs(y = ylab, fill = legend.title) +
+    ggplot2::scale_fill_manual(values = color_values, na.value = "white", na.translate = F) +
+    ggplot2::scale_x_continuous(breaks = x.breaks)
+
+  if (!is.na(tile.border.color)) {
+    plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])), ]},
+                                      color = tile.border.color,
+                                      ggplot2::aes(fill = !!rlang::sym(seq_col)))
+  } else {
+    plot <- plot + ggplot2::geom_tile(ggplot2::aes(fill = !!rlang::sym(seq_col)))
+  }
+
+  if (text) {
+    plot <- plot + ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col)), na.rm = T, family = font.family)
+  }
+
+  if (!is.null(coord_fixed_ratio)) {
+    plot <- plot + ggplot2::coord_fixed(ratio = coord_fixed_ratio)
+  }
+
+  if (pattern.lim.size > 0 && !is.null(pa)) {
+    pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
+    for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
+    pattern.ranges <- tidyr::pivot_longer(pattern.ranges, cols = c(start, end), names_to = "pos", values_to = "values")
+    pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(algnmt$position) + 2)
+    plot <- plot + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, family = font.family, inherit.aes = F)
+  }
+
+  if (subject.lim.lines) {
+    min.pos <- algnmt %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
+    max.pos <- algnmt %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_max(order_by = position, n = 1) %>% dplyr::pull(position)
+    plot <- plot + ggplot2::geom_vline(xintercept = c(min.pos, max.pos), linetype = "dashed")
+  }
+
+  return(plot)
+}
+
+XStringSet_to_df <- function(xstringset) {
+  out <- purrr::map(as.list(xstringset), as.character)
+  out <- purrr::flatten(purrr::map(out, strsplit, split = ""))
+  out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = "seq.name")
+  names(out)[c(2,3)] <- c("seq", "position")
+  out$position <- as.numeric(as.character(out$position))
+  return(out)
+}
 

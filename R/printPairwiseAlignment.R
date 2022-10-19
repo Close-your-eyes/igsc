@@ -14,7 +14,7 @@
 #' @param out_file path to a file where to print results to; if NULL results are
 #' printed in console
 #' @param col_out color the printed alignment?
-#' @param extend_subject
+#' @param extend_subject extend subject further than alignment limits (-,+)
 #'
 #' @return alignment in printed format in console or file
 #' @export
@@ -282,7 +282,7 @@ printPairwiseAlignment <- function(alignments,
 .col.letter.fun <- function(x) {
 
   black <- crayon::make_style("black")
-  whiter <- crayon::make_style(rgb(1, 1, 1))
+  whiter <- crayon::make_style(grDevices::rgb(1, 1, 1))
 
   x <- strsplit(x, "")[[1]]
 

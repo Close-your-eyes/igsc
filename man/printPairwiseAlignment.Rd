@@ -36,7 +36,7 @@ position of alignment within the provided sequences}
 
 \item{col_out}{color the printed alignment?}
 
-\item{extend_subject}{}
+\item{extend_subject}{extend subject further than alignment limits (-,+)}
 
 \item{out_file}{path to a file where to print results to; if NULL results are
 printed in console}

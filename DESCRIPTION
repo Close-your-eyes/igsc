@@ -1,6 +1,6 @@
 Package: igsc
 Title: Immunoglobolin sequences from scRNAseq
-Version: 0.0.0.9700
+Version: 0.0.0.9800
 Authors@R: 
     person(given = "Christopher Mark",
            family = "Skopnik",
@@ -11,7 +11,7 @@ Description: Retrieve and process immunoglobulin sequences from 10X Genomics Cel
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.1
 Imports: 
     BiocManager,
     crayon,
@@ -28,7 +28,11 @@ Imports:
     stringdist,
     stringr,
     tidyr,
-    utils
+    utils,
+    purrr,
+    methods,
+    rlang,
+    scales
 Suggests: 
     rmarkdown,
     knitr,

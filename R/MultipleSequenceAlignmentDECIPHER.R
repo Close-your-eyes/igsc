@@ -107,7 +107,7 @@ MultipleSequenceAlignmentDECIPHER <- function(input.set,
 
 consecutive.disambiguate.consensus.seq.from.decipher.consensus <- function (consensus) {
   # returns the longest stretch of disambiguate nucleotides from a multiple sequence alignment made with DECIPHER::AlignSeqs
-  if (class(consensus) != "DNAStringSet") {
+  if (methods::is(consensus, "DNAStringSet")) {
     stop("Please provide a consesus sequence as DNAStringSet, generated with DECIPHER::ConsensusSequence")
   }
   return(names(which.max(sapply(strsplit(as.character(consensus), paste(c(names(Biostrings::IUPAC_CODE_MAP[-c(1:4)])), collapse = "|"))[[1]], nchar))))
