@@ -1,7 +1,7 @@
 ## code to prepare `acp` dataset goes here
 acp <- c("A" = "lightpink",
          "T" = "moccasin",
-         "U" = "moccasin",
+         "U" = "moccasin", # other col?
          "C" = "darkseagreen1",
          "G" = "lightblue1",
          "-" = "white",
@@ -10,7 +10,6 @@ acp <- c("A" = "lightpink",
          "gap" = "mediumpurple1",
          "insertion" = "black",
          "ambiguous" = "goldenrod2")
-usethis::use_data(acp, overwrite = T, internal = T)
 
 ## credit to ggmsa for collecting the color scales NT and AA
 ## to give credit color scales are integrated with dependency
@@ -31,13 +30,13 @@ for (i in unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N"))[!un
   scheme_NT <- rbind(scheme_NT, "grey90")
   rownames(scheme_NT)[nrow(scheme_NT)] <- i
 }
-usethis::use_data(scheme_NT, overwrite = T, internal = T)
 
 scheme_AA <- rbind(ggmsa:::scheme_AA, "*" = do.call(grDevices::rgb, c(maxColorValue = 255, as.list(grDevices::col2rgb("grey70")[,1]))))
 for (i in unique(c(Biostrings::AA_ALPHABET, "N"))[!unique(c(Biostrings::AA_ALPHABET, "N")) %in% rownames(scheme_AA)]) {
   scheme_AA <- rbind(scheme_AA, "grey90")
   rownames(scheme_AA)[nrow(scheme_AA)] <- i
 }
-usethis::use_data(scheme_AA, overwrite = T, internal = T)
+usethis::use_data(as.matrix(scheme_AA), as.matrix(scheme_NT), acp, overwrite = T, internal = T)
+
 
 
