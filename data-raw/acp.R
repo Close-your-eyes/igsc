@@ -36,7 +36,11 @@ for (i in unique(c(Biostrings::AA_ALPHABET, "N"))[!unique(c(Biostrings::AA_ALPHA
   scheme_AA <- rbind(scheme_AA, "grey90")
   rownames(scheme_AA)[nrow(scheme_AA)] <- i
 }
-usethis::use_data(as.matrix(scheme_AA), as.matrix(scheme_NT), acp, overwrite = T, internal = T)
+
+
+scheme_AA <- as.matrix(scheme_AA)
+scheme_NT <- as.matrix(scheme_NT)
+usethis::use_data(scheme_AA, scheme_NT, acp, overwrite = T, internal = T)
 
 
 
