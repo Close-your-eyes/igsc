@@ -40,7 +40,48 @@ for (i in unique(c(Biostrings::AA_ALPHABET, "N"))[!unique(c(Biostrings::AA_ALPHA
 
 scheme_AA <- as.matrix(scheme_AA)
 scheme_NT <- as.matrix(scheme_NT)
-usethis::use_data(scheme_AA, scheme_NT, acp, overwrite = T, internal = T)
+
+
+## aa properties
+aa_polar <- c("S","T","N","Q", "C")
+aa_pos_charge <- c("K","R","H")
+stop_codon <- c("*")
+aa_non_polar <- c("A","V","L","I","M","G","P")
+aa_neg_charge <- c("D","E")
+aromatic_non_polar <- c("W","F","Y")
+aa_main_prop <- c(stats::setNames(rep("polar", length(aa_polar)), aa_polar),
+                  stats::setNames(rep("non polar", length(aa_non_polar)), aa_non_polar),
+                  stats::setNames(rep("basic pos charge", length(aa_pos_charge)), aa_pos_charge),
+                  stats::setNames(rep("acidic neg charge", length(aa_neg_charge)), aa_neg_charge),
+                  stats::setNames(rep("stop", length(stop_codon)), stop_codon),
+                  stats::setNames(rep("non polar aromtic", length(aromatic_non_polar)), aromatic_non_polar))
+
+## from Peptides::aaComp
+aa_list <- list(tiny = c("A", "C", "G", "S", "T"),
+                small = c("A", "B", "C", "D", "G", "N", "P", "S", "T", "V"), # tiny included
+                aliphatic = c("A", "I", "L", "V"),
+                aromatic = c("F", "H", "W", "Y"),
+                nonpolar = c("A", "C", "F", "G", "I", "L", "M", "P", "V", "W", "Y"),
+                polar = c("D", "E", "H", "K", "N", "Q", "R", "S", "T", "Z"),
+                charged = c("B", "D", "E", "H", "K", "R", "Z"), ## all that are basic or acidic
+                basic = c("H", "K", "R"),
+                acidic = c("B", "D", "E", "Z"))
+
+aa_df_long <- stack(aa_list)
+aa_df_long$ind <- as.character(aa_df_long$ind)
+names(aa_df_long) <- c("aa", "property")
+aa_df_nest <- dplyr::summarise(dplyr::group_by(aa_df_long, aa), properties = list(property), .groups = "drop")
+aa_df_nest2 <-  dplyr::summarise(dplyr::group_by(aa_df_nest, properties), aa = list(aa))
+aa_info <- list(aa_main_prop = aa_main_prop,
+                aa_list = aa_list,
+                aa_df_long = aa_df_long,
+                aa_df_nest = aa_df_nest,
+                aa_df_nest2 = aa_df_nest2)
+
+# chem_col <- stack(igsc:::scheme_AA[,"Chemistry_AA"]) %>% dplyr::group_by(values) %>% dplyr::summarise(aa = paste(ind, collapse = ","))
+
+usethis::use_data(scheme_AA, scheme_NT, acp, aa_info,
+                  overwrite = T, internal = T)
 
 
 

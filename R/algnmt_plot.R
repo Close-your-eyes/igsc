@@ -104,7 +104,25 @@ algnmt_plot <- function(algnmt,
     if (algnmt_type == "NT") {
       color_values <- scheme_NT[,match.arg(color_values, choices = colnames(scheme_NT)),drop=T]
     } else if (algnmt_type == "AA") {
-      color_values <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+      if (color_values == "Chemistry_AA") {
+        # special case; change legend to chemical property
+        col_col <- "chem prop"
+        chem_col <- utils::stack(aa_info[["aa_main_prop"]])
+        names(chem_col) <- c(col_col, "seq")
+        chem_col$seq <- as.character(chem_col$seq)
+        algnmt <- dplyr::left_join(algnmt, chem_col, by = "seq")
+        algnmt[,col_col] <- ifelse(is.na(algnmt[,col_col,drop=T]), algnmt$seq, algnmt[,col_col,drop=T])
+        color_values <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+        color_values <- color_values[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
+        for (i in 1:length(color_values)) {
+          if (names(color_values)[i] %in% names(aa_info[["aa_main_prop"]])) {
+            names(color_values)[i] <- aa_info[["aa_main_prop"]][names(color_values)[i]]
+          }
+        }
+      } else {
+        col_col <- seq_col
+        color_values <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+      }
     } else {
       message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")
       color_values <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
@@ -122,7 +140,7 @@ algnmt_plot <- function(algnmt,
     }
   }
 
-  if (!is.null(names(color_values))) {
+  if (!is.null(names(color_values)) && col_col == seq_col) {
     color_values <- color_values[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
   }
 
@@ -130,6 +148,7 @@ algnmt_plot <- function(algnmt,
   if (!is.numeric(algnmt[,pos_col,drop=T])) {
     algnmt[,pos_col] <- as.numeric(as.character(algnmt[,pos_col,drop=T]))
   }
+  algnmt[,seq_col] <- as.character(algnmt[,seq_col,drop=T])
 
   # https://stackoverflow.com/questions/45493163/ggplot-remove-na-factor-level-in-legend
   # --> na.translate = F
@@ -151,9 +170,9 @@ algnmt_plot <- function(algnmt,
   if (!is.na(tile.border.color)) {
     plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])), ]},
                                       color = tile.border.color,
-                                      ggplot2::aes(fill = !!rlang::sym(seq_col)))
+                                      ggplot2::aes(fill = !!rlang::sym(col_col)))
   } else {
-    plot <- plot + ggplot2::geom_tile(ggplot2::aes(fill = !!rlang::sym(seq_col)))
+    plot <- plot + ggplot2::geom_tile(ggplot2::aes(fill = !!rlang::sym(col_col)))
   }
 
   if (text) {
