@@ -46,9 +46,10 @@ algnmt_plot <- function(algnmt,
                         name_col = "seq.name",
                         coord_fixed_ratio = NULL,
                         x.breaks = NULL,
-                        algnmt_type = NULL) {
+                        algnmt_type = NULL,
+                        ref = NULL) {
 
-  # example: length(unique(algnmt[,pos_col,drop=T]))/length(unique(algnmt[,name_col,drop=T]))*0.5
+  ## a ref sequence has to be provided in algnmt; e.g. with DECIPHER::ConsensusSequence
 
   font.family <- match.arg(font.family, choices = c("sans", "mono", "serif"))
 
@@ -74,17 +75,36 @@ algnmt_plot <- function(algnmt,
   }
   # else: data frame from igsc::MultiplePairwiseAlignmentsToOneSubject
 
+
+  if (!is.null(ref)) {
+    if (!ref %in% unique(algnmt[,name_col,drop=T])) {
+      stop("ref not found in names of algnmt.")
+    }
+    seq_original <- "seq_original"
+    algnmt <- compare_seqs_df(df = algnmt,
+                              ref = ref,
+                              pos_col = pos_col,
+                              seq_col = seq_col,
+                              name_col = name_col,
+                              seq_original = seq_original)
+
+    # seq_original will cause that tiles are filled according to chemial property even if they are replaced by a dots when
+    # sequence is equal to the reference sequence (ref)
+  } else {
+    seq_original <- seq_col
+  }
+
+
   if (!all(c(pos_col, seq_col, name_col) %in% names(algnmt))) {
-    stop("algnmt at least has to contain columns named: ", pos_col, ", ", seq_col, ", ", name_col, ".Alternative change function arguments.")
+    stop("algnmt at least has to contain columns named: ", pos_col, ", ", seq_col, ", ", name_col, ". Alternatively change function arguments.")
   }
 
   # if seq names are numeric; order them increasingly
-  if (!anyNA(suppressWarnings(as.numeric(algnmt$seq.name)))) {
-    algnmt$seq.name <- factor(algnmt$seq.name, levels = as.character(unique(as.numeric(as.character(algnmt$seq.name)))))
+  if (!anyNA(suppressWarnings(as.numeric(algnmt[,name_col,drop=T])))) {
+    algnmt[,name_col] <- factor(algnmt[,name_col,drop=T], levels = as.character(unique(as.numeric(as.character(algnmt[,name_col,drop=T])))))
   } else {
-    algnmt$seq.name <- as.factor(algnmt$seq.name)
+    algnmt[,name_col] <- as.factor(algnmt[,name_col,drop=T])
   }
-
 
   if (is.null(algnmt_type)) {
     inds <- intersect(which(!is.na(algnmt[,seq_col,drop=T])), which(!algnmt[,seq_col,drop=T] %in% c("match", "mismatch", "gap", "insertion", "ambiguous")))
@@ -94,54 +114,68 @@ algnmt_plot <- function(algnmt,
   # use preset colors
   if (is.null(color_values)) {
     if (algnmt_type == "NT") {
-      color_values <- colnames(scheme_NT)[1]
+      tile_color <- colnames(scheme_NT)[1]
     }
     if (algnmt_type == "AA") {
       color_values <- colnames(scheme_AA)[1]
+      # set color_values to Chemistry_AA by default which will cause falling into the special case below
+      # to avoid that, change this here to tile_color (like in case of algnmt_type == "NT") and connect
+      # the outer if here by else if the the one below
     }
   }
-  if (length(color_values) == 1) {
+
+  #default; may change when algnmt_type == "AA" && color_values == "Chemistry_AA"
+  col_col <- seq_col
+
+  if (length(color_values) == 1 && color_values %in% c(colnames(scheme_AA),
+                                                       colnames(scheme_NT),
+                                                       names(purrr::flatten(Peptides:::AAdata)))) {
     if (algnmt_type == "NT") {
-      color_values <- scheme_NT[,match.arg(color_values, choices = colnames(scheme_NT)),drop=T]
+      tile_color <- scheme_NT[,match.arg(color_values, choices = colnames(scheme_NT)),drop=T]
     } else if (algnmt_type == "AA") {
       if (color_values == "Chemistry_AA") {
         # special case; change legend to chemical property
-        col_col <- "chem prop"
+        col_col <- color_values
         chem_col <- utils::stack(aa_info[["aa_main_prop"]])
-        names(chem_col) <- c(col_col, "seq")
-        chem_col$seq <- as.character(chem_col$seq)
-        algnmt <- dplyr::left_join(algnmt, chem_col, by = "seq")
-        algnmt[,col_col] <- ifelse(is.na(algnmt[,col_col,drop=T]), algnmt$seq, algnmt[,col_col,drop=T])
-        color_values <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
-        color_values <- color_values[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
-        for (i in 1:length(color_values)) {
-          if (names(color_values)[i] %in% names(aa_info[["aa_main_prop"]])) {
-            names(color_values)[i] <- aa_info[["aa_main_prop"]][names(color_values)[i]]
+        names(chem_col) <- c(col_col, seq_original)
+        chem_col[,seq_original] <- as.character(chem_col[,seq_original,drop=T])
+        algnmt <- dplyr::left_join(algnmt, chem_col, by = seq_original)
+        algnmt[,col_col] <- ifelse(is.na(algnmt[,col_col,drop=T]), algnmt[,seq_original,drop=T], algnmt[,col_col,drop=T])
+        tile_color <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+        tile_color <- tile_color[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
+        for (i in 1:length(tile_color)) {
+          if (names(tile_color)[i] %in% names(aa_info[["aa_main_prop"]])) {
+            names(tile_color)[i] <- aa_info[["aa_main_prop"]][names(tile_color)[i]]
           }
         }
+      } else if (color_values %in% names(purrr::flatten(Peptides:::AAdata))) {
+        col_col <- color_values
+        algnmt[,col_col] <- purrr::flatten(Peptides:::AAdata)[[color_values]][algnmt[,seq_original,drop=T]]
+        tile_color <- viridisLite::viridis(100)[cut(unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))], 100)]
+        names(tile_color) <- unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))]
       } else {
-        col_col <- seq_col
-        color_values <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+        tile_color <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
       }
     } else {
       message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")
-      color_values <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
+      tile_color <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
     }
   } else {
     # provide own colors
     if (is.null(names(color_values))) {
       if (length(color_values) < length(unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))) {
-        stop("Not enough color_values provided.")
+        warning("Less colors provided than entities in the alignment.")
       }
     } else {
       if (any(!unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]) %in% names(color_values))) {
-        stop("Not all values in algnmt[,seq_col] found in names(color_values).")
+        warning("Not all values in algnmt[,seq_col] found in names(color_values).")
       }
     }
+    tile_color <- color_values
   }
 
-  if (!is.null(names(color_values)) && col_col == seq_col) {
-    color_values <- color_values[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
+  if (!is.null(names(tile_color)) && col_col == seq_col) {
+    tile_color <- tile_color[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
   }
 
   # make sure it is not a factor
@@ -152,30 +186,44 @@ algnmt_plot <- function(algnmt,
 
   # https://stackoverflow.com/questions/45493163/ggplot-remove-na-factor-level-in-legend
   # --> na.translate = F
-
   if (is.null(x.breaks)) {
     x.breaks <- floor(base::pretty(algnmt[,pos_col,drop=T], n = 5))
     x.breaks <- x.breaks[which(x.breaks > 0)]
     x.breaks <- x.breaks[which(x.breaks < max(algnmt[,pos_col,drop=T]))]
   }
 
+  if (algnmt_type == "AA" && length(color_values) == 1 && color_values == "Chemistry_AA") {
+    col_breaks = unique(aa_info[["aa_main_prop"]])[which(unique(aa_info[["aa_main_prop"]]) != "stop")]
+  } else {
+    col_breaks = ggplot2::waiver()
+  }
+
   plot <-
     ggplot2::ggplot(algnmt, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(name_col))) +
     theme +
-    ggplot2::theme(panel.grid = element_blank(),
+    ggplot2::theme(panel.grid = ggplot2::element_blank(),
                    text = ggplot2::element_text(family = font.family)) +
-    ggplot2::scale_fill_manual(values = color_values, na.value = "white", na.translate = F) +
+    #ggplot2::scale_fill_manual(values = tile_color, breaks = col_breaks, na.value = "white", na.translate = F) +
+    ggplot2::scale_fill_viridis_c(na.value = "white") +
     ggplot2::scale_x_continuous(breaks = x.breaks)
+
 
   if (!is.na(tile.border.color)) {
     plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])), ]},
                                       color = tile.border.color,
                                       ggplot2::aes(fill = !!rlang::sym(col_col)))
+    # geom_raster does not take color?!
   } else {
-    plot <- plot + ggplot2::geom_tile(ggplot2::aes(fill = !!rlang::sym(col_col)))
+    plot <- plot + ggplot2::geom_raster(ggplot2::aes(fill = !!rlang::sym(col_col)))
   }
 
   if (text) {
+    # todo
+    #tile_color_stack <- stack(tile_color)
+    #tile_color_stack[,2] <- as.numeric(tile_color_stack[,2])
+    #algnmt <- dplyr::left_join(algnmt, tile_color_stack, by = c("Eisenberg" = "ind"))
+    #color = farver::decode_colour(!!rlang::sym(col_col), to = "hcl")[,"l"] > 50
+    #ggplot2::scale_color_manual(guide = "none", values = c("white", "black")) +
     plot <- plot + ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col)), na.rm = T, family = font.family)
   }
 
@@ -255,4 +303,48 @@ guess_type <- function(seq_vector) {
   } else {
     stop("Alignment type could not be determined unambigously. Please define it: 'NT' or 'AA'.")
   }
+}
+
+compare_seqs_df <- function(df,
+                            ref,
+                            pos_col = "position",
+                            seq_col = "seq",
+                            name_col = "seq.name",
+                            seq_original = "seq_original") {
+
+  df <-
+    df %>%
+    tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col)) %>%
+    tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% c(ref, pos_col))])) %>%
+    dplyr::mutate(value = paste0(value, "_", ifelse(value == !!rlang::sym(ref), ".", value))) %>%
+    dplyr::mutate({{ref}} := paste0(!!rlang::sym(ref), "_", !!rlang::sym(ref))) %>%
+    tidyr::pivot_wider(names_from = name, values_from = value) %>%
+    tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% pos_col)]), names_to = name_col) %>%
+    tidyr::separate(value, into = c(seq_original, seq_col), sep = "_")
+  return(df)
+}
+
+compare_seqs <- function(subject,
+                         patterns,
+                         match_dots = "pattern") {
+
+  # adjusted from printPairwiseAlignment
+  subject_name <- names(subject)
+  subject <- strsplit(subject, "")[[1]]
+  algnmt_chr <- purrr::map_chr(patterns, function(x) {
+    pattern <- strsplit(x, "")[[1]]
+    for (j in 1:length(pattern)) {
+      if (pattern[j] == subject[j]) {
+        if (match_dots == "subject") {
+          subject[j] <- "."
+        }
+        if (match_dots == "pattern") {
+          pattern[j] <- "."
+        }
+      }
+    }
+    return(paste(pattern, collapse = ""))
+  })
+
+  return(Biostrings::AAStringSet(c(algnmt_chr, stats::setNames(paste(subject, collapse = ""), subject_name))))
 }

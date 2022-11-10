@@ -1,0 +1,76 @@
+---
+title: "align_vdjdb_tcrs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{align_vdjdb_tcrs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, warning=F}
+library(igsc)
+library(magrittr)
+
+# load vdjdb copy from igsc package data
+vdjdb <-
+  readRDS(system.file("extdata", "vdjdb.tsv.rds", package = "igsc")) %>%
+  dplyr::filter(Species == "HomoSapiens")
+
+# run example on one epitope from CMV IE1
+cmv_IE1 <-
+  vdjdb %>%
+  dplyr::filter(Epitope.gene == "IE1") %>%
+  dplyr::filter(Score > 0)
+
+# split data frame by epitope
+cmv_IE1_split <- split(x = cmv_IE1, f = cmv_IE1$Epitope)
+# split list of data frames by Gene (TRA or TRB)
+cmv_IE1_split <- purrr::map(cmv_IE1_split, function(x) split(x, f = x$Gene))
+
+# pull out one group of TRB-CDR3 sequences that are said to be specific for QIKVRVKMV
+seqs <- unique(purrr::pluck(cmv_IE1_split, "QIKVRVKMV", "TRB")[,"CDR3"])
+names(seqs) <- as.character(1:length(seqs))
+
+# try to order sequences by similarity
+distmat <- DECIPHER::DistanceMatrix(Biostrings::AAStringSet(seqs), verbose = F)
+tree <- DECIPHER::TreeLine(myDistMatrix=distmat, cutoff=0.01, method="NJ", showPlot=F, type = "clusters", verbose = F)
+order <- as.numeric(names(sort(setNames(tree$cluster, rownames(tree)))))
+seqs <- seqs[order]
+
+# multiple sequence alignment (msa) with DECIPHER
+aln <- DECIPHER::AlignSeqs(Biostrings::AAStringSet(seqs), verbose = F)
+# attach conensus sequence
+aln <- c(aln, setNames(DECIPHER::ConsensusSequence(aln, threshold = 0.3), "consensus"))
+```
+
+````{r plot, fig.asp = 0.6, fig.width = 8, out.width = "100%"}
+# plot the alignment as ggplot2 object
+plot <- algnmt_plot(algnmt = aln,
+                          color_values = "Chemistry_AA",
+                          text = T,
+                          ref = "consensus",
+                    tile.border.color = "black") +
+  ggplot2::theme(legend.position = "right", panel.border = ggplot2::element_blank(),
+                 axis.ticks.y = ggplot2::element_blank(), axis.title = ggplot2::element_blank())
+plot
+````
+
+
+````{r plot2, fig.asp = 0.6, fig.width = 8, out.width = "100%"}
+# color by hydrophbicity
+plot <- algnmt_plot(algnmt = aln,
+                          color_values = "Eisenberg",
+                          text = T,
+                          ref = "consensus",
+                    tile.border.color = "black") +
+  ggplot2::theme(legend.position = "right", panel.border = ggplot2::element_blank(),
+                 axis.ticks.y = ggplot2::element_blank(), axis.title = ggplot2::element_blank())
+plot
+````

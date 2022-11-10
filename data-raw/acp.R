@@ -13,6 +13,29 @@ acp <- c("A" = "lightpink",
 
 ## credit to ggmsa for collecting the color scales NT and AA
 ## to give credit color scales are integrated with dependency
+
+if (!requireNamespace("BiocManager", quietly = T)) {
+  install.packages("BiocManager")
+}
+if (!requireNamespace("ggmsa", quietly = T)) {
+  BiocManager::install("ggmsa")
+}
+if (!requireNamespace("Biostrings", quietly = T)) {
+  BiocManager::install("Biostrings")
+}
+if (!requireNamespace("dplyr", quietly = T)) {
+  utils::install.packages("dplyr")
+}
+if (!requireNamespace("usethis", quietly = T)) {
+  utils::install.packages("usethis")
+}
+if (!requireNamespace("devtools", quietly = T)) {
+  utils::install.packages("devtools")
+}
+if (!requireNamespace("HDMD", quietly = T)) {
+  devtools::install_github("cran/HDMD")
+}
+
 scheme_NT <- merge(data.frame(ggmsa:::scheme_NT, rowname = rownames(ggmsa:::scheme_NT)),
                    stats::setNames(utils::stack(acp), c("biostrings", "rowname")),
                    by = "rowname",
@@ -67,6 +90,11 @@ aa_list <- list(tiny = c("A", "C", "G", "S", "T"),
                 basic = c("H", "K", "R"),
                 acidic = c("B", "D", "E", "Z"))
 
+# https://www.cryst.bbk.ac.uk/education/AminoAcid/the_twenty.html
+#Sometimes it is not possible two differentiate two closely related amino acids, therefore we have the special cases:
+#asparagine/aspartic acid - asx - B
+#glutamine/glutamic acid - glx - Z
+
 aa_df_long <- stack(aa_list)
 aa_df_long$ind <- as.character(aa_df_long$ind)
 names(aa_df_long) <- c("aa", "property")
@@ -76,7 +104,8 @@ aa_info <- list(aa_main_prop = aa_main_prop,
                 aa_list = aa_list,
                 aa_df_long = aa_df_long,
                 aa_df_nest = aa_df_nest,
-                aa_df_nest2 = aa_df_nest2)
+                aa_df_nest2 = aa_df_nest2
+                aa_names = utils::stack(Biostrings::AMINO_ACID_CODE[Biostrings::AA_STANDARD]))
 
 # chem_col <- stack(igsc:::scheme_AA[,"Chemistry_AA"]) %>% dplyr::group_by(values) %>% dplyr::summarise(aa = paste(ind, collapse = ","))
 

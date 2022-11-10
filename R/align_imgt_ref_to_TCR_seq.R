@@ -30,6 +30,9 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       type = "local",
                                       ...) {
 
+  if (!requireNamespace("BiocManager", quietly = T)) {
+    install.packages("BiocManager")
+  }
   if (!requireNamespace("Biostrings", quietly = T)){
     BiocManager::install("Biostrings")
   }
