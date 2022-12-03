@@ -158,6 +158,7 @@ algnmt_plot <- function(algnmt,
             names(tile_color)[i] <- aa_info[["aa_main_prop"]][names(tile_color)[i]]
           }
         }
+        tile_color <- tile_color[unique(names(tile_color))]
       } else if (color_values %in% names(purrr::flatten(Peptides:::AAdata))) {
         col_col <- color_values
         algnmt[,col_col] <- purrr::flatten(Peptides:::AAdata)[[color_values]][algnmt[,seq_original,drop=T]]
@@ -214,13 +215,16 @@ algnmt_plot <- function(algnmt,
     theme +
     ggplot2::theme(panel.grid = ggplot2::element_blank(),
                    text = ggplot2::element_text(family = font.family)) +
-    #ggplot2::scale_fill_manual(values = tile_color, breaks = col_breaks, na.value = "white", na.translate = F) +
-    ggplot2::scale_fill_viridis_c(na.value = "white") +
     ggplot2::scale_x_continuous(breaks = x.breaks)
 
+  if (is.numeric(algnmt[,col_col,drop=T])) {
+    plot <- plot + ggplot2::scale_fill_viridis_c(na.value = "white")
+  } else {
+    plot <- plot + ggplot2::scale_fill_manual(values = tile_color, breaks = col_breaks, na.value = "white", na.translate = F)
+  }
 
   if (!is.na(tile.border.color)) {
-    plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])), ]},
+    plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])),]},
                                       color = tile.border.color,
                                       ggplot2::aes(fill = !!rlang::sym(col_col)))
     # geom_raster seems not take color?!
@@ -234,11 +238,18 @@ algnmt_plot <- function(algnmt,
     } else {
       text_size <- text
     }
+
+    bckgr_colors <- farver::decode_colour(tile_color[as.character(algnmt[,col_col,drop=T])], to = "hcl")
+    algnmt$text_colors <- ifelse(bckgr_colors[, "l"] > 50, "black", "white")
+
     plot <-
       plot +
-      ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col), color = farver::decode_colour(tile_color[as.character(algnmt[,col_col,drop=T])], to = "hcl")[,"l"] > 50), na.rm = T, family = font.family, size = text_size) +
-      ggplot2::scale_color_manual(guide = "none", values = c("white", "black"))
+      ggplot2::geom_text(data = algnmt, ggplot2::aes(label = !!rlang::sym(seq_col), color = I(text_colors)),
+                         na.rm = T, family = font.family, size = text_size)
+
+    #plot <- plot + ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col), color = farver::decode_colour(tile_color[as.character(algnmt[,col_col,drop=T])], to = "hcl")[,"l"] > 50), na.rm = T, family = font.family, size = text_size) + ggplot2::scale_color_manual(guide = "none", values = c("black", "white"))
   }
+
 
   if (!is.null(coord_fixed_ratio)) {
     plot <- plot + ggplot2::coord_fixed(ratio = coord_fixed_ratio)
