@@ -114,7 +114,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
   for (FR in c("LEADER", "FR1", "CDR1", "FR2", "CDR2", "FR3")) {
     if (mc) {
-      out <- parallel::mclapply(split(ts, seq(nrow(ts))), al_fun, mc.cores = parallel::detectCores())
+      out <- parallel::mclapply(split(ts, seq(nrow(ts))), al_fun, mc.cores = parallel::detectCores()-1)
     } else {
       out <- pbapply::pblapply(split(ts, seq(nrow(ts))), al_fun)
     }

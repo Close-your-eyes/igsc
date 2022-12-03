@@ -1,13 +1,13 @@
 Package: igsc
 Title: Immunoglobolin sequences from scRNAseq
-Version: 0.0.0.9800
+Version: 0.0.0.9810
 Authors@R: 
     person(given = "Christopher Mark",
            family = "Skopnik",
            role = c("aut", "cre"),
            email = "vonskopnik@pm.me",
            comment = c(ORCID = "0000-0002-6089-4769"))
-Description: Retrieve and process immunoglobulin sequences from 10X Genomics CellRanger output and align them to IMGTs reference gene segments.
+Description: Retrieve and process immunoglobulin sequences from 10X Genomics CellRanger output and align them to IMGTs reference gene segments. And some other things.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -32,8 +32,7 @@ Imports:
     purrr,
     methods,
     rlang,
-    scales,
-    ggmsa
+    scales
 Suggests: 
     rmarkdown,
     knitr,
@@ -41,7 +40,10 @@ Suggests:
     ggbeeswarm,
     fcexpr,
     DECIPHER,
-    Biostrings
+    Biostrings,
+    farver,
+    Peptides,
+    ggmsa
 VignetteBuilder: knitr
 Depends: 
     R (>= 2.10)

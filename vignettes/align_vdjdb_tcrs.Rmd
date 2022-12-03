@@ -53,9 +53,9 @@ aln <- c(aln, setNames(DECIPHER::ConsensusSequence(aln, threshold = 0.3), "conse
 ````{r plot, fig.asp = 0.6, fig.width = 8, out.width = "100%"}
 # plot the alignment as ggplot2 object
 plot <- algnmt_plot(algnmt = aln,
-                          color_values = "Chemistry_AA",
-                          text = T,
-                          ref = "consensus",
+                    color_values = "Chemistry_AA",
+                    text = T,
+                    ref = "consensus",
                     tile.border.color = "black") +
   ggplot2::theme(legend.position = "right", panel.border = ggplot2::element_blank(),
                  axis.ticks.y = ggplot2::element_blank(), axis.title = ggplot2::element_blank())
@@ -66,9 +66,9 @@ plot
 ````{r plot2, fig.asp = 0.6, fig.width = 8, out.width = "100%"}
 # color by hydrophbicity
 plot <- algnmt_plot(algnmt = aln,
-                          color_values = "Eisenberg",
-                          text = T,
-                          ref = "consensus",
+                    color_values = "Eisenberg",
+                    text = T,
+                    ref = "consensus",
                     tile.border.color = "black") +
   ggplot2::theme(legend.position = "right", panel.border = ggplot2::element_blank(),
                  axis.ticks.y = ggplot2::element_blank(), axis.title = ggplot2::element_blank())

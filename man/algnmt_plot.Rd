@@ -20,7 +20,8 @@ algnmt_plot(
   name_col = "seq.name",
   coord_fixed_ratio = NULL,
   x.breaks = NULL,
-  algnmt_type = NULL
+  algnmt_type = NULL,
+  ref = NULL
 )
 }
 \arguments{
@@ -29,15 +30,15 @@ in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (ii
 alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)}
 
 \item{color_values}{a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
-or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or leave NULL to have a scheme choosen automatically}
+or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or choose one from names(purrr::flatten(Peptides:::AAdata)); or leave NULL for the default scheme}
 
 \item{tile.border.color}{a color to draw tile borders with; e.g. "black" or a hex code;
 leave NA to have no borders (quicker plotting and advised for long alignments)}
 
 \item{tile.border.on.NA}{logical whether to draw borders on NA positions}
 
-\item{text}{logical whether to draw text in tiles (NT or AA identifier);
-only advisable for short alignments}
+\item{text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
+advisable only for short alignments}
 
 \item{font.family}{which font to use for plotting}
 

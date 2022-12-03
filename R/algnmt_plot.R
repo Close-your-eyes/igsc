@@ -4,12 +4,12 @@
 #' in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (iii) this is a PairwiseAlignmentsSingleSubject;
 #' alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)
 #' @param color_values a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
-#' or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or leave NULL to have a scheme choosen automatically
+#' or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or choose one from names(purrr::flatten(Peptides:::AAdata)); or leave NULL for the default scheme
 #' @param tile.border.color a color to draw tile borders with; e.g. "black" or a hex code;
 #' leave NA to have no borders (quicker plotting and advised for long alignments)
 #' @param tile.border.on.NA logical whether to draw borders on NA positions
-#' @param text logical whether to draw text in tiles (NT or AA identifier);
-#' only advisable for short alignments
+#' @param text logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
+#' advisable only for short alignments
 #' @param font.family which font to use for plotting
 #' @param theme ggplot theme to use as basis
 #' @param pattern.lim.size numeric; plot annotation of pattern alignment limits; value indicates size;
@@ -48,6 +48,17 @@ algnmt_plot <- function(algnmt,
                         x.breaks = NULL,
                         algnmt_type = NULL,
                         ref = NULL) {
+
+
+  if (!requireNamespace("Peptides", quietly = T)){
+    utils::install.packages("Peptides")
+  }
+  if (!requireNamespace("farver", quietly = T)){
+    utils::install.packages("farver")
+  }
+  if (!requireNamespace("viridisLite", quietly = T)){
+    utils::install.packages("viridisLite")
+  }
 
   ## a ref sequence has to be provided in algnmt; e.g. with DECIPHER::ConsensusSequence
 
@@ -88,7 +99,7 @@ algnmt_plot <- function(algnmt,
                               name_col = name_col,
                               seq_original = seq_original)
 
-    # seq_original will cause that tiles are filled according to chemial property even if they are replaced by a dots when
+    # seq_original will cause that tiles are filled according to chemical property even if they are replaced by a dots when
     # sequence is equal to the reference sequence (ref)
   } else {
     seq_original <- seq_col
@@ -120,7 +131,6 @@ algnmt_plot <- function(algnmt,
       color_values <- colnames(scheme_AA)[1]
       # set color_values to Chemistry_AA by default which will cause falling into the special case below
       # to avoid that, change this here to tile_color (like in case of algnmt_type == "NT") and connect
-      # the outer if here by else if the the one below
     }
   }
 
@@ -198,6 +208,7 @@ algnmt_plot <- function(algnmt,
     col_breaks = ggplot2::waiver()
   }
 
+
   plot <-
     ggplot2::ggplot(algnmt, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(name_col))) +
     theme +
@@ -212,19 +223,21 @@ algnmt_plot <- function(algnmt,
     plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])), ]},
                                       color = tile.border.color,
                                       ggplot2::aes(fill = !!rlang::sym(col_col)))
-    # geom_raster does not take color?!
+    # geom_raster seems not take color?!
   } else {
     plot <- plot + ggplot2::geom_raster(ggplot2::aes(fill = !!rlang::sym(col_col)))
   }
 
-  if (text) {
-    # todo
-    #tile_color_stack <- stack(tile_color)
-    #tile_color_stack[,2] <- as.numeric(tile_color_stack[,2])
-    #algnmt <- dplyr::left_join(algnmt, tile_color_stack, by = c("Eisenberg" = "ind"))
-    #color = farver::decode_colour(!!rlang::sym(col_col), to = "hcl")[,"l"] > 50
-    #ggplot2::scale_color_manual(guide = "none", values = c("white", "black")) +
-    plot <- plot + ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col)), na.rm = T, family = font.family)
+  if ((is.logical(text) && text) || (is.numeric(text) && text > 0)) {
+    if (is.logical(text)) {
+      text_size <- 4
+    } else {
+      text_size <- text
+    }
+    plot <-
+      plot +
+      ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col), color = farver::decode_colour(tile_color[as.character(algnmt[,col_col,drop=T])], to = "hcl")[,"l"] > 50), na.rm = T, family = font.family, size = text_size) +
+      ggplot2::scale_color_manual(guide = "none", values = c("white", "black"))
   }
 
   if (!is.null(coord_fixed_ratio)) {
