@@ -111,7 +111,7 @@ algnmt_plot <- function(algnmt,
   }
 
   # if seq names are numeric; order them increasingly
-  if (!anyNA(suppressWarnings(as.numeric(algnmt[,name_col,drop=T])))) {
+  if (!anyNA(suppressWarnings(as.numeric(as.character(algnmt[,name_col,drop=T]))))) {
     algnmt[,name_col] <- factor(algnmt[,name_col,drop=T], levels = as.character(unique(as.numeric(as.character(algnmt[,name_col,drop=T])))))
   } else {
     algnmt[,name_col] <- as.factor(algnmt[,name_col,drop=T])
@@ -122,13 +122,15 @@ algnmt_plot <- function(algnmt,
     algnmt_type <- guess_type(seq_vector = algnmt[,seq_col,drop=T][inds])
   }
 
+
   # use preset colors
   if (is.null(color_values)) {
     if (algnmt_type == "NT") {
-      tile_color <- colnames(scheme_NT)[1]
+      #tile_color <- colnames(igsc:::scheme_NT)[1]
+      color_values <- colnames(igsc:::scheme_NT)[1]
     }
     if (algnmt_type == "AA") {
-      color_values <- colnames(scheme_AA)[1]
+      color_values <- colnames(igsc:::scheme_AA)[1]
       # set color_values to Chemistry_AA by default which will cause falling into the special case below
       # to avoid that, change this here to tile_color (like in case of algnmt_type == "NT") and connect
     }
@@ -137,21 +139,21 @@ algnmt_plot <- function(algnmt,
   #default; may change when algnmt_type == "AA" && color_values == "Chemistry_AA"
   col_col <- seq_col
 
-  if (length(color_values) == 1 && color_values %in% c(colnames(scheme_AA),
-                                                       colnames(scheme_NT),
+  if (length(color_values) == 1 && color_values %in% c(colnames(igsc:::scheme_AA),
+                                                       colnames(igsc:::scheme_NT),
                                                        names(purrr::flatten(Peptides:::AAdata)))) {
     if (algnmt_type == "NT") {
-      tile_color <- scheme_NT[,match.arg(color_values, choices = colnames(scheme_NT)),drop=T]
+      tile_color <- igsc:::scheme_NT[,match.arg(color_values, choices = colnames(igsc:::scheme_NT)),drop=T]
     } else if (algnmt_type == "AA") {
       if (color_values == "Chemistry_AA") {
         # special case; change legend to chemical property
         col_col <- color_values
-        chem_col <- utils::stack(aa_info[["aa_main_prop"]])
+        chem_col <- utils::stack(igsc:::aa_info[["aa_main_prop"]])
         names(chem_col) <- c(col_col, seq_original)
         chem_col[,seq_original] <- as.character(chem_col[,seq_original,drop=T])
         algnmt <- dplyr::left_join(algnmt, chem_col, by = seq_original)
         algnmt[,col_col] <- ifelse(is.na(algnmt[,col_col,drop=T]), algnmt[,seq_original,drop=T], algnmt[,col_col,drop=T])
-        tile_color <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+        tile_color <- igsc:::scheme_AA[,match.arg(color_values, choices = colnames(igsc:::scheme_AA)),drop=T]
         tile_color <- tile_color[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
         for (i in 1:length(tile_color)) {
           if (names(tile_color)[i] %in% names(aa_info[["aa_main_prop"]])) {
@@ -165,7 +167,7 @@ algnmt_plot <- function(algnmt,
         tile_color <- viridisLite::viridis(100)[cut(unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))], 100)]
         names(tile_color) <- unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))]
       } else {
-        tile_color <- scheme_AA[,match.arg(color_values, choices = colnames(scheme_AA)),drop=T]
+        tile_color <- igsc:::scheme_AA[,match.arg(color_values, choices = colnames(igsc:::scheme_AA)),drop=T]
       }
     } else {
       message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")

@@ -63,9 +63,14 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     j <- strsplit(x, ",")[[1]][2]
     raw.cs <- cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V_imgt"] == v), which(cl_long[,"J_imgt"] == j))), sequence_col]
     if (length(raw.cs) > 1) {
-      p1 <- MultipleSequenceAlignmentDECIPHER(input.set = raw.cs) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
-      cs <- DECIPHER::ConsensusSequence(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F))
-      cs <- consecutive.disambiguate.consensus.seq.from.decipher.consensus(cs)
+      raw.cs <- collapse_duplicate_sequences(raw.cs)
+      consensus_seq <- stats::setNames(as.character(DECIPHER::ConsensusSequence(Biostrings::DNAStringSet(raw.cs))), "consensus")
+      raw.cs <- c(raw.cs, consensus_seq)
+      raw.cs <- check_ref_seq_for_matches(seq_set = raw.cs, ref_seq_name = "consensus")
+      p1 <- algnmt_plot(raw.cs) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
+      cs <- consecutive_distinct_seq(consensus_seq, seq_type = "NT")
+      p1 <- p1 + ggplot2::geom_vline(xintercept = cs[["limits"]], linetype = "dashed")
+      cs <- cs[["seq"]]
       names(cs) <- paste0(TCR, "_consensus")
     } else if (length(raw.cs) == 1)  {
       cs <- raw.cs

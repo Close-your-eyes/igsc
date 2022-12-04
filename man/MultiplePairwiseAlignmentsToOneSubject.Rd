@@ -7,11 +7,12 @@
 MultiplePairwiseAlignmentsToOneSubject(
   subject,
   patterns,
-  type = "global-local",
+  type = c("global-local", "global", "local", "overlap", "local-global"),
   perfect.matches.only = F,
   order.patterns = F,
   attach.nt = T,
   fix_indels = F,
+  seq_type = NULL,
   ...
 )
 }
@@ -30,6 +31,9 @@ only possible with DNA}
 \item{attach.nt}{add the length of the string to the name on the axis}
 
 \item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
+
+\item{seq_type}{set sequence type to AA or NT if necessary; if NULL
+it is attempted to guess the type}
 
 \item{...}{additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type}
 }
