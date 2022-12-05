@@ -30,6 +30,10 @@ align_imgt_ref_to_TCR_seq(
 \item{sequence_col}{name of the column to pull sequences from}
 
 \item{C_allele}{optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame}
+
+\item{type}{type of alignment}
+
+\item{...}{arguments to MultiplePairwiseAlignmentsToOneSubject}
 }
 \value{
 a list

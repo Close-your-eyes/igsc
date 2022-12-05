@@ -90,8 +90,8 @@ vdjdb_hits <- function(vdjdb,
 
   mapply_fun <- match.fun(mapply_fun)
   lapply_fun <- match.fun(lapply_fun)
-  vdjdb <- dplyr::distinct(vdjdb, !!sym(vdj_cdr3_col), !!sym(vdj_tr_col))
-  tcrs <- dplyr::distinct(tcrs, !!sym(tcr_tr_col), !!sym(tcr_cdr3_col))
+  vdjdb <- dplyr::distinct(vdjdb, !!rlang::sym(vdj_cdr3_col), !!rlang::sym(vdj_tr_col))
+  tcrs <- dplyr::distinct(tcrs, !!rlang::sym(tcr_tr_col), !!rlang::sym(tcr_cdr3_col))
 
   # what if only TRA or TRB is provided in one of the two? - duplicate results due to mapply?
   matches <- do.call(rbind, lapply(unique(c(F, TRAxTRB)),

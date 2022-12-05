@@ -26,6 +26,8 @@ install.packages("parallel")
 install.packages("pbapply")
 install.packages("ggbeeswarm")
 BiocManager::install("Biostrings")
+install.packages("devtools")
+devtools::install_github("Close-your-eyes/igsc")
 ```
 
 ```{r setup, message=F}
@@ -95,6 +97,7 @@ temp <- dplyr::distinct(cl_wide, CDR3_nt_cr_TRA, CDR3_nt_cr_TRB, patient)
 temp$cl_name <- igsc::pick_randomNames(n = nrow(temp),
                                        gender = 2,
                                        which.names = "first")
+
 ## only temporary to allow comparison below
 temp$CDR3_nt_cr_TRA[which(is.na(temp$CDR3_nt_cr_TRA))] <- "___"
 temp$CDR3_nt_cr_TRB[which(is.na(temp$CDR3_nt_cr_TRB))] <- "___"
@@ -137,7 +140,7 @@ top_expanded_clonotypes <- sort(table(cl[["cl_wide"]]$cl_name), decreasing = T)
 head(top_expanded_clonotypes)
 # use the TCR that has been detected in most single cell transcriptomes
 # check the documentation of align_imgt_ref_to_TCR_seq to understand the inputs
-align_list_TRA <- igsc::align_imgt_ref_to_TCR_seq(chain = "TRA", TCR = setNames(names(top_expanded_clonotypes)[1], "cl_name"), cl_wide = cl[["cl_wide"]], cl_long = cl[["cl_long"]], imgt_ref = imgt_ref)
+align_list_TRA <- align_imgt_ref_to_TCR_seq(chain = "TRA", TCR = setNames(names(top_expanded_clonotypes)[1], "cl_name"), cl_wide = cl[["cl_wide"]], cl_long = cl[["cl_long"]], imgt_ref = imgt_ref)
 align_list_TRB <- igsc::align_imgt_ref_to_TCR_seq(chain = "TRB", TCR = setNames(names(top_expanded_clonotypes)[1], "cl_name"), cl_wide = cl[["cl_wide"]], cl_long = cl[["cl_long"]], imgt_ref = imgt_ref)
 ```
 

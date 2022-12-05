@@ -1,21 +1,21 @@
-#' Align multiple DNA pattern sequences to one subject
+#' Separately align multiple pattern sequences to one subject
 #'
 #' This function is useful plot the alignment position of multiple patterns in one subject.
-#' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-#' The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
+#' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
+#' the results to a ggplot object with a few optional complementing information (see arguments).
+#' The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 #'
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param pattern.lim.size size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting
-#' @param subject.lim.lines print vertical lines at the outermost subject-nts of all aligned patterns
 #' @param attach.nt add the length of the string to the name on the axis
-#' @param tile.border.color character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing
 #' @param order.patterns order pattern increasingly by alignment position (start)
-#' @param perfect.matches.only filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment
+#' @param perfect.matches.only filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment;
+#' only possible with DNA
 #' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
-#' @param font.family which font for plotting
 #' @param ... additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type
+#' @param seq_type set sequence type to AA or NT if necessary; if NULL
+#' it is attempted to guess the type
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
@@ -32,31 +32,56 @@
 #' s <- Biostrings::DNAStringSet(s)
 #' p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
-#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black")
-#' als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black", order.patterns = T)
+#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
+#' als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order.patterns = T)
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    patterns,
-                                                   type = "global-local",
+                                                   type = c("global-local", "global", "local", "overlap", "local-global"),
                                                    perfect.matches.only = F,
                                                    order.patterns = F,
-                                                   pattern.lim.size = 2,
-                                                   subject.lim.lines = F,
                                                    attach.nt = T,
-                                                   tile.border.color = NA,
-                                                   font.family = "Courier",
                                                    fix_indels = F,
+                                                   seq_type = NULL,
                                                    ...) {
 
-  if (!requireNamespace("Biostrings", quietly = T)){
+  if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
 
-  if (class(patterns) != "DNAStringSet") {
-    patterns <- Biostrings::DNAStringSet(patterns)
-  }
-  if (class(subject) != "DNAStringSet") {
-    subject <- Biostrings::DNAStringSet(subject)
+
+  ## to do: also allow AAString, perform check
+  ## pull seqs from subject and patterns, then run guess_type
+
+  if (is.null(seq_type)) {
+    unique_seq_el <- unique(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), ""))))
+    seq_type <- guess_type(unique_seq_el)
+    if (seq_type == "NT") {
+      if ("U" %in% unique_seq_el) {
+        if (!methods::is(patterns, "RNAStringSet")) {
+          patterns <- Biostrings::RNAStringSet(patterns)
+        }
+        if (!methods::is(subject, "RNAStringSet")) {
+          subject <- Biostrings::RNAStringSet(subject)
+        }
+      } else {
+        if (!methods::is(patterns, "DNAStringSet")) {
+          patterns <- Biostrings::DNAStringSet(patterns)
+        }
+        if (!methods::is(subject, "DNAStringSet")) {
+          subject <- Biostrings::DNAStringSet(subject)
+        }
+      }
+    } else if (seq_type == "AA") {
+      if (!methods::is(patterns, "AAStringSet")) {
+        patterns <- Biostrings::AAStringSet(patterns)
+      }
+      if (!methods::is(subject, "AAStringSet")) {
+        subject <- Biostrings::AAStringSet(subject)
+      }
+    } else {
+      stop("AA or NT not determined.")
+    }
   }
 
   if (is.null(names(subject))) {
@@ -78,15 +103,17 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   patterns.names <- names(patterns)
   subject.name <- names(subject)
 
-  type <- match.arg(type, choices = c("global", "local", "overlap", "global-local", "local-global"))
+  type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
-  if (perfect.matches.only) {
+  if (perfect.matches.only && methods::is(subject, "DNAStringSet")) {
     perf <- Biostrings::vwhichPDict(subject = subject, pdict = Biostrings::PDict(patterns))[[1]]
-    print(paste0(length(perf), " of ", length(patterns), " patterns found to perfectly match the subject."))
+    message(length(perf), " of ", length(patterns), " patterns found to perfectly match the subject.")
     patterns <- patterns[perf]
-  }
-  if (length(patterns) == 0) {
-    stop("No pattern with perfect match left.")
+    if (length(patterns) == 0) {
+      stop("No pattern with perfect match left.")
+    }
+  } else if (perfect.matches.only) {
+    message("perfect.matches.only = T can only be applied for DNA.")
   }
 
   # calculate all alignments
@@ -95,7 +122,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # check for indels induced in the subject
   for (i in seq_along(pa)) {
     if (length(pa[i]@subject@indel@unlistData@start) > 0) {
-      print(paste0(pa[i]@pattern@unaligned@ranges@NAMES, " caused ", length(pa[i]@subject@indel@unlistData@start), " indel(s) in the subject."))
+      message(pa[i]@pattern@unaligned@ranges@NAMES, " caused ", length(pa[i]@subject@indel@unlistData@start), " indel(s) in the subject.")
     }
   }
 
@@ -108,8 +135,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   ind$indel_end <- ind$indel_start + ind$width - 1
   ind$corr_end <- NA
 
-  als <- mapply(seq, ind$al_start, ind$al_end, SIMPLIFY = F)
-  inds <- mapply(seq, ind$indel_start[!is.na(ind$indel_start)], ind$indel_end[!is.na(ind$indel_end)], SIMPLIFY = F)
+  als <- mapply("seq", ind$al_start, ind$al_end, SIMPLIFY = F)
+  inds <- mapply("seq", ind$indel_start[!is.na(ind$indel_start)], ind$indel_end[!is.na(ind$indel_end)], SIMPLIFY = F)
 
   do_fix <- F
   for (i in seq_along(als)) {
@@ -131,7 +158,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   if (do_fix && fix_indels) {
     for (k in seq_along(patterns)) {
       if (any(!is.na(ind[which(ind$group == k), "corr_end"]))) {
-        print(paste0(names(patterns)[k], " is cut at position ", min(ind[which(ind$group == k), "corr_end"], na.rm = T), " to avoid indel overlap with another's pattern range on the subject. Experimental, yet."))
+        message(names(patterns)[k], " is cut at position ", min(ind[which(ind$group == k), "corr_end"], na.rm = T), " to avoid indel overlap with another's pattern range on the subject. Experimental, yet.")
         patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(ind[which(ind$group == k), "corr_end"], na.rm = T))
       }
     }
@@ -165,12 +192,12 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   subject.ranges.unique <- subject.ranges.unique[order(sapply(subject.ranges.unique, function(x) min(x)))]
 
   # paste together the complete subject
-  total.subject.seq <- stringr::str_sub(subject, 1, (min(subject.ranges.unique[[1]]) - 1))
+  total.subject.seq <- stringr::str_sub(as.character(subject), 1, (min(subject.ranges.unique[[1]]) - 1))
   for (i in seq_along(subject.ranges.unique)) {
     # test if there is a gap between the i-1th and the ith alignment; if so, fill with original sequence
     if (i != 1 && max(subject.ranges.unique[[i-1]])+1 < min(subject.ranges.unique[[i]])) {
       # if yes use original subject
-      total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[i-1]])+1, min(subject.ranges.unique[[i]])-1))
+      total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[i-1]])+1, min(subject.ranges.unique[[i]])-1))
     }
     if (i < max(seq_along(subject.ranges.unique))) {
       r <- min(subject.ranges.unique[[i]])
@@ -179,29 +206,22 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     if (i == max(seq_along(subject.ranges.unique))) {
       total.subject.seq <- paste0(total.subject.seq, pa.unique[i]@subject)
     }
-    #print(total.subject.seq)
   }
   ## attach the remaining sequence from subject
-  total.subject.seq <- paste0(total.subject.seq, substr(subject, max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
+  total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
 
-  df <- data.frame(seq = strsplit(total.subject.seq, "")[[1]],
-                   position = seq(1:length(strsplit(total.subject.seq, "")[[1]])))
 
-  df[df$seq != "-", "subject.position"] <- seq(1:nrow(df[df$seq != "-", ]))
-  names(df)[1] <- subject.name
+  ## create data frame for plotting
 
-  pf <- list()
+  df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), subject.name)), position = dplyr::row_number())
+  df[df[,subject.name] != "-", "subject.position"] <- seq(1:nrow(df[df[,subject.name] != "-", ]))
   gap.corr <- 0
-
-  pa <- pa[order(sapply(subject.ranges, function(x) min(x)))]
+  pa <- pa[order(purrr::map_int(subject.ranges, min))]
   for (x in 1:length(pa)) {
-    pf[[x]] <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
-                          position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
+    temp <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
+                       position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
     gap.corr <- gap.corr + sum(data.frame(pa[x]@subject@indel@unlistData)$width)
-  }
-
-  for (i in 1:length(pf)) {
-    df <- df %>% dplyr::left_join(pf[[i]], by = "position")
+    df <- dplyr::left_join(df, temp, by = "position")
   }
 
   df.match <- df
@@ -212,88 +232,39 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
 
+  #acp1 <- acp[which(names(acp) %in% unique(df[,subject.name]))]
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
-  acp1 <- acp[which(names(acp) %in% unique(df$seq))]
-  df$seq <- factor(df$seq, levels = c(names(acp1)))
-  df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
-  if (order.patterns) {
-    df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names[order(sapply(subject.ranges, function(x) min(x)))]))
-  } else {
-    df$seq.name <- factor(df$seq.name, levels = c(subject.name, patterns.names))
-  }
+    #dplyr::mutate(seq = factor(seq, levels = names(acp1))) %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
+  #acp2 <- acp[which(names(acp) %in% unique(unlist(df.match[,c(subject.name, patterns.names)])))]
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names)))
-  acp2 <- acp[which(names(acp) %in% unique(df.match$seq))]
-  df.match$seq <- factor(df.match$seq, levels = c(names(acp2)))
-  if (order.patterns) {
-    df.match$seq.name <- factor(df.match$seq.name, levels = c(subject.name, patterns.names[order(sapply(subject.ranges, function(x) min(x)))]))
-  } else {
-    df.match$seq.name <- factor(df.match$seq.name, levels = c(subject.name, patterns.names))
-  }
+    #dplyr::mutate(seq = factor(seq, levels = names(acp2))) %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
-  g1 <- ggplot2::ggplot(df %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-    ggplot2::geom_tile() +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = font.family)) +
-    ggplot2::scale_fill_manual(values = acp1) +
-    ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
-    ggplot2::ylab("seq name")
+  g1 <- algnmt_plot(algnmt = df,
+                    tile.border.color = NA,
+                    font.family = "sans",
+                    pattern.lim.size = 2,
+                    pa = pa,
+                    subject.lim.lines = F)
 
-
-  g2 <- ggplot2::ggplot(df.match %>% dplyr::filter(!is.na(seq)), ggplot2::aes(x = position, y = seq.name, fill = seq)) +
-    ggplot2::geom_tile() +
-    ggplot2::theme_classic() +
-    ggplot2::theme(legend.title = ggplot2::element_blank(), text = ggplot2::element_text(family = font.family)) +
-    ggplot2::scale_fill_manual(values = acp2) +
-    ggplot2::scale_x_continuous(breaks = .integer_breaks()) +
-    ggplot2::ylab("seq name")
-
-  if (!is.na(tile.border.color)) {
-    g1 <- g1 + ggplot2::geom_tile(data = df[which(df$seq != "-"), ], color = tile.border.color)
-    g2 <- g2 + ggplot2::geom_tile(data = df.match[which(df.match$seq != "-"), ], color = tile.border.color)
-  }
-
-  ### pull positions of patterns
-  if (pattern.lim.size > 0) {
-    pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
-    for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
-    pattern.ranges <- pattern.ranges %>% tidyr::pivot_longer(cols = c(start, end), names_to = "pos", values_to = "values")
-    pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(df.match$position) + 2)
-    g2 <- g2 + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, family = font.family, inherit.aes = F)
-  }
-
-  min.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(position)
-  min.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position)
-
-  max.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(position)
-  max.subj.pos <- df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)
-
-  if (subject.lim.lines) {
-    g1 <- g1 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
-    g2 <- g2 + ggplot2::geom_vline(xintercept = min.pos, linetype = "dashed") + ggplot2::geom_vline(xintercept = max.pos, linetype = "dashed")
-  }
+  g2 <- algnmt_plot(algnmt = df.match,
+                    tile.border.color = NA,
+                    font.family = "sans",
+                    pattern.lim.size = 2,
+                    pa = pa,
+                    subject.lim.lines = F)
 
   return(list(base.plot = g1,
               match.plot = g2,
               base.df = df,
               match.df = df.match,
-              min.max.subject.position = c(min.subj.pos, max.subj.pos)))
+              min.max.subject.position = c(df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position),
+                                           df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position))))
 }
-
-
-.integer_breaks <- function(n = 5, ...) {
-  fxn <- function(x) {
-    breaks <- floor(base::pretty(x, n, ...))
-    names(breaks) <- attr(breaks, "labels")
-    breaks
-  }
-  return(fxn)
-}
-
 

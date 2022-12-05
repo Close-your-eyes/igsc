@@ -14,7 +14,7 @@
 #' @param out_file path to a file where to print results to; if NULL results are
 #' printed in console
 #' @param col_out color the printed alignment?
-#' @param extend_subject
+#' @param extend_subject extend subject further than alignment limits (-,+)
 #'
 #' @return alignment in printed format in console or file
 #' @export
@@ -81,7 +81,6 @@ printPairwiseAlignment <- function(alignments,
         stop("extend_subject has to be numeric.")
       }
 
-      #browser()
       # avoid diff length of pattern and subject
       extend_subject[1] <- min(c(alignment@subject@range@start-1, extend_subject[1]))
       extend_subject[2] <- min(c(nchar(as.character(alignment@subject@unaligned[[1]]))-c(alignment@subject@range@start+alignment@subject@range@width-1), extend_subject[2]))
@@ -97,7 +96,7 @@ printPairwiseAlignment <- function(alignments,
 
     ## allow to define limits for subject or pattern - handle gaps (=insertion) & deletions - difficult
     # general method needed to absolutely define each nt position in alignedSeqs based on start, gaps and deletions
-'    if (!is.null(subject_lim) && !is.null(pattern_lim)) {
+    '    if (!is.null(subject_lim) && !is.null(pattern_lim)) {
       stop("Please only provide pattern_lim OR subject_lim, not both. Leave the other NULL.")
     }
     if (!is.null(subject_lim)) {
@@ -307,7 +306,7 @@ sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly s
   '
 
   black <- crayon::make_style("black")
-  whiter <- crayon::make_style(rgb(1, 1, 1))
+  whiter <- crayon::make_style(grDevices::rgb(1, 1, 1))
 
   x <- strsplit(x, "")[[1]]
 
@@ -315,7 +314,7 @@ sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly s
     x <- sapply(x, function(y) {
       crayon::make_style("grey30", bg = T)(whiter(y))
     })
-  } else if (all(x %in% unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N")))) {
+  } else if (guess_type(x) == "NT") {
 
     dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B")
     cols <- RColorBrewer::brewer.pal(6, "Set2")[-c(4,5)]
@@ -343,8 +342,7 @@ sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly s
       }
     })
 
-  } else if (all(x %in% c(Biostrings::AA_ALPHABET, "N"))) {
-
+  } else {
     cols <- RColorBrewer::brewer.pal(7, "Set2")[-c(4:5)]
 
     aa_non_polar <- c("A","V","L","I","M","W","F","Y")
@@ -370,8 +368,6 @@ sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly s
         crayon::make_style("grey30", bg = T)(whiter(y))
       }
     })
-  } else {
-    print("AA, DNA or RNA could not be identified.")
   }
 
   x <- paste(x,collapse = "")

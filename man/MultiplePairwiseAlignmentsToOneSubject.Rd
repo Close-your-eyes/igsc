@@ -2,20 +2,17 @@
 % Please edit documentation in R/MultiplePairwiseAlignmentsToOneSubject.R
 \name{MultiplePairwiseAlignmentsToOneSubject}
 \alias{MultiplePairwiseAlignmentsToOneSubject}
-\title{Align multiple DNA pattern sequences to one subject}
+\title{Separately align multiple pattern sequences to one subject}
 \usage{
 MultiplePairwiseAlignmentsToOneSubject(
   subject,
   patterns,
-  type = "global-local",
+  type = c("global-local", "global", "local", "overlap", "local-global"),
   perfect.matches.only = F,
   order.patterns = F,
-  pattern.lim.size = 2,
-  subject.lim.lines = F,
   attach.nt = T,
-  tile.border.color = NA,
-  font.family = "Courier",
   fix_indels = F,
+  seq_type = NULL,
   ...
 )
 }
@@ -26,21 +23,17 @@ MultiplePairwiseAlignmentsToOneSubject(
 
 \item{type}{the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)}
 
-\item{perfect.matches.only}{filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment}
+\item{perfect.matches.only}{filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment;
+only possible with DNA}
 
 \item{order.patterns}{order pattern increasingly by alignment position (start)}
 
-\item{pattern.lim.size}{size of printed limits of aligned patterns (at which nt does the alignment to the subject starts and ends); set to 0 to avoid plotting}
-
-\item{subject.lim.lines}{print vertical lines at the outermost subject-nts of all aligned patterns}
-
 \item{attach.nt}{add the length of the string to the name on the axis}
 
-\item{tile.border.color}{character; tiles from geom_tile are used to plot nts - should they have a border color, e.g. "black"; only useful for short alignment and only an aesthetic thing}
-
-\item{font.family}{which font for plotting}
-
 \item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
+
+\item{seq_type}{set sequence type to AA or NT if necessary; if NULL
+it is attempted to guess the type}
 
 \item{...}{additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type}
 }
@@ -53,8 +46,9 @@ seq min.max.subject.position indicates the outer limits of all aligned patterns 
 }
 \description{
 This function is useful plot the alignment position of multiple patterns in one subject.
-It uses Biostrings::pairwiseAlignment(), obtains the individual alignment limits and converts that to a ggplot object with a few optional complementing information.
-The function will not work if a gap is induced in the subject and at least two patterns overlap at this gap.
+It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
+the results to a ggplot object with a few optional complementing information (see arguments).
+The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 }
 \examples{
 \dontrun{
@@ -62,7 +56,7 @@ s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
 s <- Biostrings::DNAStringSet(s)
 p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 p <- Biostrings::DNAStringSet(p)
-als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black")
-als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, tile.border.color = "black", order.patterns = T)
+als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
+als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order.patterns = T)
 }
 }
