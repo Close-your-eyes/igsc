@@ -290,7 +290,7 @@ aa_list <- list(tiny = c("A", "C", "G", "S", "T"),
                 aromatic = c("F", "H", "W", "Y"),
                 nonpolar = c("A", "C", "F", "G", "I", "L", "M", "P", "V", "W", "Y"),
                 polar = c("D", "E", "H", "K", "N", "Q", "R", "S", "T", "Z"),
-                charged = c("B", "D", "E", "H", "K", "R", "Z"), ## all that are basic or acidic
+                charged = c("B", "D", "E", "H", "K", "R", "Z"), ## all which are basic or acidic
                 basic = c("H", "K", "R"),
                 acidic = c("B", "D", "E", "Z"))
 
