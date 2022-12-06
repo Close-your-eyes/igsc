@@ -19,6 +19,8 @@ library(igsc)
 library(magrittr)
 
 # load vdjdb copy from igsc package data
+# or download from https://vdjdb.cdr3.net
+# or here https://github.com/antigenomics/vdjdb-db/releases/tag/2022-03-30
 vdjdb <-
   readRDS(system.file("extdata", "vdjdb.tsv.rds", package = "igsc")) %>%
   dplyr::filter(Species == "HomoSapiens")
@@ -35,31 +37,48 @@ cmv_IE1_split <- split(x = cmv_IE1, f = cmv_IE1$Epitope)
 cmv_IE1_split <- purrr::map(cmv_IE1_split, function(x) split(x, f = x$Gene))
 
 # pull out one group of TRB-CDR3 sequences that are said to be specific for QIKVRVKMV
-seqs <- unique(purrr::pluck(cmv_IE1_split, "QIKVRVKMV", "TRB")[,"CDR3"])
+seqs <- unique(purrr::pluck(cmv_IE1_split, "QIKVRVKMV", "TRB", "CDR3"))
 names(seqs) <- as.character(1:length(seqs))
 
 # try to order sequences by similarity
 distmat <- DECIPHER::DistanceMatrix(Biostrings::AAStringSet(seqs), verbose = F)
+
+# derive order from a phylogenetic tree
 tree <- DECIPHER::TreeLine(myDistMatrix=distmat, cutoff=0.01, method="NJ", showPlot=F, type = "clusters", verbose = F)
 order <- as.numeric(names(sort(setNames(tree$cluster, rownames(tree)))))
-seqs <- seqs[order]
+
+# derive order from solving a traveling sales person problem based on distmat
+order2 <-
+  distmat %>%
+  TSP::as.TSP() %>%
+  TSP::solve_TSP(control = list(repetitions = 1000)) %>%
+  as.numeric()
+
+# seqs <- seqs[order]
+# or
+seqs <- seqs[order2]
+
 
 # multiple sequence alignment (msa) with DECIPHER
-aln <- DECIPHER::AlignSeqs(Biostrings::AAStringSet(seqs), verbose = F)
+data(PAM30)
+aln <- DECIPHER::AlignSeqs(Biostrings::AAStringSet(seqs), verbose = F) #substitutionMatrix = "PAM30"
+#aln <- msa::msa(Biostrings::AAStringSet(seqs), substitutionMatrix = PAM30)@unmasked
+
 # attach conensus sequence
 aln <- c(aln, setNames(DECIPHER::ConsensusSequence(aln, threshold = 0.3), "consensus"))
 ```
 
 ````{r plot, fig.asp = 0.6, fig.width = 8, out.width = "100%"}
 # plot the alignment as ggplot2 object
-plot <- igsc::algnmt_plot(algnmt = aln,
-                          color_values = "Chemistry_AA",
-                          text = T,
-                          ref = "consensus",
-                          tile.border.color = "black") +
+plot <- algnmt_plot(algnmt = aln,
+                    color_values = "Chemistry_AA",
+                    text = T,
+                    ref = "consensus",
+                    tile.border.color = "black") +
   ggplot2::theme(legend.position = "right", panel.border = ggplot2::element_blank(),
                  axis.ticks.y = ggplot2::element_blank(), axis.title = ggplot2::element_blank())
 plot
+ggplot2::ggsave(plot, path = getwd(), filename = "TSP_order.png", width = 10, height = 12, device = "png")
 ````
 
 

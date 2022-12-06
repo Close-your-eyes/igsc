@@ -25,6 +25,8 @@
 #' picked automatically based on data provided
 #' @param algnmt_type 'NT' or 'AA'; only required if algnmt is a data.frame and only if
 #' NT or AA cannot be guessed; leave NULL to have it guessed based on data
+#' @param ref a reference sequence to compare all other sequnces to; e.g. a consensus sequence
+#' made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)
 #' @return ggplot2 object of alignment
 #' @export
 #'
@@ -48,6 +50,7 @@ algnmt_plot <- function(algnmt,
                         x.breaks = NULL,
                         algnmt_type = NULL,
                         ref = NULL) {
+## check duplicate names
 
 
   if (!requireNamespace("Peptides", quietly = T)){
@@ -59,8 +62,6 @@ algnmt_plot <- function(algnmt,
   if (!requireNamespace("viridisLite", quietly = T)){
     utils::install.packages("viridisLite")
   }
-
-  ## a ref sequence has to be provided in algnmt; e.g. with DECIPHER::ConsensusSequence
 
   font.family <- match.arg(font.family, choices = c("sans", "mono", "serif"))
 
@@ -156,8 +157,8 @@ algnmt_plot <- function(algnmt,
         tile_color <- igsc:::scheme_AA[,match.arg(color_values, choices = colnames(igsc:::scheme_AA)),drop=T]
         tile_color <- tile_color[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
         for (i in 1:length(tile_color)) {
-          if (names(tile_color)[i] %in% names(aa_info[["aa_main_prop"]])) {
-            names(tile_color)[i] <- aa_info[["aa_main_prop"]][names(tile_color)[i]]
+          if (names(tile_color)[i] %in% names(igsc:::aa_info[["aa_main_prop"]])) {
+            names(tile_color)[i] <- igsc:::aa_info[["aa_main_prop"]][names(tile_color)[i]]
           }
         }
         tile_color <- tile_color[unique(names(tile_color))]
@@ -206,7 +207,7 @@ algnmt_plot <- function(algnmt,
   }
 
   if (algnmt_type == "AA" && length(color_values) == 1 && color_values == "Chemistry_AA") {
-    col_breaks = unique(aa_info[["aa_main_prop"]])[which(unique(aa_info[["aa_main_prop"]]) != "stop")]
+    col_breaks = unique(igsc:::aa_info[["aa_main_prop"]])[which(unique(igsc:::aa_info[["aa_main_prop"]]) != "stop")]
   } else {
     col_breaks = ggplot2::waiver()
   }
@@ -280,6 +281,8 @@ XStringSet_to_df <- function(xstringset) {
   out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = "seq.name")
   names(out)[c(2,3)] <- c("seq", "position")
   out$position <- as.numeric(as.character(out$position))
+  # maintain the original order of sequences
+  out$seq.name <- factor(out$seq.name, levels = names(xstringset))
 
   # do this in parent fun
   #if (!anyNA(suppressWarnings(as.numeric(out$seq.name)))) {out$seq.name <- factor(out$seq.name, levels = as.character(unique(as.numeric(as.character(out$seq.name)))))}
@@ -338,6 +341,7 @@ compare_seqs_df <- function(df,
                             name_col = "seq.name",
                             seq_original = "seq_original") {
 
+  seq.name.order <- levels(df[,name_col,drop=T])
   df <-
     df %>%
     tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col)) %>%
@@ -346,7 +350,8 @@ compare_seqs_df <- function(df,
     dplyr::mutate({{ref}} := paste0(!!rlang::sym(ref), "_", !!rlang::sym(ref))) %>%
     tidyr::pivot_wider(names_from = name, values_from = value) %>%
     tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% pos_col)]), names_to = name_col) %>%
-    tidyr::separate(value, into = c(seq_original, seq_col), sep = "_")
+    tidyr::separate(value, into = c(seq_original, seq_col), sep = "_") %>%
+    dplyr::mutate({{name_col}} := factor(!!rlang::sym(name_col), levels = seq.name.order))
   return(df)
 }
 
