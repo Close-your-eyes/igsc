@@ -49,7 +49,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     BiocManager::install("Biostrings")
   }
 
+  type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
+
+  ## check and filter for letters in subject and pattern:  dplyr::filter(!grepl("[^ACTG]", seq)); use Biostrins::AA ... and DNA as ref
   ## to do: also allow AAString, perform check
   ## pull seqs from subject and patterns, then run guess_type
 
@@ -100,10 +103,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     names(patterns) <- paste0(names(patterns), "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
   }
 
-  patterns.names <- names(patterns)
-  subject.name <- names(subject)
-
-  type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
   if (perfect.matches.only && methods::is(subject, "DNAStringSet")) {
     perf <- Biostrings::vwhichPDict(subject = subject, pdict = Biostrings::PDict(patterns))[[1]]
@@ -116,10 +115,22 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     message("perfect.matches.only = T can only be applied for DNA.")
   }
 
+  # derive patterns.names after potential filtering of patterns
+  patterns.names <- names(patterns)
+  subject.name <- names(subject)
+
+
   # calculate all alignments
+  # quick, but could be made mc, then how to merge to PairwiseAlignmentsSingleSubject?
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type)
 
-  # check for indels induced in the subject
+  #system.time(pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type))
+  #system.time(pa <- purrr::map(as.character(patterns), function(x) Biostrings::pairwiseAlignment(pattern = x, subject = subject, type = type))) ## much much slower! not possible!
+  # use purrr or furrr to make it an original list directly - check speed?
+  #pal <- as.list(pa)
+
+  # check for indels induced in the subject; this is slow
+  # check for perfect.matches.only and type of alignment to avoid the test; which type prohibits gaps in the subject?!
   for (i in seq_along(pa)) {
     if (length(pa[i]@subject@indel@unlistData@start) > 0) {
       message(pa[i]@pattern@unaligned@ranges@NAMES, " caused ", length(pa[i]@subject@indel@unlistData@start), " indel(s) in the subject.")
@@ -217,12 +228,21 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   df[df[,subject.name] != "-", "subject.position"] <- seq(1:nrow(df[df[,subject.name] != "-", ]))
   gap.corr <- 0
   pa <- pa[order(purrr::map_int(subject.ranges, min))]
+
+  # this is slow; how to speed up?
   for (x in 1:length(pa)) {
+    print(gap.corr)
     temp <- data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(pa[x])), ""),
                        position = (pa[x]@subject@range@start + gap.corr):(pa[x]@subject@range@start+nchar(as.character(Biostrings::alignedPattern(pa[x]))) - 1 + gap.corr))
     gap.corr <- gap.corr + sum(data.frame(pa[x]@subject@indel@unlistData)$width)
     df <- dplyr::left_join(df, temp, by = "position")
   }
+
+  '
+pal <- as.list(pa[1:5])
+purrr::map(pal, function(x) sum(data.frame(x@subject@indel@unlistData)$width))
+  ?PairwiseAlignmentsSingleSubject
+  '
 
   df.match <- df
   for (x in patterns.names) {
