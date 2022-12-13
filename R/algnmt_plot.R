@@ -14,7 +14,9 @@
 #' @param theme ggplot theme to use as basis
 #' @param pattern.lim.size numeric; plot annotation of pattern alignment limits; value indicates size;
 #' set to 0 to omit plotting; only applicable if pa is provided
-#' @param pa list of pairwise alignment; rather for internal use by igsc::MultiplePairwiseAlignmentsToOneSubject;
+#' @param pa list of pairwise alignments in form of PairwiseAlignmentsSingleSubject
+#' or as actual list of single pairwise alignments; the latter will sometime make the alignment quicker
+#' rather for internal use by igsc::MultiplePairwiseAlignmentsToOneSubject;
 #' from pa pattern alignment limits are derived
 #' @param subject.lim.lines logical whether to plot vertical lines of subject alignment limits
 #' @param pos_col name of position column in algnmt (applicable if algnmt is a data.frame)
@@ -77,16 +79,21 @@ algnmt_plot <- function(algnmt,
     algnmt <- XStringSet_to_df(algnmt)
   } else if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject")) {
     # from Biostrings::pairwiseAlignment
-    if (methods::is(pa@pattern@unaligned, "QualityScaledDNAStringSet") || methods::is(pa@pattern@unaligned, "QualityScaledRNAStringSet")) {
+    if (methods::is(pa, "PairwiseAlignmentsSingleSubject")) {
+      temp <- pa[1]@pattern@unaligned
+    } else if (methods::is(pa, "list")) {
+      temp <- pa[[1]]@pattern@unaligned
+    }
+    if (methods::is(temp, "QualityScaledDNAStringSet") || methods::is(temp, "QualityScaledRNAStringSet")) {
       algnmt_type <- "NT"
     }
-    if (methods::is(pa@pattern@unaligned, "QualityScaledAAStringSet")) {
+    if (methods::is(temp, "QualityScaledAAStringSet")) {
       algnmt_type <- "AA"
     }
+
     algnmt <- pa_to_df(algnmt)
   }
   # else: data frame from igsc::MultiplePairwiseAlignmentsToOneSubject
-
 
   if (!is.null(ref)) {
     if (!ref %in% unique(algnmt[,name_col,drop=T])) {
@@ -232,7 +239,8 @@ algnmt_plot <- function(algnmt,
                                       ggplot2::aes(fill = !!rlang::sym(col_col)))
     # geom_raster seems not take color?!
   } else {
-    plot <- plot + ggplot2::geom_raster(ggplot2::aes(fill = !!rlang::sym(col_col)))
+    plot <- plot + ggplot2::geom_raster(data = algnmt[which(!is.na(algnmt[,seq_col,drop=T])),],
+                                        ggplot2::aes(fill = !!rlang::sym(col_col)))
   }
 
   if ((is.logical(text) && text) || (is.numeric(text) && text > 0)) {
@@ -253,14 +261,21 @@ algnmt_plot <- function(algnmt,
     #plot <- plot + ggplot2::geom_text(ggplot2::aes(label = !!rlang::sym(seq_col), color = farver::decode_colour(tile_color[as.character(algnmt[,col_col,drop=T])], to = "hcl")[,"l"] > 50), na.rm = T, family = font.family, size = text_size) + ggplot2::scale_color_manual(guide = "none", values = c("black", "white"))
   }
 
-
   if (!is.null(coord_fixed_ratio)) {
     plot <- plot + ggplot2::coord_fixed(ratio = coord_fixed_ratio)
   }
 
   if (pattern.lim.size > 0 && !is.null(pa)) {
-    pattern.ranges <- data.frame(pa@pattern@range, seq.name = "")
-    for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
+    if (!methods::is(pa, "list")) {
+      pa <- as.list(pa)
+    }
+    pattern.ranges <- purrr::map_dfr(pa, function(x) data.frame(x@pattern@range, seq.name = ""))
+    if (is.null(names(pa))) {
+      pattern.ranges$seq.name <- make.names(purrr::map(pa, function(x) names(Biostrings::alignedPattern(x))))
+    } else {
+      pattern.ranges$seq.name <- names(pa)
+    }
+    #for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
     pattern.ranges <- tidyr::pivot_longer(pattern.ranges, cols = c(start, end), names_to = "pos", values_to = "values")
     pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(algnmt[,pos_col,drop=T]) + 2)
     plot <- plot + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, family = font.family, inherit.aes = F)
