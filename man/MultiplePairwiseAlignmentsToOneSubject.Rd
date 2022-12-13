@@ -8,7 +8,7 @@ MultiplePairwiseAlignmentsToOneSubject(
   subject,
   patterns,
   type = c("global-local", "global", "local", "overlap", "local-global"),
-  perfect.matches.only = F,
+  max_mismatch = NA,
   order.patterns = F,
   attach.nt = T,
   fix_indels = F,
@@ -23,8 +23,8 @@ MultiplePairwiseAlignmentsToOneSubject(
 
 \item{type}{the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)}
 
-\item{perfect.matches.only}{filter patterns for those which match the subject without gaps, insertions or substitutions before pairwise alignment;
-only possible with DNA}
+\item{max_mismatch}{only use patterns that have a maximum number of mismatches
+with the subject}
 
 \item{order.patterns}{order pattern increasingly by alignment position (start)}
 

@@ -47,7 +47,9 @@ advisable only for short alignments}
 \item{pattern.lim.size}{numeric; plot annotation of pattern alignment limits; value indicates size;
 set to 0 to omit plotting; only applicable if pa is provided}
 
-\item{pa}{list of pairwise alignment; rather for internal use by igsc::MultiplePairwiseAlignmentsToOneSubject;
+\item{pa}{list of pairwise alignments in form of PairwiseAlignmentsSingleSubject
+or as actual list of single pairwise alignments; the latter will sometime make the alignment quicker
+rather for internal use by igsc::MultiplePairwiseAlignmentsToOneSubject;
 from pa pattern alignment limits are derived}
 
 \item{subject.lim.lines}{logical whether to plot vertical lines of subject alignment limits}
@@ -65,6 +67,9 @@ picked automatically based on data provided}
 
 \item{algnmt_type}{'NT' or 'AA'; only required if algnmt is a data.frame and only if
 NT or AA cannot be guessed; leave NULL to have it guessed based on data}
+
+\item{ref}{a reference sequence to compare all other sequnces to; e.g. a consensus sequence
+made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
 }
 \value{
 ggplot2 object of alignment
