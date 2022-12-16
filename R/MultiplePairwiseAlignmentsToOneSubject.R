@@ -1,8 +1,8 @@
 #' Separately align multiple pattern sequences to one subject
 #'
-#' This function is useful plot the alignment position of multiple patterns in one subject.
+#' This function is useful to visualise the alignment position of multiple patterns on one subject.
 #' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
-#' the results to a ggplot object with a few optional complementing information (see arguments).
+#' the results to a ggplot object.
 #' The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 #'
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
@@ -16,6 +16,8 @@
 #' @param ... additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type
 #' @param seq_type set sequence type to AA or NT if necessary; if NULL
 #' it is attempted to guess the type
+#' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
+#' in this case no alignment is calculated
 #'
 #' @return a list:
 #' base.plot ggplot object of alignment shows patterns colored by nt,
@@ -42,7 +44,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    order.patterns = F,
                                                    attach.nt = T,
                                                    fix_indels = F,
+                                                   rm_indel_inducing_pattern = F,
                                                    seq_type = NULL,
+                                                   return_max_mismatch_info_only = F,
                                                    ...) {
 
   if (!requireNamespace("Biostrings", quietly = T)) {
@@ -118,6 +122,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
       #message(paste(names(patterns[which(grepl("[^ACTGU]", patterns))]), collapse = "\n"))
       patterns_invalid <- patterns[which(grepl("[^ACTGU]", patterns))]
       patterns <- patterns[which(!grepl("[^ACTGU]", patterns))]
+      if (return_max_mismatch_info_only) {
+        return(list(patterns_invalid = patterns_invalid,
+                    pattern_mismatching = pattern_mismatching_return))
+      }
       if (length(patterns) == 0) {
         stop("No patterns left after filtering for ones with valid DNA/RNA characters only. Please fix the sequences or set max_mismatch = NA.")
       }
@@ -147,26 +155,36 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     max_mismatch <- NA
   }
 
-  # derive patterns.names after potential filtering of patterns
-  patterns.names <- names(patterns)
-  subject.name <- names(subject)
-
   # calculate all alignments
   pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
 
   # make pa a list once and then iterate over list entries with purrr/furrr which is quicker!
   # use multiple threads to speed up?!
-  pal <- stats::setNames(as.list(pa), patterns.names)
+  # pal <- stats::setNames(as.list(pa), patnames(patterns)terns.names)
+  pal <- stats::setNames(purrr::flatten(parallel::mclapply(split(c(1:length(pa)), ceiling(seq_along(c(1:length(pa)))/10)), function(x) as.list(pa[x]), mc.cores = parallel::detectCores()-1)), names(patterns))
 
   # check for indels induced in the subject; this is slow
+  # caution: leading gaps are not considered as indels!
+  pattern_indel_inducing <- NULL
   if (!is.na(max_mismatch)) {
     # # Biostrings::nindel(pa[i]) ?
-    indel_list <- purrr::map_int(stats::setNames(pal, patterns.names), function(x) length(x@subject@indel@unlistData@start))
+    indel_list <- purrr::map_int(stats::setNames(pal, names(patterns)), function(x) length(x@subject@indel@unlistData@start))
     if (any(indel_list > 0)) {
-      message(sum(indel_list > 0), " patterns caused indels in the subject: ")
+      message(sum(indel_list > 0), " patterns caused indels in the subject.")
       indel_df <- utils::stack(indel_list)
       names(indel_df) <- c("n indel", "pattern name")
-      print(indel_df)
+      #print(indel_df[which(indel_df[,"n indel"] > 0), ])
+      if (rm_indel_inducing_pattern) {
+        message("Those are removed as rm_indel_inducing_pattern = T. They are returned as pattern_indel_inducing.")
+        pattern_indel_inducing <- patterns[which(names(patterns) %in% names(which(indel_list > 0)))]
+        patterns <- patterns[which(!names(patterns) %in% names(which(indel_list > 0)))]
+        ## filter by name
+        #pal <- pal[which(names(pal) %in% names(which(indel_list == 0)))]
+        ## filter by index
+        pal <- pal[which(indel_list == 0)]
+        pa <- pa[which(indel_list == 0)]
+        indel_list <- indel_list[which(indel_list == 0)]
+      }
     }
   }
 
@@ -208,7 +226,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
         }
       }
       pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
-      pal <- stats::setNames(as.list(pa), patterns.names)
+      pal <- stats::setNames(purrr::flatten(parallel::mclapply(split(c(1:length(pa)), ceiling(seq_along(c(1:length(pa)))/10)), function(x) as.list(pa[x]), mc.cores = parallel::detectCores()-1)), names(patterns))
     }
   }
 
@@ -234,8 +252,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   pal.unique <- pal.unique[which(!is.subset)]
 
   # order alignment and subject ranges increasingly
-  pal.unique <- pal.unique[order(purrr::map_int(subject.ranges.unique, function(x) min(x)))]
-  subject.ranges.unique <- subject.ranges.unique[order(purrr::map_int(subject.ranges.unique, function(x) min(x)))]
+  order_temp <- order(purrr::map_int(subject.ranges.unique, min))
+  pal.unique <- pal.unique[order_temp]
+  subject.ranges.unique <- subject.ranges.unique[order_temp]
 
   # paste together the complete subject
   total.subject.seq <- stringr::str_sub(as.character(subject), 1, (min(subject.ranges.unique[[1]]) - 1))
@@ -257,8 +276,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
 
   ## create data frame for plotting
-  df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), subject.name)), position = dplyr::row_number())
-  df[df[,subject.name] != "-", "subject.position"] <- seq(1:nrow(df[df[,subject.name] != "-", ]))
+  df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), names(subject))), position = dplyr::row_number())
+  df[df[,names(subject)] != "-", "subject.position"] <- seq(1:nrow(df[df[,names(subject)] != "-", ]))
   gap.corr <- 0
   pal <- pal[order(purrr::map_int(subject.ranges, min))]
 
@@ -272,8 +291,21 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }'
 
   gap_corr <- purrr::accumulate(purrr::map_int(pal, function(x) sum(data.frame(x@subject@indel@unlistData)$width)), `+`)
-  dfs <- purrr::map2(pal, gap_corr, function(x, y) data.frame(seq = strsplit(as.character(Biostrings::alignedPattern(x)), ""),
-                                                              position = (x@subject@range@start + y):(x@subject@range@start+nchar(as.character(Biostrings::alignedPattern(x))) - 1 + y)))
+
+'  dfs <- purrr::map2(pal, gap_corr, function(x, y) {
+    alPa <- as.character(Biostrings::alignedPattern(x))
+    start <- x@subject@range@start
+    data.frame(seq = strsplit(alPa, ""), position = (start + y):(start+nchar(alPa) - 1 + y))
+  })
+'
+  dfs <- parallel::mcmapply(x = pal, y = gap_corr, FUN = function(x, y) {
+    #alPa <- as.character(Biostrings::alignedPattern(x))
+    # Biostrings::alignedPattern(x) returns leading NT that are aligned to gaps; whereas x@pattern does do it
+    alPa <- stats::setNames(as.character(x@pattern), x@pattern@unaligned@ranges@NAMES)
+    start <- x@subject@range@start
+    data.frame(seq = strsplit(alPa, ""), position = (start + y):(start+nchar(alPa) - 1 + y))
+  }, mc.cores = parallel::detectCores()-1, SIMPLIFY = F)
+
 
   # do joining chunk-wise !!!
   # make that a separate function somewhen
@@ -285,22 +317,22 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   df <- purrr::reduce(c(list(df), dfs), dplyr::left_join, by = "position")
 
   df.match <- df
-  for (x in patterns.names) {
-    df.match[,x] <- ifelse(df.match[,x] == df.match[,subject.name], "match", ifelse(df.match[,x] == "-", "-", "mismatch"))
-    df.match[,x] <- ifelse(df.match[,x] == "mismatch" & df.match[,subject.name] == "-", "insertion", df.match[,x])
-    df.match[,x] <- ifelse(df.match[,x] == "-" & df.match[,subject.name] != "-", "gap", df.match[,x])
+  for (x in names(patterns)) {
+    df.match[,x] <- ifelse(df.match[,x] == df.match[,names(subject)], "match", ifelse(df.match[,x] == "-", "-", "mismatch"))
+    df.match[,x] <- ifelse(df.match[,x] == "mismatch" & df.match[,names(subject)] == "-", "insertion", df.match[,x])
+    df.match[,x] <- ifelse(df.match[,x] == "-" & df.match[,names(subject)] != "-", "gap", df.match[,x])
   }
-  df.match[,subject.name] <- ifelse(df.match[,subject.name] == "-", "gap", df.match[,subject.name])
+  df.match[,names(subject)] <- ifelse(df.match[,names(subject)] == "-", "gap", df.match[,names(subject)])
 
   df <-
     df %>%
-    tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
+    tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
   df.match <-
     df.match %>%
-    tidyr::pivot_longer(cols = dplyr::all_of(c(subject.name, patterns.names)), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject.name, patterns.names[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
+    tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
   g1 <- algnmt_plot(algnmt = df,
                     tile.border.color = NA,
@@ -327,6 +359,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
               pairwise_alignments = pa,
               pairwise_alignment_list = pal,
               patterns_invalid = patterns_invalid,
+              pattern_indel_inducing = pattern_indel_inducing,
               pattern_mismatching = pattern_mismatching_return))
 }
 

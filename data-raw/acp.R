@@ -64,7 +64,6 @@ for (i in unique(c(Biostrings::AA_ALPHABET, "N"))[!unique(c(Biostrings::AA_ALPHA
 scheme_AA <- as.matrix(scheme_AA)
 scheme_NT <- as.matrix(scheme_NT)
 
-
 ## aa properties
 aa_polar <- c("S","T","N","Q", "C")
 aa_pos_charge <- c("K","R","H")

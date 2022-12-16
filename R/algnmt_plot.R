@@ -219,7 +219,6 @@ algnmt_plot <- function(algnmt,
     col_breaks = ggplot2::waiver()
   }
 
-
   plot <-
     ggplot2::ggplot(algnmt, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(name_col))) +
     theme +
