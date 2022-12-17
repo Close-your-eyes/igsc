@@ -8,7 +8,7 @@
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param attach.nt add the length of the string to the name on the axis
+#' @param nt_suffix add the length of the string to the name on the axis
 #' @param order.patterns order pattern increasingly by alignment position (start)
 #' @param max_mismatch only use patterns that have a maximum number of mismatches
 #' with the subject
@@ -42,7 +42,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    type = c("global-local", "global", "local", "overlap", "local-global"),
                                                    max_mismatch = NA,
                                                    order.patterns = F,
-                                                   attach.nt = T,
+                                                   nt_suffix = T,
                                                    fix_indels = F,
                                                    rm_indel_inducing_pattern = F,
                                                    seq_type = NULL,
@@ -53,10 +53,15 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     BiocManager::install("Biostrings")
   }
 
+  if (fix_indels) {
+    message("fix_indels does not work yet. Set to F.")
+    fix_indels <- F
+  }
+
   type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
-  if (!is.na(max_mismatch) && max_mismatch < 1) {
-    message("max_mismatch has to be NA or > 0. Is set to NA now.")
+  if (!is.na(max_mismatch) && max_mismatch < 0) {
+    message("max_mismatch has to be NA or >= 0. Is set to NA now.")
     max_mismatch <- NA
   }
 
@@ -104,7 +109,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   names(patterns) <- make.unique(names(patterns))
   names(patterns) <- make.names(names(patterns))
 
-  if (attach.nt) {
+  if (nt_suffix) {
     names(subject) <- paste0(names(subject), "_", nchar(as.character(subject)), "nt")
     names(patterns) <- paste0(names(patterns), "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
   }
@@ -112,6 +117,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # check for non-DNA characters first
   patterns_invalid <- NULL
+  pattern_mismatching_return <- NULL
   if (!is.na(max_mismatch) && methods::is(subject, "DNAStringSet") && methods::is(patterns, "DNAStringSet")) {
     if (grepl("[^ACTGU]", subject)) {
       message("subject contains non-DNA or non-RNA characters. To check for max_mismatch currenly only ACTGU are allowed. max_mismatch is now set to NA.")
@@ -130,14 +136,22 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
         stop("No patterns left after filtering for ones with valid DNA/RNA characters only. Please fix the sequences or set max_mismatch = NA.")
       }
     }
-  }
 
-  pattern_mismatching_return <- NULL
-  if (!is.na(max_mismatch) && methods::is(subject, "DNAStringSet") && methods::is(patterns, "DNAStringSet")) {
+    ####
+    ####
+
     pattern_mismatching <- purrr::map(stats::setNames(0:max_mismatch, 0:max_mismatch), function(x) {
-      Biostrings::vwhichPDict(subject = subject,
-                              pdict = Biostrings::PDict(x = patterns, max.mismatch = x),
-                              max.mismatch = x)[[1]]
+      ## different lengths of patterns not allowed - split patterns by length; then have the names returned
+      ## if too slow, think of other procedure
+
+      pattern_names <- purrr::map(unique(nchar(as.character(patterns))), function(y) {
+        patterns_temp <- patterns[which(nchar(as.character(patterns)) == y)]
+        inds <- Biostrings::vwhichPDict(subject = subject,
+                                        pdict = Biostrings::PDict(x = patterns_temp, max.mismatch = x),
+                                        max.mismatch = x)[[1]]
+        names(patterns_temp[inds])
+      })
+      return(unlist(pattern_names))
     })
     message(length(pattern_mismatching[[length(pattern_mismatching)]]), " of ", length(patterns), " patterns found to have less or equal to ",  max_mismatch, " mismatches with the subject.")
 
@@ -166,7 +180,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # check for indels induced in the subject; this is slow
   # caution: leading gaps are not considered as indels!
   pattern_indel_inducing <- NULL
-  if (!is.na(max_mismatch)) {
+  indel_list <- 0
+  if (is.na(max_mismatch) || max_mismatch > 0) {
     # # Biostrings::nindel(pa[i]) ?
     indel_list <- purrr::map_int(stats::setNames(pal, names(patterns)), function(x) length(x@subject@indel@unlistData@start))
     if (any(indel_list > 0)) {
@@ -188,7 +203,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     }
   }
 
-  if (!is.na(max_mismatch) && any(indel_list > 0)) {
+  if (any(indel_list > 0)) {
     # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
     ind <- as.data.frame(pa@subject@range)
     names(ind) <- c("al_start", "al_end", "al_width")
@@ -292,7 +307,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   gap_corr <- purrr::accumulate(purrr::map_int(pal, function(x) sum(data.frame(x@subject@indel@unlistData)$width)), `+`)
 
-'  dfs <- purrr::map2(pal, gap_corr, function(x, y) {
+  '  dfs <- purrr::map2(pal, gap_corr, function(x, y) {
     alPa <- as.character(Biostrings::alignedPattern(x))
     start <- x@subject@range@start
     data.frame(seq = strsplit(alPa, ""), position = (start + y):(start+nchar(alPa) - 1 + y))
