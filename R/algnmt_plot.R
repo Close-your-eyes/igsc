@@ -265,16 +265,8 @@ algnmt_plot <- function(algnmt,
   }
 
   if (pattern.lim.size > 0 && !is.null(pa)) {
-    if (!methods::is(pa, "list")) {
-      pa <- as.list(pa)
-    }
-    pattern.ranges <- purrr::map_dfr(pa, function(x) data.frame(x@pattern@range, seq.name = ""))
-    if (is.null(names(pa))) {
-      pattern.ranges$seq.name <- make.names(purrr::map(pa, function(x) names(Biostrings::alignedPattern(x))))
-    } else {
-      pattern.ranges$seq.name <- names(pa)
-    }
-    #for (i in 1:length(pa)) {pattern.ranges[i, "seq.name"] <- make.names(names(Biostrings::alignedPattern(pa[i])))}
+    pattern.ranges <- data.frame(pa@pattern@range,
+                                 seq.name = ifelse(rep(is.null(pa@pattern@unaligned@ranges@NAMES), length(pa)), paste0("pattern_", seq(1,length(pa))), pa@pattern@unaligned@ranges@NAMES))
     pattern.ranges <- tidyr::pivot_longer(pattern.ranges, cols = c(start, end), names_to = "pos", values_to = "values")
     pattern.ranges$position <- ifelse(pattern.ranges$pos == "start", -2, max(algnmt[,pos_col,drop=T]) + 2)
     plot <- plot + ggplot2::geom_text(data = pattern.ranges, ggplot2::aes(x = position, y = seq.name, label = values), size = pattern.lim.size, family = font.family, inherit.aes = F)
