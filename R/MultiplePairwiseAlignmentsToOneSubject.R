@@ -352,9 +352,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     return(x)
   })
 
-
-
-
   # do joining chunk-wise !!!
   # make that a separate function somewhen
   # dfs_join <- purrr::reduce(dfs, dplyr::full_join, by = "position")
