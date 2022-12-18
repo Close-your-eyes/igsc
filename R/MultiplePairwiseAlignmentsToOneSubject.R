@@ -53,10 +53,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     BiocManager::install("Biostrings")
   }
 
-  if (fix_indels) {
+'  if (fix_indels) {
     message("fix_indels does not work yet. Set to F.")
     fix_indels <- F
-  }
+  }'
 
   type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
@@ -341,14 +341,14 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   seq <- stack(strsplit(alPa, ""))
   names(seq) <- c("seq", "pattern")
-  test <- seq_vectorized((start + gap_corr), (start+nchar(alPa) - 1 + gap_corr))
-  position = stack(stats::setNames(seq_vectorized((start + gap_corr), (start+nchar(alPa) - 1 + gap_corr)), names(alPa)))
+  position = stack(stats::setNames(apply(seq_vectorized(from = (start + gap_corr), to = (start+nchar(alPa) - 1 + gap_corr)), 2, c, simplify = F), names(alPa)))
   names(position) <- c("position", "pattern")
 
   dfs <- cbind(seq[,"seq",drop=F], position)
   dfs <- split(dfs, dfs$pattern)
   dfs <- purrr::map(dfs, function(x) {
     names(x)[1] <- unique(as.character(x[,"pattern",drop=T]))
+    x <- x[-which(names(x) == "pattern")]
     return(x)
   })
 
