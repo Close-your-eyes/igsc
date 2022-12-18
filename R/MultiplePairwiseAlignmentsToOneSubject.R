@@ -9,7 +9,7 @@
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
 #' @param nt_suffix add the length of the string to the name on the axis
-#' @param order.patterns order pattern increasingly by alignment position (start)
+#' @param order_patterns order pattern increasingly by alignment position (start)
 #' @param max_mismatch only use patterns that have a maximum number of mismatches
 #' with the subject
 #' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
@@ -35,13 +35,13 @@
 #' p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
 #' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
-#' als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order.patterns = T)
+#' als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order_patterns = T)
 #' }
 MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    patterns,
                                                    type = c("global-local", "global", "local", "overlap", "local-global"),
                                                    max_mismatch = NA,
-                                                   order.patterns = F,
+                                                   order_patterns = F,
                                                    nt_suffix = T,
                                                    fix_indels = F,
                                                    rm_indel_inducing_pattern = F,
@@ -372,12 +372,12 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order.patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
 
   g1 <- algnmt_plot(algnmt = df,
                     tile.border.color = NA,
@@ -403,7 +403,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                            df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)),
               pairwise_alignments = pa,
               #pairwise_alignment_list = pal,
-              patterns_invalid = patterns_invalid,
+              pattern = if(order_patterns) {patterns[order(purrr::map_int(subject.ranges, min))]} else {patterns},
+              pattern_invalid = patterns_invalid,
               pattern_indel_inducing = pattern_indel_inducing,
               pattern_mismatching = pattern_mismatching_return))
 }
