@@ -339,9 +339,16 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   start <- pa@subject@range@start
   alPa <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
 
+
   seq <- stack(strsplit(alPa, ""))
   names(seq) <- c("seq", "pattern")
-  position = stack(stats::setNames(apply(seq_vectorized(from = (start + gap_corr), to = (start+nchar(alPa) - 1 + gap_corr)), 2, c, simplify = F), names(alPa)))
+
+  # how to predefine output of seq_vectorized?
+  position_var <- seq_vectorized(from = (start + gap_corr), to = (start+nchar(alPa) - 1 + gap_corr))
+  if (methods::is(position_var, "matrix")) {
+    position_var <- apply(position_var, 2, c, simplify = F)
+  }
+  position = stack(stats::setNames(position_var, names(alPa)))
   names(position) <- c("position", "pattern")
 
   dfs <- cbind(seq[,"seq",drop=F], position)
