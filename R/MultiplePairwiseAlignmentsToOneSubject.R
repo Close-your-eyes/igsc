@@ -114,6 +114,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     names(patterns) <- paste0(names(patterns), "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
   }
 
+  # save original order in case filterings below shuffles it
+  pattern_original_order <- names(patterns)
+
 
   # check for non-DNA characters first
   patterns_invalid <- NULL
@@ -139,7 +142,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
     ####
     ####
-
     pattern_mismatching <- purrr::map(stats::setNames(0:max_mismatch, 0:max_mismatch), function(x) {
       ## different lengths of patterns not allowed - split patterns by length; then have the names returned
       ## if too slow, think of other procedure
@@ -153,6 +155,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
       })
       return(unlist(pattern_names))
     })
+    # last index of pattern_mismatching contains all patterns with the amount of mismatches at this index or less
     message(length(pattern_mismatching[[length(pattern_mismatching)]]), " of ", length(patterns), " patterns found to have less or equal to ",  max_mismatch, " mismatches with the subject.")
 
     print_pattern_mismatching <- utils::stack(lengths(pattern_mismatching))
@@ -376,15 +379,17 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,names(subject)] <- ifelse(df.match[,names(subject)] == "-", "gap", df.match[,names(subject)])
 
+  ## order patterns in data.frames below by factor order
+  pattern_order <- match(pattern_original_order, names(patterns))
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
 
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), seq(1,length(subject.ranges)))])))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
 
   g1 <- algnmt_plot(algnmt = df,
                     tile.border.color = NA,
