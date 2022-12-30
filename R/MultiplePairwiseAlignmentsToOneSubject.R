@@ -13,7 +13,7 @@
 #' @param max_mismatch only use patterns that have a maximum number of mismatches
 #' with the subject
 #' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
-#' @param ... additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type
+#' @param ... additional arguments to Biostrings::pairwiseAlignments and igsc::algnmt_plot
 #' @param seq_type set sequence type to AA or NT if necessary; if NULL
 #' it is attempted to guess the type
 #' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
@@ -49,11 +49,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    return_max_mismatch_info_only = F,
                                                    ...) {
 
+  dots <- list(...)
+
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
 
-'  if (fix_indels) {
+  '  if (fix_indels) {
     message("fix_indels does not work yet. Set to F.")
     fix_indels <- F
   }'
@@ -63,6 +65,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   if (!is.na(max_mismatch) && max_mismatch < 0) {
     message("max_mismatch has to be NA or >= 0. Is set to NA now.")
     max_mismatch <- NA
+  }
+
+  if (length(subject) > 1) {
+    stop("Please provide only one subject as DNAString, DNAStringSet or character.")
   }
 
   ## pull seqs from subject and patterns, then run guess_type
@@ -173,7 +179,15 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
 
   # calculate all alignments
-  pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
+
+  #pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
+  pa <- do.call(Biostrings::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
+                                                        dots[which(names(dots) %in% c("patternQuality",
+                                                                                      "subjectQuality",
+                                                                                      "substitutionMatrix",
+                                                                                      "fuzzyMatrix",
+                                                                                      "gapOpening",
+                                                                                      "gapExtension"))]))
 
   # make pa a list once and then iterate over list entries with purrr/furrr which is quicker!
   # use multiple threads to speed up?!
@@ -247,7 +261,15 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
           patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(ind[which(ind$group == k), "corr_end"], na.rm = T))
         }
       }
-      pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
+      #pa <- Biostrings::pairwiseAlignment(subject = subject, pattern = patterns, type = type, ...)
+      pa <- do.call(Biostrings::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
+                                                            dots[which(names(dots) %in% c("patternQuality",
+                                                                                          "subjectQuality",
+                                                                                          "substitutionMatrix",
+                                                                                          "fuzzyMatrix",
+                                                                                          "gapOpening",
+                                                                                          "gapExtension"))]))
+
       #pal <- stats::setNames(purrr::flatten(parallel::mclapply(split(c(1:length(pa)), ceiling(seq_along(c(1:length(pa)))/10)), function(x) as.list(pa[x]), mc.cores = parallel::detectCores()-1)), names(patterns))
     }
   }
@@ -329,7 +351,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     data.frame(seq = strsplit(alPa, ""), position = (start + y):(start+nchar(alPa) - 1 + y))
   })
 '
-'  dfs <- parallel::mcmapply(x = pal, y = gap_corr, FUN = function(x, y) {
+  '  dfs <- parallel::mcmapply(x = pal, y = gap_corr, FUN = function(x, y) {
     #alPa <- as.character(Biostrings::alignedPattern(x))
     # Biostrings::alignedPattern(x) returns leading NT that are aligned to gaps; whereas x@pattern does do it
     alPa <- stats::setNames(as.character(x@pattern), x@pattern@unaligned@ranges@NAMES)
@@ -391,21 +413,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
 
-  g1 <- algnmt_plot(algnmt = df,
-                    tile.border.color = NA,
-                    font.family = "sans",
-                    pattern.lim.size = 2,
-                    pa = pa,
-                    subject.lim.lines = F,
-                    algnmt_type = seq_type)
 
-  g2 <- algnmt_plot(algnmt = df.match,
-                    tile.border.color = NA,
-                    font.family = "sans",
-                    pattern.lim.size = 2,
-                    pa = pa,
-                    subject.lim.lines = F,
-                    algnmt_type = seq_type)
+
+  g1 <- do.call(algnmt_plot, args = c(list(algnmt = df, algnmt_type = seq_type, pa = pa),
+                                      dots[which(names(dots) %in% names(formals(algnmt_plot)))]))
+
+  g2 <- do.call(algnmt_plot, args = c(list(algnmt = df.match, algnmt_type = seq_type, pa = pa),
+                                      dots[which(names(dots) %in% names(formals(algnmt_plot)))]))
 
   return(list(base.plot = g1,
               match.plot = g2,
