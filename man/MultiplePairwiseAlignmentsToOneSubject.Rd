@@ -9,10 +9,12 @@ MultiplePairwiseAlignmentsToOneSubject(
   patterns,
   type = c("global-local", "global", "local", "overlap", "local-global"),
   max_mismatch = NA,
-  order.patterns = F,
-  attach.nt = T,
+  order_patterns = F,
+  nt_suffix = T,
   fix_indels = F,
+  rm_indel_inducing_pattern = F,
   seq_type = NULL,
+  return_max_mismatch_info_only = F,
   ...
 )
 }
@@ -26,16 +28,19 @@ MultiplePairwiseAlignmentsToOneSubject(
 \item{max_mismatch}{only use patterns that have a maximum number of mismatches
 with the subject}
 
-\item{order.patterns}{order pattern increasingly by alignment position (start)}
+\item{order_patterns}{order pattern increasingly by alignment position (start)}
 
-\item{attach.nt}{add the length of the string to the name on the axis}
+\item{nt_suffix}{add the length of the string to the name on the axis}
 
 \item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
 
 \item{seq_type}{set sequence type to AA or NT if necessary; if NULL
 it is attempted to guess the type}
 
-\item{...}{additional arguments to Biostrings::pairwiseAlignment apart from subject, pattern and type}
+\item{return_max_mismatch_info_only}{only return information on mismatches of patterns with the subject;
+in this case no alignment is calculated}
+
+\item{...}{additional arguments to Biostrings::pairwiseAlignments and igsc::algnmt_plot}
 }
 \value{
 a list:
@@ -45,9 +50,9 @@ base.df = df and match.df are the respective data.frames used for plotting,
 seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)
 }
 \description{
-This function is useful plot the alignment position of multiple patterns in one subject.
+This function is useful to visualise the alignment position of multiple patterns on one subject.
 It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
-the results to a ggplot object with a few optional complementing information (see arguments).
+the results to a ggplot object.
 The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 }
 \examples{
@@ -57,6 +62,6 @@ s <- Biostrings::DNAStringSet(s)
 p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 p <- Biostrings::DNAStringSet(p)
 als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
-als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order.patterns = T)
+als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order_patterns = T)
 }
 }
