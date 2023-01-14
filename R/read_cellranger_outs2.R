@@ -42,11 +42,13 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
 
   consensus_fasta <-
     purrr::map_dfr(cons_fast, function(x) utils::stack(igsc:::read_fasta(x)), .id = "sample") %>%
+    dplyr::rename("consensus_seq_cr" = values) %>%
     tidyr::separate(ind, into = c("clonotype_id_cr", "temp", "consensus_id_cr"), sep = "_") %>%
     dplyr::select(-temp)
 
   consensus_ref_fasta <-
     purrr::map_dfr(cons_ref_fast, function(x) utils::stack(igsc:::read_fasta(x)), .id = "sample") %>%
+    dplyr::rename("ref_seq_cr" = values) %>%
     tidyr::separate(ind, into = c("clonotype_id_cr", "temp1", "temp2", "refseq_id_cr"), sep = "_") %>%
     dplyr::select(-c(temp1, temp2))
 
@@ -57,6 +59,7 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
 
   contig_fasta <-
     purrr::map_dfr(filt_cont_fast, function(x) utils::stack(igsc:::read_fasta(x)), .id = "sample") %>%
+    dplyr::rename("contiq_seq_cr" = values) %>%
     tidyr::separate(ind, into = c("barcode", "temp", "contiq_id_cr"), sep = "_") %>%
     dplyr::select(-c(temp))
 

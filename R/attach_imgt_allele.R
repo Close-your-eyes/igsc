@@ -43,13 +43,13 @@ attach_imgt_alleles <- function(seq,
          stats::setNames(object = seq$consensus_seq_cr, nm = paste0(seq$V_cr, '___', seq$J_cr))")
   }
 
-  if (missing(seq)) {
+  if (missing(imgt_ref)) {
     stop("Provide an imgt_ref dataframe, e.g. readRDS(system.file('extdata', 'IMGT_ref/human/hs.rds', package = 'igsc') for human or
          readRDS(system.file('extdata', 'IMGT_ref/mouse/mm.rds', package = 'igsc')) for mouse; or a named vector of reference sequences.")
   }
 
   if (is.data.frame(seq)) {
-    if (!any(c("consensus_seq_cr", "V_cr", "J_cr") %in% names(seq))) {
+    if (any(!c("consensus_seq_cr", "V_cr", "J_cr") %in% names(seq))) {
       stop("seq data frame has to have 'consensus_seq_cr', 'V_cr', 'J_cr' columns.")
     }
     un <- which(!duplicated(seq$consensus_seq_cr))
@@ -67,7 +67,7 @@ attach_imgt_alleles <- function(seq,
 
 
   if (is.data.frame(imgt_ref)) {
-    if (!any(c("seq.nt", "Allele") %in% names(imgt_ref))) {
+    if (any(!c("seq.nt", "Allele") %in% names(imgt_ref))) {
       stop("imgt_ref data frame has to have a 'seq.nt' and 'Allele' column.")
     }
     ref_seq <- stats::setNames(imgt_ref$seq.nt, imgt_ref$Allele)
@@ -92,9 +92,11 @@ attach_imgt_alleles <- function(seq,
   }
 
   names(seq) <- unlist(lapply_fun(seq_along(seq), function(x) {
-    if (!is.null(names(seq)) && !is.na(names(seq[x]))) {
-      v_sn <- unique(unname(unlist(v_m[sapply(strsplit(names(seq[x]), "___"), "[", 1)])))
-      j_sn <- unique(unname(unlist(j_m[sapply(strsplit(names(seq[x]), "___"), "[", 2)])))
+    if (!is.null(names(seq[x])) && !is.na(names(seq[x]))) {
+      v_sn <- v_m[[strsplit(names(seq[x]), "___")[[1]][1]]]
+      j_sn <- j_m[[strsplit(names(seq[x]), "___")[[1]][2]]]
+      #v_sn <- unique(unname(unlist(v_m[sapply(strsplit(names(seq[x]), "___"), "[", 1)])))
+      #j_sn <- unique(unname(unlist(j_m[sapply(strsplit(names(seq[x]), "___"), "[", 2)])))
     } else {
       v_sn <- grep("V", names(ref_seq), value = T, ignore.case = T)
       j_sn <- grep("J", names(ref_seq), value = T, ignore.case = T)
