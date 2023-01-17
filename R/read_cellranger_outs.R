@@ -1,5 +1,10 @@
 #' Read necessary file from 10X Genomics' cellranger output and return a concatenated data frame
 #'
+#' Caution: This function will add CDR3 sequences etc. uniformly to equal clonotype_ids even though
+#' if e.g. TRA was detected in every cell that has been assigned with clonotype_id i.
+#' Use read_cellranger_outs2 for a different behaviour, namely that this kind of
+#' imputation is not performed.
+#'
 #' Required files in each subfolder of vdj_path are consensus_annotations.csv, filtered_contig_annotations.csv, consensus.fasta, concat_ref.fasta, filtered_contig.fasta.
 #' If one or more are missing this subfolder is excluded. clonotype_id and consensus_id are suffixed with _cr for cellranger; entries from consensus.fasta becomes consensus_seq_cr.
 #' ...
