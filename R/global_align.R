@@ -38,6 +38,10 @@ global_align <- function(seq1,
   GAP <- gap
   GAPCHAR <- "-"
 
+  if (grepl(",", seq1) || grepl(",", seq2)) {
+    stop("comma (,) are not allowed in seq1 or seq2.")
+  }
+
   s1 <- strsplit(seq1, "")[[1]]
   s2 <- strsplit(seq2, "")[[1]]
 
@@ -132,7 +136,7 @@ global_align <- function(seq1,
   direc <- direcMatrix[I, J]
 
 
-'  align1 <- align2 <- c()
+  align1 <- align2 <- c()
   while(direc != "none") {
     if (direc == "diagonal") {
       align1 <- c(s1[J-1], align1)
@@ -151,9 +155,9 @@ global_align <- function(seq1,
       stop("Error in backtracing.")
     }
     direc <- direcMatrix[I, J]
-  }'
+  }
 
-  align1 <- align2 <- rep(",", sum(length(s1), length(s2)))
+ ' align1 <- align2 <- rep(",", sum(length(s1), length(s2)))
   while(direc != "none") {
     if (direc == "diagonal") {
       align1[min(which(align1 == ","))] <- s1[J-1]
@@ -174,7 +178,7 @@ global_align <- function(seq1,
     direc <- direcMatrix[I, J]
   }
   align1 <- rev(align1[which(align1 != ",")])
-  align2 <- rev(align1[which(align2 != ",")])
+  align2 <- rev(align1[which(align2 != ",")])'
 
 
   return(list(score = score,
