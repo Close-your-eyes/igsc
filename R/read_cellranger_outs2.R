@@ -31,20 +31,20 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
 
   contig_annotations <-
     purrr::map_dfr(filt_cont_ann, utils::read.csv, sep = ",", .id = "sample") %>%
-    dplyr::rename("contiq_id" = contig_id, "clonotype_id" = raw_clonotype_id, "consensus_id" = raw_consensus_id) %>%
+    dplyr::rename("contig_id" = contig_id, "clonotype_id" = raw_clonotype_id, "consensus_id" = raw_consensus_id) %>%
     dplyr::rowwise() %>%
     dplyr::mutate(consensus_id = gsub(paste0(clonotype_id, "_"), "", consensus_id)) %>%
     dplyr::mutate(consensus_id = gsub("_", "", consensus_id))
 
   contig_fasta <-
     purrr::map_dfr(filt_cont_fast, function(x) utils::stack(igsc:::read_fasta(x)), .id = "sample") %>%
-    dplyr::rename("contiq_seq" = values, "contiq_id" = ind) %>%
-    tidyr::separate(contiq_id, into = c("barcode", "temp", "temp2"), sep = "_", remove = F) %>%
+    dplyr::rename("contig_seq" = values, "contig_id" = ind) %>%
+    tidyr::separate(contig_id, into = c("barcode", "temp", "temp2"), sep = "_", remove = F) %>%
     dplyr::select(-c(temp, temp2))
 
   cl_long <-
     contig_annotations %>%
-    dplyr::full_join(contig_fasta, by = c("contiq_id", "barcode", "sample")) %>%
+    dplyr::full_join(contig_fasta, by = c("contig_id", "barcode", "sample")) %>%
     dplyr::mutate(barcode = stringr::str_replace(barcode, "-1$", ""))
 
 
