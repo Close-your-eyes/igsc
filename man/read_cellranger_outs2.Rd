@@ -2,7 +2,7 @@
 % Please edit documentation in R/read_cellranger_outs2.R
 \name{read_cellranger_outs2}
 \alias{read_cellranger_outs2}
-\title{Read necessary file from 10X Genomics' cellranger output and return a concatenated data frame}
+\title{Read  and preprocess the contig_annotation file from 10X Genomics' cellranger output and return a concatenated data frame}
 \usage{
 read_cellranger_outs2(vdj_outs_path)
 }
@@ -14,7 +14,7 @@ names will be added as "sample"-column to the output data frame}
 data frame (cl_long)
 }
 \description{
-Required files in each subfolder of vdj_outs_path are consensus_annotations.csv, filtered_contig_annotations.csv, consensus.fasta, concat_ref.fasta, filtered_contig.fasta.
-If one or more are missing this subfolder is excluded. clonotype_id and consensus_id are suffixed with _cr for cellranger; entries from consensus.fasta becomes consensus_seq_cr.
-...
+This function has been reduced from read_cellranger_outs. Most important change is that CDR3 sequences
+from equal clonotype_ids are not shared accross the clonotype. In principle this function will only read the
+filtered_contig_annotations.csv and filtered_contig.fasta and joins them.
 }

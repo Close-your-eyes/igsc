@@ -2,20 +2,48 @@
 % Please edit documentation in R/global_align.R
 \name{global_align}
 \alias{global_align}
-\title{Title}
+\title{(Semi-) Global alignment with Needleman-Wunsch algorithm}
 \usage{
 global_align(
-  pattern,
-  subject,
+  seq1,
+  seq2,
   semi_global = T,
+  score_matrix_centering = NULL,
+  min_score_for_backtrace = NULL,
   match = 1,
   mismatch = -1,
   gap = -1
 )
 }
 \arguments{
-\item{gap}{}
+\item{seq1}{character sequence 1 (string) to align with seq2}
+
+\item{seq2}{character sequence 2 (string) to align with seq1}
+
+\item{semi_global}{logical whether to perform a semi-global alignment which
+means that there is not penalty for terminal gaps}
+
+\item{score_matrix_centering}{NULL or numeric; only fill the diagonal center of the score matrix
+to increase computational speed; this is a heuristic and may omit to find the optimal
+alignment. score_matrix_centering = 10 means that for one residue in seq1 the scores for
++/- 10 residues away from that position of seq2 are calculated. if NULL the whole
+matrix is caculated}
+
+\item{min_score_for_backtrace}{NULL or numeric; minimal score to initiate the backtracing;
+intended to increase performance if 1000s of alignments are to be computed and a minimal
+score per alignment is expected/wished for}
+
+\item{match}{numeric; score for match}
+
+\item{mismatch}{numeric; score for mismatch}
+
+\item{gap}{numeric; score for gap}
+}
+\value{
+list of score, aligned sequences, score matrix and direction matrix
 }
 \description{
-Title
+The frame of this function has been taken from the "needles"-function from CRANs NameNeedle package.
+Modifications were necessary to allow semi-global alignment and to implement additional arguments
+for performance optimization.
 }
