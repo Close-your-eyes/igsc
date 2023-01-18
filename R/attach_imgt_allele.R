@@ -36,6 +36,9 @@ attach_imgt_alleles <- function(seq,
                                 imgt_ref,
                                 pick.by = "alignment",
                                 lapply_fun = lapply,
+                                seq_col = "consensus_seq_cr",
+                                V_col = "V_cr",
+                                J_col = "J_cr",
                                 ...) {
 
   if (missing(seq)) {
@@ -49,11 +52,11 @@ attach_imgt_alleles <- function(seq,
   }
 
   if (is.data.frame(seq)) {
-    if (any(!c("consensus_seq_cr", "V_cr", "J_cr") %in% names(seq))) {
-      stop("seq data frame has to have 'consensus_seq_cr', 'V_cr', 'J_cr' columns.")
+    if (any(!c(seq_col, V_col, J_col) %in% names(seq))) {
+      stop("seq data frame has to have ", seq_col , " ", V_col, " ", J_col, " columns.")
     }
-    un <- which(!duplicated(seq$consensus_seq_cr))
-    seq <- stats::setNames(object = seq$consensus_seq_cr[un], nm = paste0(seq$V_cr[un], "___", seq$J_cr[un]))
+    un <- which(!duplicated(seq[,seq_col,drop=T]))
+    seq <- stats::setNames(object = seq[un,seq_col,drop=T], nm = paste0(seq[un,V_col,drop=T], "___", seq[un,J_col,drop=T]))
   } else if (is.character(seq)) {
     if (!is.null(names(seq))) {
       if(!all(lengths(strsplit(names(seq)[which(!is.na(names(seq)))], "___")) == 2)) {
