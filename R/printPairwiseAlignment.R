@@ -66,8 +66,10 @@ printPairwiseAlignment <- function(alignments,
     s_name <- seq.names[2]
 
     ## extend subject?? - handle gaps - no not necessary, no gaps anyway
-    pattern <- as.character(alignment@pattern) #Biostrings::pattern(alignment)
-    subject <- as.character(alignment@subject) #Biostrings::subject(alignment)
+    #pattern <- as.character(alignment@pattern) #Biostrings::pattern(alignment)
+    #subject <- as.character(alignment@subject) #Biostrings::subject(alignment)
+    pattern <- as.character(Biostrings::alignedPattern(alignment))
+    subject <- as.character(Biostrings::alignedSubject(alignment))
 
     if (!identical(extend_subject, c(0,0))) {
       # work on it
@@ -316,7 +318,7 @@ sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly s
     })
   } else if (guess_type(x) == "NT") {
 
-    dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B")
+    dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B", "-")
     cols <- RColorBrewer::brewer.pal(6, "Set2")[-c(4,5)]
 
     x <- sapply(x, function(y) {
