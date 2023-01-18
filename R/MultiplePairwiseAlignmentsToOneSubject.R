@@ -71,36 +71,43 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     stop("Please provide only one subject as DNAString, DNAStringSet or character.")
   }
 
+  if (!methods::is(patterns, "RNAStringSet") && !methods::is(patterns, "DNAStringSet") && !methods::is(patterns, "AAStringSet") && !methods::is(patterns, "character")) {
+    stop("patterns has to be a XStringSet or character vector.")
+  }
+  if (!methods::is(subject, "RNAStringSet") && !methods::is(subject, "DNAStringSet") && !methods::is(subject, "AAStringSet") && !methods::is(subject, "character")) {
+    stop("patterns has to be a XStringSet or character vector.")
+  }
+
   ## pull seqs from subject and patterns, then run guess_type
 
   if (is.null(seq_type)) {
     unique_seq_el <- unique(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), ""))))
     seq_type <- guess_type(unique_seq_el)
-    if (seq_type == "NT") {
-      if ("U" %in% unique_seq_el) {
-        if (!methods::is(patterns, "RNAStringSet")) {
-          patterns <- Biostrings::RNAStringSet(patterns)
-        }
-        if (!methods::is(subject, "RNAStringSet")) {
-          subject <- Biostrings::RNAStringSet(subject)
-        }
-      } else {
-        if (!methods::is(patterns, "DNAStringSet")) {
-          patterns <- Biostrings::DNAStringSet(patterns)
-        }
-        if (!methods::is(subject, "DNAStringSet")) {
-          subject <- Biostrings::DNAStringSet(subject)
-        }
+  } else {
+    seq_type <- match.arg(seq_type, c("NT", "AA"))
+  }
+  if (seq_type == "NT") {
+    if ("U" %in% unique_seq_el) {
+      if (!methods::is(patterns, "RNAStringSet")) {
+        patterns <- Biostrings::RNAStringSet(patterns)
       }
-    } else if (seq_type == "AA") {
-      if (!methods::is(patterns, "AAStringSet")) {
-        patterns <- Biostrings::AAStringSet(patterns)
-      }
-      if (!methods::is(subject, "AAStringSet")) {
-        subject <- Biostrings::AAStringSet(subject)
+      if (!methods::is(subject, "RNAStringSet")) {
+        subject <- Biostrings::RNAStringSet(subject)
       }
     } else {
-      stop("AA or NT not determined.")
+      if (!methods::is(patterns, "DNAStringSet")) {
+        patterns <- Biostrings::DNAStringSet(patterns)
+      }
+      if (!methods::is(subject, "DNAStringSet")) {
+        subject <- Biostrings::DNAStringSet(subject)
+      }
+    }
+  } else if (seq_type == "AA") {
+    if (!methods::is(patterns, "AAStringSet")) {
+      patterns <- Biostrings::AAStringSet(patterns)
+    }
+    if (!methods::is(subject, "AAStringSet")) {
+      subject <- Biostrings::AAStringSet(subject)
     }
   }
 
