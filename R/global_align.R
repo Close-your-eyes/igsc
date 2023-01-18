@@ -38,9 +38,7 @@ global_align <- function(seq1,
   GAP <- gap
   GAPCHAR <- "-"
 
-  if (grepl(",", seq1) || grepl(",", seq2)) {
-    stop("comma (,) are not allowed in seq1 or seq2.")
-  }
+  #if (grepl(",", seq1) || grepl(",", seq2)) {stop("comma (,) are not allowed in seq1 or seq2.")}
 
   s1 <- strsplit(seq1, "")[[1]]
   s2 <- strsplit(seq2, "")[[1]]
