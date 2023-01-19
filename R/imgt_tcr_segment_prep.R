@@ -90,7 +90,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
   leader.seq <- dplyr::select(leader.seq, -meta)
 
   imgt_cdr_fr <-
-    dplyr::bind_rows(lapply(list.files(path, "\\.xlsx", recursive = T, full.names = T), openxlsx::read.xlsx) %>%
+    dplyr::bind_rows(lapply(list.files(path, "\\.xlsx", recursive = T, full.names = T), openxlsx::read.xlsx)) %>%
     dplyr::mutate(FR1 = stringr::str_replace_all(FR1, "\\.", "")) %>%
     dplyr::mutate(FR2 = stringr::str_replace_all(FR2, "\\.", "")) %>%
     dplyr::mutate(FR3 = stringr::str_replace_all(FR3, "\\.", "")) %>%
