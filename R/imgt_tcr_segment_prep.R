@@ -42,6 +42,8 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
   if (!"BiocManager" %in% rownames(utils::installed.packages())) {utils::install.packages("BiocManager")}
   if (!"Biostrings" %in% rownames(utils::installed.packages())) {BiocManager::install("Biostrings")}
 
+  organism <- match.arg(organism, c("human", "mouse"))
+
   if (missing(path)) {
     if (organism == "human") {
       path <- system.file("extdata", "IMGT_ref/human", package = "igsc")
@@ -54,7 +56,6 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
       stop("path not found or not a character")
     }
   }
-  organism <- match.arg(organism, c("human", "mouse"))
   if (!is.logical(mc)) {
     stop("mc has to be T or F.")
   }
@@ -89,7 +90,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
   leader.seq <- dplyr::select(leader.seq, -meta)
 
   imgt_cdr_fr <-
-    dplyr::bind_rows(lapply(list.files(path, "\\.xlsx", recursive = T, full.names = T), function(x) {openxlsx::read.xlsx(x)})) %>%
+    dplyr::bind_rows(lapply(list.files(path, "\\.xlsx", recursive = T, full.names = T), openxlsx::read.xlsx) %>%
     dplyr::mutate(FR1 = stringr::str_replace_all(FR1, "\\.", "")) %>%
     dplyr::mutate(FR2 = stringr::str_replace_all(FR2, "\\.", "")) %>%
     dplyr::mutate(FR3 = stringr::str_replace_all(FR3, "\\.", "")) %>%
@@ -147,8 +148,7 @@ read_fasta <- function(file, legacy.mode = T, seqonly = F) {
   start <- ind + 1
   end <- ind - 1
   end <- c(end[-1], length(lines))
-  sequences <- lapply(seq_len(nseq), function(i) paste(lines[start[i]:end[i]],
-                                                       collapse = ""))
+  sequences <- lapply(seq_len(nseq), function(i) paste(lines[start[i]:end[i]], collapse = ""))
   if (seqonly)
     return(sequences)
   nomseq <- lapply(seq_len(nseq), function(i) {

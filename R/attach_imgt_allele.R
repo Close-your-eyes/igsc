@@ -94,16 +94,27 @@ attach_imgt_alleles <- function(seq,
     j_m <- NULL
   }
 
+  browser()
   names(seq) <- unlist(lapply_fun(seq_along(seq), function(x) {
+    print(x)
     if (!is.null(names(seq[x])) && !is.na(names(seq[x]))) {
-      v_sn <- v_m[[strsplit(names(seq[x]), "___")[[1]][1]]]
-      j_sn <- j_m[[strsplit(names(seq[x]), "___")[[1]][2]]]
-      #v_sn <- unique(unname(unlist(v_m[sapply(strsplit(names(seq[x]), "___"), "[", 1)])))
-      #j_sn <- unique(unname(unlist(j_m[sapply(strsplit(names(seq[x]), "___"), "[", 2)])))
+      TRV_name <- strsplit(names(seq[x]), "___")[[1]][1]
+      if (grepl("TR[[:alpha:]]{1}V", TRV_name)) {
+        v_sn <- v_m[[TRV_name]]
+      } else {
+        v_sn <- ""
+      }
+      TRJ_name <- strsplit(names(seq[x]), "___")[[1]][2]
+      if (grepl("TR[[:alpha:]]{1}J", TRJ_name)) {
+        j_sn <- j_m[[TRJ_name]]
+      } else {
+        j_sn <- ""
+      }
     } else {
       v_sn <- grep("V", names(ref_seq), value = T, ignore.case = T)
       j_sn <- grep("J", names(ref_seq), value = T, ignore.case = T)
     }
+
 
     vj <- lapply(list(v_sn, j_sn), function (y) {
       if (length(y) == 1) {
