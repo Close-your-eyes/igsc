@@ -94,9 +94,7 @@ attach_imgt_alleles <- function(seq,
     j_m <- NULL
   }
 
-  browser()
   names(seq) <- unlist(lapply_fun(seq_along(seq), function(x) {
-    print(x)
     if (!is.null(names(seq[x])) && !is.na(names(seq[x]))) {
       TRV_name <- strsplit(names(seq[x]), "___")[[1]][1]
       if (grepl("TR[[:alpha:]]{1}V", TRV_name)) {

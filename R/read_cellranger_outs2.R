@@ -30,11 +30,12 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
   filt_cont_fast <- sapply(vdj_outs_path, list.files, pattern = "filtered_contig\\.fasta$", recursive = T, full.names = T)
 
   contig_annotations <-
-    purrr::map_dfr(filt_cont_ann, utils::read.csv, sep = ",", .id = "sample") %>%
+    purrr::map_dfr(filt_cont_ann, vroom::vroom, delim = ",", show_col_types = F, col_types = vroom::cols(productive = vroom::col_character()), .id = "sample") %>%
     dplyr::rename("contig_id" = contig_id, "clonotype_id" = raw_clonotype_id, "consensus_id" = raw_consensus_id) %>%
     dplyr::rowwise() %>%
     dplyr::mutate(consensus_id = gsub(paste0(clonotype_id, "_"), "", consensus_id)) %>%
-    dplyr::mutate(consensus_id = gsub("_", "", consensus_id))
+    dplyr::mutate(consensus_id = gsub("_", "", consensus_id)) %>%
+    dplyr::mutate(high_confidence = tolower(high_confidence), full_length = tolower(full_length), productive = tolower(productive), is_cell = tolower(is_cell))
 
   contig_fasta <-
     purrr::map_dfr(filt_cont_fast, function(x) utils::stack(igsc:::read_fasta(x)), .id = "sample") %>%
