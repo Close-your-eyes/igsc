@@ -32,7 +32,8 @@ Imports:
     purrr,
     methods,
     rlang,
-    scales
+    scales,
+    vroom
 Suggests: 
     rmarkdown,
     knitr,

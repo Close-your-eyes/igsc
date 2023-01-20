@@ -9,6 +9,9 @@ attach_imgt_alleles(
   imgt_ref,
   pick.by = "alignment",
   lapply_fun = lapply,
+  seq_col = "consensus_seq_cr",
+  V_col = "V_cr",
+  J_col = "J_cr",
   ...
 )
 }

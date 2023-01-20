@@ -132,34 +132,3 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 }
 
 
-read_fasta <- function(file, legacy.mode = T, seqonly = F) {
-  # taken from the protr package - needs one modification
-  lines <- readLines(file, warn = F)
-  if (legacy.mode) {
-    comments <- grep("^;", lines)
-    if (length(comments) > 0) {
-      lines <- lines[-comments]
-    }
-  }
-  ind <- which(substr(lines, 1L, 1L) == ">")
-  nseq <- length(ind)
-  if (nseq == 0)
-    stop("no line starting with a > character found")
-  start <- ind + 1
-  end <- ind - 1
-  end <- c(end[-1], length(lines))
-  sequences <- lapply(seq_len(nseq), function(i) paste(lines[start[i]:end[i]], collapse = ""))
-  if (seqonly)
-    return(sequences)
-  nomseq <- lapply(seq_len(nseq), function(i) {
-    # changed here
-    #firstword <- stringr::str_split(lines[ind[i]], " ")[[1]][1]
-    #substr(firstword, 2, nchar(firstword))
-    substr(trimws(lines[ind[i]]), 2, nchar(trimws(lines[ind[i]])))
-  })
-  names(sequences) <- nomseq
-  sequences
-}
-
-
-
