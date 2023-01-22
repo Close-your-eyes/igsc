@@ -51,6 +51,28 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   dots <- list(...)
 
+
+  if (any(!names(dots) %in% c("patternQuality",
+                              "subjectQuality",
+                              "substitutionMatrix",
+                              "fuzzyMatrix",
+                              "gapOpening",
+                              "gapExtension",
+                              names(formals(algnmt_plot))))) {
+
+    miss <- paste(names(dots)[which(!names(dots) %in% c("patternQuality",
+                                                        "subjectQuality",
+                                                        "substitutionMatrix",
+                                                        "fuzzyMatrix",
+                                                        "gapOpening",
+                                                        "gapExtension",
+                                                        names(formals(algnmt_plot))))],
+                  collapse = ", ")
+    message(miss,  " arguments are not used for passing to other methods. Typo?")
+
+  }
+
+
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
@@ -391,6 +413,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     return(x)
   })
 
+
   # do joining chunk-wise !!!
   # make that a separate function somewhen
   # dfs_join <- purrr::reduce(dfs, dplyr::full_join, by = "position")
@@ -408,8 +431,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,names(subject)] <- ifelse(df.match[,names(subject)] == "-", "gap", df.match[,names(subject)])
 
+
   ## order patterns in data.frames below by factor order
-  pattern_order <- match(pattern_original_order, names(patterns))
+  pattern_order <- match(names(patterns), pattern_original_order)
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%

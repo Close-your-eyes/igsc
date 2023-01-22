@@ -52,7 +52,7 @@ algnmt_plot <- function(algnmt,
                         x.breaks = NULL,
                         algnmt_type = NULL,
                         ref = NULL) {
-## check duplicate names
+  ## check duplicate names
 
 
   if (!requireNamespace("Peptides", quietly = T)){
@@ -240,6 +240,7 @@ algnmt_plot <- function(algnmt,
   } else {
     plot <- plot + ggplot2::geom_raster(data = algnmt[which(!is.na(algnmt[,seq_col,drop=T])),],
                                         ggplot2::aes(fill = !!rlang::sym(col_col)))
+    # geom_raster # geom_tile
   }
 
   if ((is.logical(text) && text) || (is.numeric(text) && text > 0)) {

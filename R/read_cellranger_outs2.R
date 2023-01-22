@@ -35,11 +35,11 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
   contig_annotations <-
     purrr::map_dfr(filt_cont_ann, vroom::vroom, delim = ",", show_col_types = F, col_types = vroom::cols(productive = vroom::col_character()), .id = "sample") %>%
     dplyr::rename("contig_id" = contig_id, "clonotype_id" = raw_clonotype_id, "consensus_id" = raw_consensus_id) %>%
+    dplyr::mutate(high_confidence = tolower(high_confidence), full_length = tolower(full_length), productive = tolower(productive), is_cell = tolower(is_cell)) %>%
     dplyr::rowwise() %>%
     dplyr::mutate(consensus_id = gsub(paste0(clonotype_id, "_"), "", consensus_id)) %>%
     dplyr::mutate(consensus_id = gsub("_", "", consensus_id)) %>%
-    dplyr::mutate(consensus_id = ifelse(consensus_id == "None", "None" ,paste(clonotype_id, consensus_id, sep = "_"))) %>%
-    dplyr::mutate(high_confidence = tolower(high_confidence), full_length = tolower(full_length), productive = tolower(productive), is_cell = tolower(is_cell)) %>%
+    dplyr::mutate(consensus_id = ifelse(consensus_id == "None", "None", paste(clonotype_id, consensus_id, sep = "_"))) %>%
     dplyr::ungroup()
 
   contig_fasta <-
@@ -63,15 +63,10 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
 
   cl_long <-
     contig_annotations %>%
-    dplyr::full_join(contig_fasta, by = c("contig_id", "sample")) %>%
-    dplyr::full_join(consensus_fasta, by = c("contig_id", "sample")) %>%
-    dplyr::left_join(consensus_annotations) %>%
+    dplyr::left_join(contig_fasta, by = c("contig_id", "sample")) %>%
+    dplyr::left_join(consensus_fasta, by = c("contig_id", "sample")) %>%
+    dplyr::left_join(consensus_annotations, by = c("sample", "chain", "clonotype_id", "consensus_id")) %>%
     dplyr::mutate(barcode = stringr::str_replace(barcode, "-1$", ""))
 
   return(cl_long)
 }
-
-rcsv <- function(x) {dplyr::mutate(utils::read.csv(x, sep = ","), sample = basename(dirname(x)))}
-rfasta <- function(x, vn) {dplyr::mutate(utils::stack(igsc:::read_fasta(x)), sample = basename(dirname(x))) %>% dplyr::rename(!!vn := values)}
-
-
