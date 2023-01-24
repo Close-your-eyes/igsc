@@ -54,5 +54,5 @@ check_ref_seq_for_matches <- function(seq_set,
   seq_df <- as.data.frame(tidyr::pivot_longer(seq_df, cols = dplyr::all_of(c(names(seq_df)[which(!names(seq_df) %in% c("position", ref_seq_name))], ref_seq_name)), names_to = name_col, values_to = seq_col))
 
 
-  return(out)
+  return(seq_df)
 }
