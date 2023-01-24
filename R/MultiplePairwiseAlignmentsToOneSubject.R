@@ -376,7 +376,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   #gap_corr <- purrr::accumulate(purrr::map_int(pal, function(x) sum(data.frame(x@subject@indel@unlistData)$width)), `+`)
   #which(Biostrings::nindel(pa)@deletion[,"WidthSum"] != 0) # what about deletion?
 
-  gap_corr <- purrr::accumulate(Biostrings::nindel(pa)@insertion[,"WidthSum"], `+`)
+  # gaps only account for the next sequence, respectively, hence add 0 at beginning, and delete last index
+  gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
+  gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
 
   # outdated procedures
   '  dfs <- purrr::map2(pal, gap_corr, function(x, y) {
