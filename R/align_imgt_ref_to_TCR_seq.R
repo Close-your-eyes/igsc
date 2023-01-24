@@ -58,8 +58,6 @@ align_imgt_ref_to_TCR_seq <- function(chain,
 
   pairs <- paste(strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
 
-  #igsc::printPairwiseAlignment(Biostrings::pairwiseAlignment(subject = raw.cs$ref_seq_cr[18], pattern = raw.cs$ref_seq_cr[1], type = "local"))
-
   out <- lapply(pairs, function(x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
@@ -67,12 +65,12 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     if (length(raw.cs) > 1) {
       raw.cs <- collapse_duplicate_sequences(raw.cs)
 
-      consensus_seq <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs))
+      consensus_seq <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F)
       consensus_seq <- DECIPHER::ConsensusSequence(consensus_seq, includeTerminalGaps = F)
       consensus_seq <- stats::setNames(as.character(consensus_seq), "consensus")
 
       raw.cs <- c(raw.cs, consensus_seq)
-      al_df <- check_ref_seq_for_matches(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs)), ref_seq_name = "consensus")
+      al_df <- check_ref_seq_for_matches(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F), ref_seq_name = "consensus")
 
       p1 <- algnmt_plot(al_df) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
       cs <- consecutive_distinct_seq(consensus_seq, seq_type = "NT")
