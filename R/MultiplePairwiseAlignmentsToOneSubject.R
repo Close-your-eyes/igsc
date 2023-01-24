@@ -460,13 +460,12 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   g2 <- do.call(algnmt_plot, args = c(list(algnmt = df.match, algnmt_type = seq_type, pa = pa),
                                       dots[which(names(dots) %in% names(formals(algnmt_plot)))]))
 
-
   return(list(base.plot = g1,
               match.plot = g2,
               algnmt.df.base = df,
               algnmt.df.match = df.match,
-              min.max.subject.position = c(df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position),
-                                           df %>% dplyr::filter(seq != "-") %>% dplyr::filter(seq.name != names(subject)) %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)),
+              min.max.subject.position = c(df %>% dplyr::filter(seq.name != original_names[1]) %>% dplyr::filter(seq != "-") %>% dplyr::slice_min(order_by = position, n = 1) %>% dplyr::pull(subject.position),
+                                           df %>% dplyr::filter(seq.name != original_names[1]) %>% dplyr::filter(seq != "-") %>% dplyr::slice_min(order_by = -position, n = 1) %>% dplyr::pull(subject.position)),
               pairwise_alignments = pa,
               #pairwise_alignment_list = pal,
               pattern = if(order_patterns) {patterns[order(purrr::map_int(subject.ranges, min))]} else {patterns},
