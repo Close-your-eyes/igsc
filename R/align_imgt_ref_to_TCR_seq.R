@@ -65,9 +65,13 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     if (length(raw.cs) > 1) {
       raw.cs <- collapse_duplicate_sequences(raw.cs)
 
-      consensus_seq <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F)
-      consensus_seq <- DECIPHER::ConsensusSequence(consensus_seq, includeTerminalGaps = F)
-      consensus_seq <- stats::setNames(as.character(consensus_seq), "consensus")
+      if (length(raw.cs) > 1) {
+        consensus_seq <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F)
+        consensus_seq <- DECIPHER::ConsensusSequence(consensus_seq, includeTerminalGaps = F)
+        consensus_seq <- stats::setNames(as.character(consensus_seq), "consensus")
+      } else {
+        consensus_seq <- stats::setNames(raw.cs, "consensus")
+      }
 
       raw.cs <- c(raw.cs, consensus_seq)
       al_df <- check_ref_seq_for_matches(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F), ref_seq_name = "consensus")

@@ -6,7 +6,7 @@
 \usage{
 check_ref_seq_for_matches(
   seq_set,
-  ref_seq_name,
+  ref_seq_name = NULL,
   pos_col = "position",
   seq_col = "seq",
   name_col = "seq.name"
