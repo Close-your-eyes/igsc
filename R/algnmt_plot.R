@@ -28,6 +28,7 @@
 #' @param algnmt_type 'NT' or 'AA'; only required if algnmt is a data.frame and only if
 #' NT or AA cannot be guessed; leave NULL to have it guessed based on data
 #' @param ref a reference sequence to compare all other sequnces to; e.g. a consensus sequence
+#' @param subject_name name of the subject sequence in algnmt; only needed if subject.lim.lines = TRUE
 #' made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)
 #' @return ggplot2 object of alignment
 #' @export
@@ -45,6 +46,7 @@ algnmt_plot <- function(algnmt,
                         pattern.lim.size = 2,
                         pa = NULL,
                         subject.lim.lines = F,
+                        subject_name = NULL,
                         pos_col = "position",
                         seq_col = "seq",
                         name_col = "seq.name",
@@ -63,6 +65,14 @@ algnmt_plot <- function(algnmt,
   }
   if (!requireNamespace("viridisLite", quietly = T)){
     utils::install.packages("viridisLite")
+  }
+
+  if (subject.lim.lines && is.null(subject_name)) {
+    stop("When subject.lim.lines = T, subject_name cannot be NULL. Please provide the name of subject seq in algnmt.")
+  }
+
+  if (subject.lim.lines && !subject_name %in% algnmt[,name_col,drop=T]) {
+    stop("subject_name not found in ", name_col, " of algnmt.")
   }
 
   font.family <- match.arg(font.family, choices = c("sans", "mono", "serif"))
@@ -238,7 +248,7 @@ algnmt_plot <- function(algnmt,
                                       ggplot2::aes(fill = !!rlang::sym(col_col)))
     # geom_raster seems not take color?!
   } else {
-    plot <- plot + ggplot2::geom_raster(data = algnmt[which(!is.na(algnmt[,seq_col,drop=T])),],
+    plot <- plot + ggplot2::geom_tile(data = algnmt[which(!is.na(algnmt[,seq_col,drop=T])),],
                                         ggplot2::aes(fill = !!rlang::sym(col_col)))
     # geom_raster # geom_tile
   }
@@ -265,6 +275,7 @@ algnmt_plot <- function(algnmt,
     plot <- plot + ggplot2::coord_fixed(ratio = coord_fixed_ratio)
   }
 
+
   if (pattern.lim.size > 0 && !is.null(pa)) {
     pattern.ranges <- data.frame(pa@pattern@range,
                                  seq.name = ifelse(rep(is.null(pa@pattern@unaligned@ranges@NAMES), length(pa)), paste0("pattern_", seq(1,length(pa))), pa@pattern@unaligned@ranges@NAMES))
@@ -274,8 +285,8 @@ algnmt_plot <- function(algnmt,
   }
 
   if (subject.lim.lines) {
-    min.pos <- algnmt %>% dplyr::filter(!!rlang::sym(seq_col) != "-") %>% dplyr::filter(!!rlang::sym(name_col) != names(subject)) %>% dplyr::slice_min(order_by = !!rlang::sym(pos_col), n = 1) %>% dplyr::pull(!!rlang::sym(pos_col))
-    max.pos <- algnmt %>% dplyr::filter(!!rlang::sym(seq_col) != "-") %>% dplyr::filter(!!rlang::sym(name_col) != names(subject)) %>% dplyr::slice_max(order_by = !!rlang::sym(pos_col), n = 1) %>% dplyr::pull(!!rlang::sym(pos_col))
+    min.pos <- algnmt %>% dplyr::filter(!!rlang::sym(seq_col) != "-") %>% dplyr::filter(!!rlang::sym(name_col) != subject_name) %>% dplyr::slice_min(order_by = !!rlang::sym(pos_col), n = 1) %>% dplyr::pull(!!rlang::sym(pos_col))
+    max.pos <- algnmt %>% dplyr::filter(!!rlang::sym(seq_col) != "-") %>% dplyr::filter(!!rlang::sym(name_col) != subject_name) %>% dplyr::slice_max(order_by = !!rlang::sym(pos_col), n = 1) %>% dplyr::pull(!!rlang::sym(pos_col))
     plot <- plot + ggplot2::geom_vline(xintercept = c(min.pos, max.pos), linetype = "dashed")
   }
 

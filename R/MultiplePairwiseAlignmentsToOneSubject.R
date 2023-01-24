@@ -136,22 +136,27 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   if (is.null(names(subject))) {
     names(subject) <- "subject"
   }
-  names(subject) <- make.names(names(subject))
+
   if (is.null(names(patterns))) {
     names(patterns) <- paste0("pattern_", seq(1,length(patterns)))
   }
-  names(patterns)[which(is.na(names(patterns)))] <- paste0("pattern_", which(is.na(names(patterns))))
+  #names(patterns)[which(is.na(names(patterns)))] <- paste0("pattern_", which(is.na(names(patterns))))
   names(patterns) <- make.unique(names(patterns))
-  names(patterns) <- make.names(names(patterns))
 
   if (nt_suffix) {
     names(subject) <- paste0(names(subject), "_", nchar(as.character(subject)), "nt")
     names(patterns) <- paste0(names(patterns), "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
   }
 
+  ## save original names for replacement later
+  ### avoid using names from pa then
+  original_names <- c(names(subject), names(patterns))
+  names(subject) <- make.names(names(subject))
+  names(patterns) <- make.names(names(patterns))
+  names(original_names) <- c(names(subject), names(patterns))
+
   # save original order in case filterings below shuffles it
   pattern_original_order <- names(patterns)
-
 
   # check for non-DNA characters first
   patterns_invalid <- NULL
@@ -431,26 +436,28 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
   df.match[,names(subject)] <- ifelse(df.match[,names(subject)] == "-", "gap", df.match[,names(subject)])
 
-
   ## order patterns in data.frames below by factor order
   pattern_order <- match(names(patterns), pattern_original_order)
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
+  df$seq.name <- original_names[df$seq.name]
 
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
+  df.match$seq.name <- original_names[df.match$seq.name]
 
-
+  pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
   g1 <- do.call(algnmt_plot, args = c(list(algnmt = df, algnmt_type = seq_type, pa = pa),
                                       dots[which(names(dots) %in% names(formals(algnmt_plot)))]))
 
   g2 <- do.call(algnmt_plot, args = c(list(algnmt = df.match, algnmt_type = seq_type, pa = pa),
                                       dots[which(names(dots) %in% names(formals(algnmt_plot)))]))
+
 
   return(list(base.plot = g1,
               match.plot = g2,

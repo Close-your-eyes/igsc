@@ -58,20 +58,28 @@ align_imgt_ref_to_TCR_seq <- function(chain,
 
   pairs <- paste(strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
 
+  #igsc::printPairwiseAlignment(Biostrings::pairwiseAlignment(subject = raw.cs$ref_seq_cr[18], pattern = raw.cs$ref_seq_cr[1], type = "local"))
+
   out <- lapply(pairs, function(x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
     raw.cs <- cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V_imgt"] == v), which(cl_long[,"J_imgt"] == j))), sequence_col]
     if (length(raw.cs) > 1) {
       raw.cs <- collapse_duplicate_sequences(raw.cs)
-      consensus_seq <- stats::setNames(as.character(DECIPHER::ConsensusSequence(Biostrings::DNAStringSet(raw.cs))), "consensus")
+
+      consensus_seq <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs))
+      consensus_seq <- DECIPHER::ConsensusSequence(consensus_seq, includeTerminalGaps = F)
+      consensus_seq <- stats::setNames(as.character(consensus_seq), "consensus")
+
       raw.cs <- c(raw.cs, consensus_seq)
-      raw.cs <- check_ref_seq_for_matches(seq_set = raw.cs, ref_seq_name = "consensus")
-      p1 <- algnmt_plot(raw.cs) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
+      al_df <- check_ref_seq_for_matches(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs)), ref_seq_name = "consensus")
+
+      p1 <- algnmt_plot(al_df) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
       cs <- consecutive_distinct_seq(consensus_seq, seq_type = "NT")
       p1 <- p1 + ggplot2::geom_vline(xintercept = cs[["limits"]], linetype = "dashed")
       cs <- cs[["seq"]]
       names(cs) <- paste0(TCR, "_consensus")
+
     } else if (length(raw.cs) == 1)  {
       cs <- raw.cs
       names(cs) <- TCR
@@ -130,11 +138,17 @@ align_imgt_ref_to_TCR_seq <- function(chain,
   p2 <- lapply(pairs, function (x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
+
     MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
                                            patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v],imgt_j_allele_seq[j], C.allele.seq)),
                                            type = type,
                                            pattern.lim.size = 4,
-                                           subject.lim.lines = T, ...)
+                                           subject.lim.lines = T,
+                                           # pasting subject_name here, like this, ist actually not so nice,
+                                           # but necessary for nt_suffix to be attached and working
+                                           # this requires a fix though somewhen
+                                           subject_name = paste0(names(cs[x]), "_", nchar(cs[x]), "nt"),
+                                           ...)
   })
   names(p2) <- pairs
 
@@ -145,7 +159,12 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                            patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v], imgt_j_allele_seq[j])),
                                            type = type,
                                            pattern.lim.size = 4,
-                                           subject.lim.lines = T, ...)
+                                           subject.lim.lines = T,
+                                           # pasting subject_name here, like this, ist actually not so nice,
+                                           # but necessary for nt_suffix to be attached and working
+                                           # this requires a fix though somewhen
+                                           subject_name = paste0(names(cs[x]), "_", nchar(cs[x]), "nt"),
+                                           ...)
   })
   names(p3) <- pairs
 

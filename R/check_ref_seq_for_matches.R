@@ -42,23 +42,34 @@ check_ref_seq_for_matches <- function(seq_set,
   out <- utils::stack(strsplit(seq_set, ""))
   names(out) <- c(seq_col, name_col)
   out[,pos_col] <- rep(1:nchar(seq_set[1]), length(seq_set))
+  out <- as.data.frame(tidyr::pivot_wider(out, names_from = seq.name, values_from = seq))
 
   ## best way here is to use group_by from dplyr, even though a loop would also work
-  out <-
+  for (x in names(out)[which(!names(out) %in% c("position", ref_seq_name))]) {
+    out[,x] <- ifelse(out[,x] == out[,ref_seq_name], "match", ifelse(out[,x] == "-", "-", "mismatch"))
+    out[,x] <- ifelse(out[,x] == "mismatch" & out[,ref_seq_name] == "-", "insertion", out[,x])
+    out[,x] <- ifelse(out[,x] == "-" & out[,ref_seq_name] != "-", "gap", out[,x])
+  }
+  out[,ref_seq_name] <- ifelse(out[,ref_seq_name] == "-", "gap", out[,ref_seq_name])
+  out <- as.data.frame(tidyr::pivot_longer(out, cols = dplyr::all_of(c(names(out)[which(!names(out) %in% c("position", ref_seq_name))], ref_seq_name)), names_to = name_col, values_to = seq_col))
+
+
+'  out <-
     out %>%
-    dplyr::group_by(!!rlang::sym(pos_col)) %>%
+    dplyr::group_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)) %>%
     dplyr::mutate(case = dplyr::case_when(nlevels(as.factor(!!rlang::sym(seq_col))) == 1 ~ "match",
                                           (nlevels(as.factor(!!rlang::sym(seq_col))) > 1 & !"-" %in% !!rlang::sym(seq_col)) ~ "mismatch",
                                           (nlevels(as.factor(!!rlang::sym(seq_col))) > 1 & "-" %in% !!rlang::sym(seq_col)) ~ "gap")) %>%
     dplyr::ungroup()
-  out <- as.data.frame(out)
+  out <- as.data.frame(out)'
 
-  out$case <- ifelse(out[,name_col] == ref_seq_name, out[,seq_col], out$case)
+'  out$case <- ifelse(out[,name_col] == ref_seq_name, out[,seq_col], out$case)
   out$case <- ifelse(out$case == "gap" & out[,name_col] != ref_seq_name, out[,seq_col], out$case)
   #out$case <- ifelse(out$case %in% c(names(Biostrings::IUPAC_CODE_MAP[-c(1:4)]), "+"), "ambiguous", out$case)
   out[,seq_col] <- out$case
   out[,name_col] <- factor(out[,name_col], levels = c(ref_seq_name, names(seq_set)[-length(seq_set)]))
-  out <- out[,which(names(out) != "case")]
+  out <- out[,which(names(out) != "case")]'
+
 ## unstack out?
   return(out)
 }

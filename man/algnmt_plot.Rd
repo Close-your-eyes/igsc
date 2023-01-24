@@ -15,6 +15,7 @@ algnmt_plot(
   pattern.lim.size = 2,
   pa = NULL,
   subject.lim.lines = F,
+  subject_name = NULL,
   pos_col = "position",
   seq_col = "seq",
   name_col = "seq.name",
@@ -54,6 +55,9 @@ from pa pattern alignment limits are derived}
 
 \item{subject.lim.lines}{logical whether to plot vertical lines of subject alignment limits}
 
+\item{subject_name}{name of the subject sequence in algnmt; only needed if subject.lim.lines = TRUE
+made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
+
 \item{pos_col}{name of position column in algnmt (applicable if algnmt is a data.frame)}
 
 \item{seq_col}{name of sequence column in algnmt (applicable if algnmt is a data.frame)}
@@ -68,8 +72,7 @@ picked automatically based on data provided}
 \item{algnmt_type}{'NT' or 'AA'; only required if algnmt is a data.frame and only if
 NT or AA cannot be guessed; leave NULL to have it guessed based on data}
 
-\item{ref}{a reference sequence to compare all other sequnces to; e.g. a consensus sequence
-made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
+\item{ref}{a reference sequence to compare all other sequnces to; e.g. a consensus sequence}
 }
 \value{
 ggplot2 object of alignment
