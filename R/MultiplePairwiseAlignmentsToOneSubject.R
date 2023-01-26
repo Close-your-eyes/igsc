@@ -400,7 +400,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   start <- pa@subject@range@start
   alPa <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
 
-
   seq <- stack(strsplit(alPa, ""))
   names(seq) <- c("seq", "pattern")
 
@@ -443,15 +442,18 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   df <-
     df %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
+    dplyr::mutate(seq.name = original_names[seq.name]) %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
-  df$seq.name <- original_names[df$seq.name]
+  #df$seq.name <- original_names[df$seq.name]
 
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
+    dplyr::mutate(seq.name = original_names[seq.name]) %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
-  df.match$seq.name <- original_names[df.match$seq.name]
+  #df.match$seq.name <- original_names[df.match$seq.name]
 
+  # write original names into alignments; when the object cycles through C-code (with altered names) certain symbols (maybe like asterisk (*)) may cause problems.
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
   g1 <- do.call(algnmt_plot, args = c(list(algnmt = df, algnmt_type = seq_type, pa = pa),
