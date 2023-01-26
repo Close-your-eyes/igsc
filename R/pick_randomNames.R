@@ -6,6 +6,9 @@
 #' @param n numeric (integer) of how many unique names to return
 #' @param names_to_avoid a vector of names to avoid
 #' @param max_iter maximum number of while-loop iterations to avoid an infinite loop
+#' @param min_name_nchar min length of name returned by randomNames
+#' @param avoid_chars character vector of forbidden characters in names or NULL;
+#' reject names with one or more of these characters
 #' @param ... arguments passed to randomNames::randomNames
 #'
 #' @return a vector of n unique random names
@@ -13,15 +16,24 @@
 #'
 #' @examples
 #' pick_randomNames(n = 1000, names_to_avoid = c("Chris", "Diana", "Leonie), which.names = "first")
-pick_randomNames <- function(n, names_to_avoid = NULL, max_iter = 500, ...) {
+pick_randomNames <- function(n, names_to_avoid = NULL, max_iter = 500, min_name_nchar = 3, avoid_chars = c(" ", "-", "'"), ...) {
   names_to_avoid <- names_to_avoid[which(!is.na(names_to_avoid))]
   names_to_avoid <- trimws(names_to_avoid)
   names <- trimws(unique(randomNames::randomNames(n = n, ...)))
   names <- names[which(!names %in% names_to_avoid)]
+  names <- names[sapply(names, nchar, simplify = T) >= min_name_nchar]
+  if (!is.null(avoid_chars)) {
+    names <- names[which(!grepl(paste(avoid_chars, collapse = "|"), names))]
+  }
+
   iters <- 0
   while (length(names) < n && iters <= max_iter) {
     temp <- trimws(unique(randomNames::randomNames(n = n - length(names), ...)))
     temp <- temp[which(!temp %in% c(names_to_avoid, names))]
+    temp <- temp[sapply(temp, nchar, simplify = T) >= min_name_nchar]
+    if (!is.null(avoid_chars)) {
+      names <- names[which(!grepl(paste(avoid_chars, collapse = "|"), names))]
+    }
     names <- c(names, temp)
     iters <- iters + 1
   }
