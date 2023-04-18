@@ -16,7 +16,11 @@
 #'
 #' @examples
 #' pick_randomNames(n = 1000, names_to_avoid = c("Chris", "Diana", "Leonie), which.names = "first")
-pick_randomNames <- function(n, names_to_avoid = NULL, max_iter = 500, min_name_nchar = 3, avoid_chars = c(" ", "-", "'", ",", ";"), ...) {
+pick_randomNames <- function(n,
+                             names_to_avoid = NULL,
+                             max_iter = 500,
+                             min_name_nchar = 3,
+                             avoid_chars = c(" ", "-", "'", ",", ";"), ...) {
   names_to_avoid <- names_to_avoid[which(!is.na(names_to_avoid))]
   names_to_avoid <- trimws(names_to_avoid)
   names <- trimws(unique(randomNames::randomNames(n = n, ...)))
