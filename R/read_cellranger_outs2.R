@@ -1,7 +1,7 @@
 #' Read  and preprocess the contig_annotation file from 10X Genomics' cellranger output and return a concatenated data frame
 #'
 #' This function has been reduced from read_cellranger_outs. Most important change is that CDR3 sequences
-#' from equal clonotype_ids are not shared accross the clonotype. In principle this function will only read the
+#' from equal clonotype_ids are not shared across the clonotype. In principle this function will only read the
 #' filtered_contig_annotations.csv and filtered_contig.fasta and joins them.
 #'
 #' @param vdj_outs_path named vector of paths to the outs-folder (or any folders containing the necessary file, specified above);
