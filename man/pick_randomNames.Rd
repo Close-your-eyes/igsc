@@ -4,7 +4,14 @@
 \alias{pick_randomNames}
 \title{Pick n random names from the randomNames package}
 \usage{
-pick_randomNames(n, names_to_avoid = NULL, max_iter = 500, ...)
+pick_randomNames(
+  n,
+  names_to_avoid = NULL,
+  max_iter = 500,
+  min_name_nchar = 3,
+  avoid_chars = c(" ", "-", "'", ",", ";"),
+  ...
+)
 }
 \arguments{
 \item{n}{numeric (integer) of how many unique names to return}
@@ -12,6 +19,11 @@ pick_randomNames(n, names_to_avoid = NULL, max_iter = 500, ...)
 \item{names_to_avoid}{a vector of names to avoid}
 
 \item{max_iter}{maximum number of while-loop iterations to avoid an infinite loop}
+
+\item{min_name_nchar}{min length of name returned by randomNames}
+
+\item{avoid_chars}{character vector of forbidden characters in names or NULL;
+reject names with one or more of these characters}
 
 \item{...}{arguments passed to randomNames::randomNames}
 }

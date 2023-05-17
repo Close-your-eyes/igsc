@@ -15,6 +15,6 @@ data frame (cl_long)
 }
 \description{
 This function has been reduced from read_cellranger_outs. Most important change is that CDR3 sequences
-from equal clonotype_ids are not shared accross the clonotype. In principle this function will only read the
+from equal clonotype_ids are not shared across the clonotype. In principle this function will only read the
 filtered_contig_annotations.csv and filtered_contig.fasta and joins them.
 }
