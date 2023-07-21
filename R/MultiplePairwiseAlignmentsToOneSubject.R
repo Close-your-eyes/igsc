@@ -58,7 +58,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                               "fuzzyMatrix",
                               "gapOpening",
                               "gapExtension",
-                              names(formals(algnmt_plot))))) {
+                              names(formals(igsc::algnmt_plot))))) {
 
     miss <- paste(names(dots)[which(!names(dots) %in% c("patternQuality",
                                                         "subjectQuality",
@@ -66,7 +66,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                         "fuzzyMatrix",
                                                         "gapOpening",
                                                         "gapExtension",
-                                                        names(formals(algnmt_plot))))],
+                                                        names(formals(igsc::algnmt_plot))))],
                   collapse = ", ")
     message(miss,  " arguments are not used for passing to other methods. Typo?")
 
@@ -108,6 +108,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   } else {
     seq_type <- match.arg(seq_type, c("NT", "AA"))
   }
+
   if (seq_type == "NT") {
     if ("U" %in% unique_seq_el) {
       if (!methods::is(patterns, "RNAStringSet")) {
@@ -140,7 +141,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   if (is.null(names(patterns))) {
     names(patterns) <- paste0("pattern_", seq(1,length(patterns)))
   }
-  #names(patterns)[which(is.na(names(patterns)))] <- paste0("pattern_", which(is.na(names(patterns))))
+
   names(patterns) <- make.unique(names(patterns))
 
   if (nt_suffix) {
@@ -272,21 +273,24 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     inds <- mapply("seq", ind$indel_start[!is.na(ind$indel_start)], ind$indel_end[!is.na(ind$indel_end)], SIMPLIFY = F)
 
     do_fix <- F
-    for (i in seq_along(als)) {
-      for (j in seq_along(inds)) {
-        if (i != j) {
-          if (length(intersect(als[[i]],inds[[j]])) > 0) {
-            if (!fix_indels) {
-              warning("Overlapping indel and subject alignment range found. This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
+    if (length(als) > 1) { # indels okay if only one pattern provided?
+      for (i in seq_along(als)) {
+        for (j in seq_along(inds)) {
+          if (i != j) {
+            if (length(intersect(als[[i]],inds[[j]])) > 0) {
+              if (!fix_indels) {
+                warning("Overlapping indel and subject alignment range found. This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
                  To do so, set fix_indels = T.")
-              return(NULL)
+                return(NULL)
+              }
+              do_fix <- T
+              ind[j,"corr_end"] <- ind[j,"start"] - 1
             }
-            do_fix <- T
-            ind[j,"corr_end"] <- ind[j,"start"] - 1
           }
         }
       }
     }
+
 
     if (do_fix && fix_indels) {
       for (k in seq_along(patterns)) {
@@ -444,14 +448,14 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
     dplyr::mutate(seq.name = original_names[seq.name]) %>%
     dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
-  #df$seq.name <- original_names[df$seq.name]
 
   df.match <-
     df.match %>%
     tidyr::pivot_longer(cols = dplyr::all_of(c(names(subject), names(patterns))), names_to = "seq.name", values_to = "seq") %>%
+    ## here, original names are restored
     dplyr::mutate(seq.name = original_names[seq.name]) %>%
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(names(subject), names(patterns)[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
-  #df.match$seq.name <- original_names[df.match$seq.name]
+    ## factor order with original names
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(original_names[1], original_names[-1][ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))) #seq(1,length(subject.ranges))
 
   # write original names into alignments; when the object cycles through C-code (with altered names) certain symbols (maybe like asterisk (*)) may cause problems.
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
