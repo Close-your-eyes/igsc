@@ -20,7 +20,9 @@ pick_randomNames <- function(n,
                              names_to_avoid = NULL,
                              max_iter = 500,
                              min_name_nchar = 3,
-                             avoid_chars = c(" ", "-", "'", ",", ";"), ...) {
+                             avoid_chars = c(" ", "-", "'", ",", ";"),
+                             seed = 42,
+                             ...) {
   names_to_avoid <- names_to_avoid[which(!is.na(names_to_avoid))]
   names_to_avoid <- trimws(names_to_avoid)
   names <- trimws(unique(randomNames::randomNames(n = n, ...)))
@@ -32,6 +34,7 @@ pick_randomNames <- function(n,
 
   iters <- 0
   while (length(names) < n && iters <= max_iter) {
+    set.seed(seed+iters)
     temp <- trimws(unique(randomNames::randomNames(n = n - length(names), ...)))
     temp <- temp[which(!temp %in% c(names_to_avoid, names))]
     temp <- temp[sapply(temp, nchar, simplify = T) >= min_name_nchar]
