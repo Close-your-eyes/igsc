@@ -10,6 +10,7 @@
 #' @param avoid_chars character vector of forbidden characters in names or NULL;
 #' reject names with one or more of these characters
 #' @param ... arguments passed to randomNames::randomNames
+#' @param seed
 #'
 #' @return a vector of n unique random names
 #' @export
@@ -34,12 +35,13 @@ pick_randomNames <- function(n,
 
   iters <- 0
   while (length(names) < n && iters <= max_iter) {
-    set.seed(seed+iters)
-    temp <- trimws(unique(randomNames::randomNames(n = n - length(names), ...)))
+    temp <- trimws(unique(randomNames::randomNames(n = n*2, ...)))
+    set.seed(seed = (seed+iters))
+    temp <- sample(temp, n - length(names))
     temp <- temp[which(!temp %in% c(names_to_avoid, names))]
     temp <- temp[sapply(temp, nchar, simplify = T) >= min_name_nchar]
     if (!is.null(avoid_chars)) {
-      names <- names[which(!grepl(paste(avoid_chars, collapse = "|"), names))]
+      temp <- temp[which(!grepl(paste(avoid_chars, collapse = "|"), temp))]
     }
     names <- c(names, temp)
     iters <- iters + 1
