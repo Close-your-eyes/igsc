@@ -10,7 +10,6 @@
 #' @param avoid_chars character vector of forbidden characters in names or NULL;
 #' reject names with one or more of these characters
 #' @param ... arguments passed to randomNames::randomNames
-#' @param seed
 #'
 #' @return a vector of n unique random names
 #' @export
