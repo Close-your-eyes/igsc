@@ -4,6 +4,7 @@
 #' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
 #' the results to a ggplot object.
 #' The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
+#' Method = local-global avoids indels in subject. Local cuts subject and pattern to the best matching sequence of both.
 #'
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence

@@ -54,6 +54,7 @@ This function is useful to visualise the alignment position of multiple patterns
 It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
 the results to a ggplot object.
 The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
+Method = local-global avoids indels in subject. Local cuts subject and pattern to the best matching sequence of both.
 }
 \examples{
 \dontrun{
