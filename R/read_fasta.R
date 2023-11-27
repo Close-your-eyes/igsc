@@ -30,6 +30,9 @@ read_fasta <- function(file,
     stop("file not found.")
   }
 
+  # how to handle very large fasta files?
+  # offer to avoid concatenation ?
+
   lines <- vroom::vroom_lines(file)
 
   if (rm_comments) {
