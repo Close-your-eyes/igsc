@@ -73,7 +73,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   if (is.list(patterns)) {
     if (any(!sapply(patterns, is.character, simplify = T))) {
-      stop("Please provide a single RNAStringSet/DNAStringSet, not a list thereof. Only a list of character is possible for patterns.")
+      stop("Please provide a single RNAStringSet/DNAStringSet, not a list thereof. Otherwise, a list of patterns has to contain characters only.")
     }
     patterns <- unlist(patterns)
   }
@@ -87,12 +87,15 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   ## pull seqs from subject and patterns, then run guess_type
 
-  if (is.null(seq_type)) {
+  if (is.null(seq_type) && is.character(subject) && is.character(patterns)) {
     unique_seq_el <- unique(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), ""))))
     seq_type <- guess_type(unique_seq_el)
   } else {
     seq_type <- match.arg(seq_type, c("NT", "AA"))
   }
+
+'else if (is.null(seq_type) && (!is.character(subject) || any(!is.character(patterns)))) {
+    which(!sapply(c(subject, patterns), is.character))'
 
   if (seq_type == "NT") {
     if ("U" %in% unique_seq_el) {
@@ -332,7 +335,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   ## attach the remaining sequence from subject
   total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
-
   ## create data frame for plotting
   df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), names(subject))), position = dplyr::row_number())
   df[df[,names(subject)] != "-", "subject.position"] <- seq(1:nrow(df[df[,names(subject)] != "-", ]))
@@ -430,6 +432,7 @@ prep_df_for_algnmt_plot <- function(df,
                                     matches_to_pattern = F,
                                     matches_to_subject = F) {
 
+
   if (matches_to_subject && !matches_to_pattern) {
     stop("For matches_to_subject, matches_to_pattern has to be TRUE.")
   }
@@ -444,14 +447,16 @@ prep_df_for_algnmt_plot <- function(df,
     df[,subject_name] <- ifelse(df[,subject_name] == "-", "gap", df[,subject_name])
 
 
+    ## if is.na(subject.position) --> always gap in subject and always insertion in pattern?!
+
     if (matches_to_subject) {
-      all_match_or_NA <- apply(df[,pattern_names], 1, function(x) is.na(x) | all(x[which(!is.na(x))] == "match"), simplify = F)
+      all_match_or_NA <- apply(df[,pattern_names,drop=F], 1, function(x) is.na(x) | all(x[which(!is.na(x))] == "match"), simplify = F)
       all_match_or_NA <- sapply(all_match_or_NA, all)
       df[,subject_name] <- ifelse(all_match_or_NA, "match", df[,subject_name])
-      any_mismatch <- apply(df[,pattern_names], 1, function(x) any(x[which(!is.na(x))] == "mismatch"), simplify = F)
+      any_mismatch <- apply(df[,pattern_names,drop=F], 1, function(x) any(x[which(!is.na(x))] == "mismatch"), simplify = F)
       any_mismatch <- sapply(any_mismatch, any)
       df[,subject_name] <- ifelse(any_mismatch, "mismatch", df[,subject_name])
-      any_insertion <- apply(df[,pattern_names], 1, function(x) any(x[which(!is.na(x))] == "gap"), simplify = F)
+      any_insertion <- apply(df[,pattern_names,drop=F], 1, function(x) any(x[which(!is.na(x))] == "gap"), simplify = F)
       any_insertion <- sapply(any_insertion, any)
       df[,subject_name] <- ifelse(any_insertion, "insertion", df[,subject_name])
       df[,subject_name][which(df[,subject_name] == "-")] <- "gap"
