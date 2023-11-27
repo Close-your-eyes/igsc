@@ -50,6 +50,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    pairwiseAlignment_args = list(),
                                                    algnmt_plot_args = list()) {
 
+  # allow for groups on y
+  # take algorithm from timeline to decided automatically what can be in one row
+
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
@@ -67,11 +70,11 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   }
 
   # this function assigns new values via assign
+  #report identical pattern?
   prep_subject_and_patterns(subject = subject,
                             patterns = patterns,
                             seq_type = seq_type,
                             nt_suffix = nt_suffix)
-
 
   # check for non-DNA characters first
   patterns_invalid <- NULL
@@ -142,61 +145,41 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                             max_mismatch = max_mismatch,
                             rm_indel_inducing_pattern = rm_indel_inducing_pattern)
 
-
-
   check_for_overlapping_indels(pa = pa,
                                patterns = patterns,
                                subject_inds_indel = subject_inds_indel,
                                fix_indels = fix_indels)
 
-
   make_pa_unique_and_order_and_rm_subset_alignments(pa)
 
-
-
-  # paste together the complete subject
-  total.subject.seq <- stringr::str_sub(as.character(subject), 1, (min(subject.ranges.unique[[1]]) - 1))
-  for (i in seq_along(subject.ranges.unique)) {
-    # test if there is a gap between the i-1th and the ith alignment; if so, fill with original sequence
-    if (i != 1 && max(subject.ranges.unique[[i-1]])+1 < min(subject.ranges.unique[[i]])) {
-      # if yes use original subject
-      total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[i-1]])+1, min(subject.ranges.unique[[i]])-1))
-    }
-    if (i < max(seq_along(subject.ranges.unique))) {
-      r <- min(subject.ranges.unique[[i]])
-      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
-    }
-    if (i == max(seq_along(subject.ranges.unique))) {
-      total.subject.seq <- paste0(total.subject.seq, pa.unique@subject[i])
-    }
-  }
-
-  ## attach the remaining sequence from subject
-  total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
-  ## create data frame for plotting
-  df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), names(subject))), position = dplyr::row_number())
-  df[df[,names(subject)] != "-", "subject.position"] <- seq(1:nrow(df[df[,names(subject)] != "-", ]))
-  gap.corr <- 0
-
-
+  df <- paste_subject_seq(subject = subject,
+                          subject.ranges.unique = subject.ranges.unique,
+                          pa.unique = pa.unique)
 
   # gaps only account for the next sequence, respectively, hence add 0 at beginning, and delete last index
-  gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
-  gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
+  # these lines assumed that indels are not overlapping with the subsequent pattern
+  #gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
+  #gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
 
-  seq_vectorized <- Vectorize(seq.default, vectorize.args = c("from", "to"))
+  # check if the subject_indel is at the same position as previous, then do not increment gap_corr at next index
+  if (!is.null(subject_indels)) {
+    subject_indels$gap_insert <- subject_indels$width
+    for (i in 1:(nrow(subject_indels)-1)) {
+      subject_indels$gap_insert[i] <- ifelse((subject_indels$start[i+1] == subject_indels$start[i] && subject_indels$end[i+1] == subject_indels$end[i]), 0, subject_indels$gap_insert[i])
+    }
+    gaps <- c(0, subject_indels$gap_insert)
+    gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
+  } else {
+    gap_corr <- 0
+  }
+
+
 
   start <- pa@subject@range@start
   alPa <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
-
   seq <- stack(strsplit(alPa, ""))
   names(seq) <- c("seq", "pattern")
-
-  # how to predefine output of seq_vectorized?
-  position_var <- seq_vectorized(from = (start + gap_corr), to = (start+nchar(alPa) - 1 + gap_corr))
-  if (methods::is(position_var, "matrix")) {
-    position_var <- apply(position_var, 2, c, simplify = F)
-  }
+  position_var <- mapply("seq", (start + gap_corr), (start+nchar(alPa) - 1 + gap_corr))
   position = stack(stats::setNames(position_var, names(alPa)))
   names(position) <- c("position", "pattern")
 
@@ -240,10 +223,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
   g1 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df, algnmt_type = seq_type, pa = pa),
-                                      algnmt_plot_args))
+                                                algnmt_plot_args))
 
   g2 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df.match, algnmt_type = seq_type, pa = pa),
-                                      algnmt_plot_args))
+                                                algnmt_plot_args))
 
   return(list(base.plot = g1,
               match.plot = g2,
@@ -279,22 +262,56 @@ prep_df_for_algnmt_plot <- function(df,
   }
 
   # "-" in subject is a gap
+  ## if is.na(subject.position) --> always gap in subject and always insertion in pattern
+
+
   if (matches_to_pattern) {
+    # is.na(subject.position) --> always gap in subject and always insertion in pattern
+    subject_gap <- which(is.na(df[,"subject.position"]))
+    for (i in pattern_names) {
+      df[subject_gap, i][which(!is.na(df[subject_gap, i]))] <- "insertion"
+    }
+    df[subject_gap, subject_name] <- "gap"
+    # "-" in any pattern --> gap in pattern, insertion in subject
+    pattern_gap <- apply(df[,pattern_names], 1, function(x) which(x == "-"))
+    pattern_gap_rows <- which(lengths(pattern_gap) > 0)
+    df[pattern_gap_rows, subject_name] <- "insertion"
+    pattern_gap_cols <- pattern_gap[pattern_gap_rows]
+    for (i in seq_along(pattern_gap_rows)) {
+      df[pattern_gap_rows[i], names(pattern_gap_cols[[i]])] <- "gap"
+    }
 
-    #subject_gap <- which(is.na(df[,"subject.position"]))
-    #df[subject_gap,pattern_names] <- "insertion"
+    match_mismatch_list <- lapply(stats::setNames(pattern_names, pattern_names), function(x) df[,x] == df[,subject_name])
+    for (i in names(match_mismatch_list)) {
+      df[which(!df[,i] %in% c("gap", "insertion")),i] <- ifelse(match_mismatch_list[[i]][which(!df[,i] %in% c("gap", "insertion"))], "match", "mismatch")
+    }
 
-    for (x in pattern_names) {
-      df[,x] <- ifelse(df[,x] == df[,subject_name], "match", ifelse(df[,x] == "-", "-", "mismatch"))
+    any_false <- function(x) {
+      if (all(is.na(x))) {
+        return(T)
+      } else if (any(!x[which(!is.na(x))])) {
+        return(F)
+      } else if (all(x[which(!is.na(x))])) {
+        return(T)
+      } else {
+        stop("Logical error.")
+      }
+    }
+
+    test3 <- purrr::pmap_lgl(match_mismatch_list, function(...) {
+      any_false(unlist(list(...)))
+    })
+    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(test3)),subject_name] <- "match"
+    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(!test3)),subject_name] <- "mismatch"
+
+    '    for (x in pattern_names) {
+      df[,x] <- ifelse(df[,x] == df[,subject_name], "match", "mismatch")
       df[,x] <- ifelse(df[,x] == "mismatch" & df[,subject_name] == "-", "insertion", df[,x])
       df[,x] <- ifelse(df[,x] == "-" & df[,subject_name] != "-", "gap", df[,x])
     }
     df[,subject_name] <- ifelse(df[,subject_name] == "-", "gap", df[,subject_name])
-
-
-    ## if is.na(subject.position) --> always gap in subject and always insertion in pattern?!
-
-    if (matches_to_subject) {
+'
+    'if (matches_to_subject) {
       all_match_or_NA <- apply(df[,pattern_names,drop=F], 1, function(x) is.na(x) | all(x[which(!is.na(x))] == "match"), simplify = F)
       all_match_or_NA <- sapply(all_match_or_NA, all)
       df[,subject_name] <- ifelse(all_match_or_NA, "match", df[,subject_name])
@@ -305,7 +322,7 @@ prep_df_for_algnmt_plot <- function(df,
       any_insertion <- sapply(any_insertion, any)
       df[,subject_name] <- ifelse(any_insertion, "insertion", df[,subject_name])
       df[,subject_name][which(df[,subject_name] == "-")] <- "gap"
-    }
+    }'
   }
 
   df <-
@@ -461,33 +478,38 @@ check_for_overlapping_indels <- function(pa,
 
   if (length(patterns) > 1 && any(subject_inds_indel > 0)) { # min 2 pattern and min 1 indel in subject
     # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
-    ind <- as.data.frame(pa@subject@range)
-    names(ind) <- c("al_start", "al_end", "al_width")
-    ind$group <- 1:nrow(ind)
-    ind <- dplyr::left_join(ind, as.data.frame(pa@subject@indel)[,-2], by = "group")
-    ind$indel_start <- ind$start + ind$al_start - 1
-    ind$indel_end <- ind$indel_start + ind$width - 1
-    ind$corr_end <- NA
+    subject_indels <- as.data.frame(pa@subject@range)
+    names(subject_indels) <- c("al_start", "al_end", "al_width")
+    subject_indels$group <- 1:nrow(subject_indels)
+    subject_indels <- dplyr::left_join(subject_indels, as.data.frame(pa@subject@indel)[,-2], by = "group")
+    subject_indels$start <- subject_indels$start + subject_indels$al_start - 1
+    subject_indels$end <- subject_indels$start + subject_indels$width - 1
+    subject_indels$corr_end <- NA
 
-    als <- mapply("seq", ind$al_start, ind$al_end, SIMPLIFY = F) # this is the same as subject.ranges below
-    inds <- mapply("seq", ind$indel_start[!is.na(ind$indel_start)], ind$indel_end[!is.na(ind$indel_end)], SIMPLIFY = F)
+    subject.ranges <- mapply("seq", subject_indels$al_start, subject_indels$al_end, SIMPLIFY = F) # this is the same as subject.ranges below; this is like seq2
+    indel_ranges <- mapply("seq", subject_indels$start[!is.na(subject_indels$start)], subject_indels$end[!is.na(subject_indels$end)], SIMPLIFY = F)
+
 
     do_fix <- F
-    if (!fix_indels) {
-      for (i in seq_along(als)) {
-        if (any(als[[i]] %in% unlist(inds[-i]))) {
-          stop("Overlapping indel and subject alignment range found at index ", i, ". This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
-                 To do so, set fix_indels = T.")
+    if (!fix_subject_indels) {
+      for (i in seq_along(subject.ranges)) {
+        if (any(subject.ranges[[i]] %in% unlist(indel_ranges[-i]))) {
+          ## allow for indel at same position
+          # change order around %in% ?
+          if (!all(subject.ranges[[i]][which(subject.ranges[[i]] %in% unlist(indel_ranges[-i]))] %in% unlist(indel_ranges[-i]))) {
+            stop("Overlapping indel and subject alignment range found at index ", i, ". This cannot be handled yet, except for shortening respective sequences to just before the indel insertion.
+                 To do so, set fix_subject_indels = T.")
+          }
         }
       }
     }
-    if (fix_indels) {
-      for (i in seq_along(als)) {
-        for (j in seq_along(inds)) {
+    if (fix_subject_indels) {
+      for (i in seq_along(subject.ranges)) {
+        for (j in seq_along(indel_ranges)) {
           if (i != j) {
-            if (length(intersect(als[[i]],inds[[j]])) > 0) {
+            if (length(intersect(subject.ranges[[i]],indel_ranges[[j]])) > 0) {
               do_fix <- T
-              ind[j,"corr_end"] <- ind[j,"start"] - 1
+              subject_indels[j,"corr_end"] <- subject_indels[j,"start"] - 1
             }
           }
         }
@@ -495,11 +517,11 @@ check_for_overlapping_indels <- function(pa,
     }
 
 
-    if (do_fix && fix_indels) {
+    if (do_fix && fix_subject_indels) {
       for (k in seq_along(patterns)) {
-        if (any(!is.na(ind[which(ind$group == k), "corr_end"]))) {
-          message(names(patterns)[k], " is cut at position ", min(ind[which(ind$group == k), "corr_end"], na.rm = T), " to avoid indel overlap with another's pattern range on the subject. Experimental, yet.")
-          patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(ind[which(ind$group == k), "corr_end"], na.rm = T))
+        if (any(!is.na(subject_indels[which(ind$group == k), "corr_end"]))) {
+          message(names(patterns)[k], " is cut at position ", min(subject_indels[which(subject_indels$group == k), "corr_end"], na.rm = T), " to avoid indel overlap with another's pattern range on the subject. Experimental, yet.")
+          patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(subject_indels[which(subject_indels$group == k), "corr_end"], na.rm = T))
         }
       }
       pa <- do.call(Biostrings::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
@@ -508,12 +530,17 @@ check_for_overlapping_indels <- function(pa,
 
     assign("pa", pa, envir = parent.frame())
     assign("patterns", patterns, envir = parent.frame())
+    assign("subject_indels", subject_indels, envir = parent.frame())
+    assign("indel_ranges", indel_ranges, envir = parent.frame())
+  } else {
+    assign("subject_indels", NULL, envir = parent.frame())
   }
 }
 
 
 make_pa_unique_and_order_and_rm_subset_alignments <- function(pa) {
-  subject.ranges <- brathering::seq2(pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
+  #subject.ranges <- brathering::seq2(pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
+  subject.ranges <- mapply("seq", pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
   non_dups <- which(!duplicated(subject.ranges))
   subject.ranges.unique <- subject.ranges[non_dups]
   pa.unique <- pa[non_dups]
@@ -549,4 +576,44 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa) {
   assign("pa.unique", pa.unique, envir = parent.frame())
   assign("pa", pa, envir = parent.frame())
 
+}
+
+paste_subject_seq <- function(subject,
+                              subject.ranges.unique,
+                              pa.unique) {
+
+  # paste together the complete subject
+  total.subject.seq <- stringr::str_sub(as.character(subject), 1, (min(subject.ranges.unique[[1]]) - 1))
+  for (i in seq_along(subject.ranges.unique)) {
+    # test if there is a gap between the i-1th and the ith alignment; if so, fill with original sequence
+    if (i != 1 && max(subject.ranges.unique[[i-1]])+1 < min(subject.ranges.unique[[i]])) {
+      # if yes use original subject
+      total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[i-1]])+1, min(subject.ranges.unique[[i]])-1))
+    }
+    if (i < max(seq_along(subject.ranges.unique))) {
+      r <- min(subject.ranges.unique[[i]])
+      total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
+    }
+    if (i == max(seq_along(subject.ranges.unique))) {
+      total.subject.seq <- paste0(total.subject.seq, pa.unique@subject[i])
+    }
+  }
+
+  ## attach the remaining sequence from subject
+  total.subject.seq <- paste0(total.subject.seq, substr(as.character(subject), max(subject.ranges.unique[[length(subject.ranges.unique)]])+1, nchar(as.character(subject))))
+  ## create data frame for plotting
+  df <- dplyr::mutate(data.frame(seq = stats::setNames(strsplit(total.subject.seq, ""), names(subject))), position = dplyr::row_number())
+  df[df[,names(subject)] != "-", "subject.position"] <- seq(1:nrow(df[df[,names(subject)] != "-", ]))
+
+  return(df)
+}
+
+coalesce2 <- function(...) {
+  Reduce(function(x, y) {
+    i <- which(!x)
+    #i <- which(is.na(x))
+    x[i] <- y[i]
+    x
+  },
+  list(...))
 }
