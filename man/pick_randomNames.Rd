@@ -10,8 +10,7 @@ pick_randomNames(
   max_iter = 500,
   min_name_nchar = 3,
   avoid_chars = c(" ", "-", "'", ",", ";"),
-  seed = 42,
-  ...
+  randomNames_args = list(which.names = "first")
 )
 }
 \arguments{
@@ -25,8 +24,6 @@ pick_randomNames(
 
 \item{avoid_chars}{character vector of forbidden characters in names or NULL;
 reject names with one or more of these characters}
-
-\item{seed}{}
 
 \item{...}{arguments passed to randomNames::randomNames}
 }
