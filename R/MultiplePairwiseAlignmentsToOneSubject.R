@@ -9,11 +9,10 @@
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
 #' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param nt_suffix add the length of the string to the name on the axis
 #' @param order_patterns order pattern increasingly by alignment position (start)
 #' @param max_mismatch only use patterns that have a maximum number of mismatches
 #' with the subject
-#' @param fix_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
+#' @param fix_subject_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
 #' @param seq_type set sequence type to AA or NT if necessary; if NULL
 #' it is attempted to guess the type
 #' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
@@ -42,15 +41,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    type = c("global-local", "global", "local", "overlap", "local-global"),
                                                    max_mismatch = NA,
                                                    order_patterns = F,
-                                                   nt_suffix = T,
-                                                   fix_indels = F,
+                                                   fix_subject_indels = F,
                                                    rm_indel_inducing_pattern = F,
                                                    seq_type = NULL,
                                                    return_max_mismatch_info_only = F,
                                                    pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list()) {
+                                                   algnmt_plot_args = list(add_length_suffix = T)) {
 
-  # allow for groups on y
   # take algorithm from timeline to decided automatically what can be in one row
 
   if (!requireNamespace("Biostrings", quietly = T)) {
@@ -64,70 +61,21 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
-  if (!is.na(max_mismatch) && max_mismatch < 0) {
-    message("max_mismatch has to be NA or >= 0. Is set to NA now.")
-    max_mismatch <- NA
-  }
-
   # this function assigns new values via assign
   #report identical pattern?
   prep_subject_and_patterns(subject = subject,
                             patterns = patterns,
-                            seq_type = seq_type,
-                            nt_suffix = nt_suffix)
+                            seq_type = seq_type)
 
   # check for non-DNA characters first
-  patterns_invalid <- NULL
-  pattern_mismatching_return <- NULL
-  if (!is.na(max_mismatch) && methods::is(subject, "DNAStringSet") && methods::is(patterns, "DNAStringSet")) {
-    if (grepl("[^ACTGU]", subject)) {
-      message("subject contains non-DNA or non-RNA characters. To check for max_mismatch currenly only ACTGU are allowed. max_mismatch is now set to NA.")
-      max_mismatch <- NA
-    }
-    inds <- grepl("[^ACTGU]", patterns)
-    if (any(inds)) {
-      message(length(which(inds)), " patterns with non-DNA or non-RNA characters detected. Those patterns are removed in order to allow checking for max_mismatch. They are returned as patterns_invalid.")
-      patterns_invalid <- patterns[which(inds)]
-      patterns <- patterns[which(!inds)]
-      if (return_max_mismatch_info_only) {
-        return(list(patterns_invalid = patterns_invalid,
-                    pattern_mismatching = pattern_mismatching_return))
-      }
-      if (length(patterns) == 0) {
-        stop("No patterns left after filtering for ones with valid DNA/RNA characters only. Please fix the sequences or set max_mismatch = NA.")
-      }
-    }
-
-    ####
-    ####
-    pattern_mismatching <- purrr::map(stats::setNames(0:max_mismatch, 0:max_mismatch), function(x) {
-      ## different lengths of patterns not allowed - split patterns by length; then have the names returned
-      ## if too slow, think of other procedure
-      pattern_names <- purrr::map(unique(nchar(as.character(patterns))), function(y) {
-        patterns_temp <- patterns[which(nchar(as.character(patterns)) == y)]
-        inds <- Biostrings::vwhichPDict(subject = subject,
-                                        pdict = Biostrings::PDict(x = patterns_temp, max.mismatch = x),
-                                        max.mismatch = x)[[1]]
-        names(patterns_temp[inds])
-      })
-      return(unlist(pattern_names))
-    })
-    # last index of pattern_mismatching contains all patterns with the amount of mismatches at this index or less
-    message(length(pattern_mismatching[[length(pattern_mismatching)]]), " of ", length(patterns), " patterns found to have less or equal to ",  max_mismatch, " mismatches with the subject.")
-
-    print_pattern_mismatching <- utils::stack(lengths(pattern_mismatching))
-    names(print_pattern_mismatching) <- c("n patterns", "mismatches")
-    print(print_pattern_mismatching)
-
-    pattern_mismatching_return <- purrr::map(stats::setNames(pattern_mismatching, paste0("max_mis_", names(pattern_mismatching))), function(x) patterns[x])
-    patterns <- patterns[pattern_mismatching[[length(pattern_mismatching)]]]
-    if (length(patterns) == 0) {
-      stop("No pattern left after filtering for max_mismatch.")
-    }
-  } else if (!is.na(max_mismatch)) {
-    message("!is.na(max_mismatch) can only be applied for DNA.")
-    max_mismatch <- NA
+  check_for_invalid_chars(subject = subject,
+                          patterns = patterns,
+                          max_mismatch = max_mismatch)
+  if (return_max_mismatch_info_only) {
+    return(list(patterns_invalid = patterns_invalid,
+                pattern_mismatching = pattern_mismatching_return))
   }
+
 
   # calculate all alignments
   # fastDoCall does not work here, maybe due to method written in C
@@ -139,7 +87,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # pal <- stats::setNames(as.list(pa), patnames(patterns)terns.names)
   # pal <- stats::setNames(purrr::flatten(parallel::mclapply(split(c(1:length(pa)), ceiling(seq_along(c(1:length(pa)))/10)), function(x) as.list(pa[x]), mc.cores = parallel::detectCores()-1)), names(patterns))
 
-
   check_for_indel_induction(pa = pa,
                             patterns = patterns,
                             max_mismatch = max_mismatch,
@@ -148,54 +95,25 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   check_for_overlapping_indels(pa = pa,
                                patterns = patterns,
                                subject_inds_indel = subject_inds_indel,
-                               fix_indels = fix_indels)
+                               fix_subject_indels = fix_subject_indels)
 
-  make_pa_unique_and_order_and_rm_subset_alignments(pa)
+  # subject.ranges are defined herein
+  # here also overlapping subject.ranges within groups are checked for
+  make_pa_unique_and_order_and_rm_subset_alignments(pa = pa,
+                                                    pattern_groups = pattern_groups)
 
   df <- paste_subject_seq(subject = subject,
                           subject.ranges.unique = subject.ranges.unique,
                           pa.unique = pa.unique)
 
-  # gaps only account for the next sequence, respectively, hence add 0 at beginning, and delete last index
-  # these lines assumed that indels are not overlapping with the subsequent pattern
-  #gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
-  #gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
 
-  # check if the subject_indel is at the same position as previous, then do not increment gap_corr at next index
-  if (!is.null(subject_indels)) {
-    subject_indels$gap_insert <- subject_indels$width
-    for (i in 1:(nrow(subject_indels)-1)) {
-      subject_indels$gap_insert[i] <- ifelse((subject_indels$start[i+1] == subject_indels$start[i] && subject_indels$end[i+1] == subject_indels$end[i]), 0, subject_indels$gap_insert[i])
-    }
-    gaps <- c(0, subject_indels$gap_insert)
-    gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
-  } else {
-    gap_corr <- 0
-  }
+  # pattern_order is defined here
+  paste_patterns_to_subject(subject_indels = subject_indels,
+                            patterns = patterns,
+                            pa = pa,
+                            df = df,
+                            pattern_original_order = pattern_original_order)
 
-
-
-  start <- pa@subject@range@start
-  alPa <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
-  seq <- stack(strsplit(alPa, ""))
-  names(seq) <- c("seq", "pattern")
-  position_var <- mapply("seq", (start + gap_corr), (start+nchar(alPa) - 1 + gap_corr))
-  position = stack(stats::setNames(position_var, names(alPa)))
-  names(position) <- c("position", "pattern")
-
-  dfs <- cbind(seq[,"seq",drop=F], position)
-  dfs <- split(dfs, dfs$pattern)
-  dfs <- purrr::map(dfs, function(x) {
-    names(x)[1] <- unique(as.character(x[,"pattern",drop=T]))
-    x <- x[-which(names(x) == "pattern")]
-    return(x)
-  })
-
-  dfs <- join_chunkwise(data_frame_list = dfs, join_by = "position")
-  # then left join with complete seq in index 1
-  df <- purrr::reduce(c(list(df), dfs), dplyr::left_join, by = "position")
-  ## order patterns in data.frames below by factor order
-  pattern_order <- match(names(patterns), pattern_original_order)
 
   df.match <- prep_df_for_algnmt_plot(df = df,
                                       subject_name = names(subject),
@@ -204,6 +122,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                       order_patterns = order_patterns,
                                       subject.ranges = subject.ranges,
                                       pattern_order = pattern_order,
+                                      pattern_groups = pattern_groups,
                                       matches_to_pattern = T,
                                       matches_to_subject = T)
 
@@ -214,18 +133,27 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                 order_patterns = order_patterns,
                                 subject.ranges = subject.ranges,
                                 pattern_order = pattern_order,
+                                pattern_groups = pattern_groups,
                                 matches_to_pattern = F,
                                 matches_to_subject = F)
 
 
+  if (!is.null(pattern_groups)) {
+    algnmt_plot_args <- c(algnmt_plot_args, list(y_group_col = "pattern.group"))
+  }
 
   # write original names into alignments; when the object cycles through C-code (with altered names) certain symbols (maybe like asterisk (*)) may cause problems.
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
-  g1 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df, algnmt_type = seq_type, pa = pa),
+  g1 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df,
+                                                     algnmt_type = seq_type,
+                                                     pairwiseAlignment = pa),
                                                 algnmt_plot_args))
 
-  g2 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df.match, algnmt_type = seq_type, pa = pa),
+  # many things to adjust when y_group_col is provided
+  g2 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df.match,
+                                                     algnmt_type = seq_type,
+                                                     pairwiseAlignment = pa),
                                                 algnmt_plot_args))
 
   return(list(base.plot = g1,
@@ -249,6 +177,7 @@ prep_df_for_algnmt_plot <- function(df,
                                     order_patterns,
                                     subject.ranges,
                                     pattern_order,
+                                    pattern_groups,
                                     matches_to_pattern = F,
                                     matches_to_subject = F) {
 
@@ -263,7 +192,6 @@ prep_df_for_algnmt_plot <- function(df,
 
   # "-" in subject is a gap
   ## if is.na(subject.position) --> always gap in subject and always insertion in pattern
-
 
   if (matches_to_pattern) {
     # is.na(subject.position) --> always gap in subject and always insertion in pattern
@@ -333,6 +261,11 @@ prep_df_for_algnmt_plot <- function(df,
     ## factor order with original names
     dplyr::mutate(seq.name = factor(seq.name, levels = unname(c(original_names[1], original_names[-1][ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))))
 
+  if (!is.null(pattern_groups)) {
+    pattern_groups <- c(stats::setNames("subject", subject_name), pattern_groups)
+    df$pattern.group <- pattern_groups[df$seq.name]
+    df$pattern.group <- factor(df$pattern.group, levels = unique(pattern_groups))
+  }
   return(df)
 }
 
@@ -340,25 +273,71 @@ prep_df_for_algnmt_plot <- function(df,
 
 prep_subject_and_patterns <- function(subject,
                                       patterns,
-                                      nt_suffix,
                                       seq_type) {
 
   if (length(subject) > 1) {
     stop("Please provide only one subject as DNAString, DNAStringSet or character.")
   }
+  if (is.list(subject)) {
+    stop("Please provide one subject only.")
+  }
 
   if (is.list(patterns)) {
-    if (any(!sapply(patterns, is.character, simplify = T))) {
-      stop("Please provide a single RNAStringSet/DNAStringSet, not a list thereof. Otherwise, a list of patterns has to contain characters only.")
+    if (all(!sapply(patterns, methods::is, class2 = "RNAStringSet")) && all(!sapply(patterns, methods::is, class2 = "DNAStringSet")) && all(!sapply(patterns, methods::is, class2 = "AAStringSet")) && all(!sapply(patterns, methods::is, class2 = "character"))) {
+      stop("patterns has to be a XStringSet or character vector.")
     }
-    patterns <- unlist(patterns)
-  }
-
-  if (!methods::is(patterns, "RNAStringSet") && !methods::is(patterns, "DNAStringSet") && !methods::is(patterns, "AAStringSet") && !methods::is(patterns, "character")) {
-    stop("patterns has to be a XStringSet or character vector.")
+  } else {
+    if (!methods::is(patterns, "RNAStringSet") && !methods::is(patterns, "DNAStringSet") && !methods::is(patterns, "AAStringSet") && !methods::is(patterns, "character")) {
+      stop("patterns has to be a XStringSet or character vector.")
+    }
   }
   if (!methods::is(subject, "RNAStringSet") && !methods::is(subject, "DNAStringSet") && !methods::is(subject, "AAStringSet") && !methods::is(subject, "character")) {
-    stop("patterns has to be a XStringSet or character vector.")
+    stop("subject has to be a XStringSet or character vector.")
+  }
+
+  # handel list of patterns
+  patterns_list <- NULL
+  pattern_groups <- NULL
+  if (is.list(patterns) && length(patterns) > 1 && !all(lengths(patterns) == 1)) {
+    patterns <- patterns[which(!sapply(patterns, is.null))]
+    patterns <- patterns[which(!sapply(sapply(patterns, is.na, simplify = F), all))]
+
+    patterns <- lapply(patterns, function(x) x[which(!is.na(x))])
+    patterns_list <- patterns
+    # will this be slow for many patterns? - is needed if list of DNAStringsSets - very hypothetical; maybe restrict what data types can be passed as patterns
+    patterns <- unlist(lapply(patterns_list, as.character))
+
+    if (is.null(names(patterns_list))) {
+      names(patterns_list) <- paste0("Group_", seq_along(patterns_list))
+    }
+    pattern_groups <- lapply(patterns_list, names)
+    pattern_groups <- stats::setNames(as.character(stack(pattern_groups)$ind), stack(pattern_groups)$values)
+  } else if (is.list(patterns) && length(patterns) > 1 && all(lengths(patterns) == 1)) {
+    # each list entry if length = 1
+    patterns <- unlist(patterns)
+  } else {
+    patterns <- patterns[[1]]
+    if (is.null(patterns) || all(is.na(patterns))) {
+      stop("patterns is Null or NA.")
+    }
+  }
+
+  # make this a separate fun somewhen?
+  if (anyDuplicated(patterns)) {
+    if (is.null(patterns_list)) {
+      message("These pattern are duplicates: ", paste((unique(sapply(which(duplicated(patterns)), function(x) which(patterns[x] == patterns)))), collapse = ", "))
+    } else {
+      message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
+      # similar fun as above but cylce through list and return list indices on top
+      '      tt<-sapply(which(duplicated(patterns)), function(x) {
+        unlist(purrr::discard(sapply(stats::setNames(seq_along(patterns_list), seq_along(patterns_list)), function(y) {
+          which(patterns[x] == patterns_list[[y]])
+        }), function(z) length(z) == 0))
+      }, simplify = F)
+      paste(tt)'
+
+    }
+    message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
   }
 
   ## pull seqs from subject and patterns, then run guess_type
@@ -401,13 +380,7 @@ prep_subject_and_patterns <- function(subject,
   if (is.null(names(patterns))) {
     names(patterns) <- paste0("pattern_", seq(1,length(patterns)))
   }
-
   names(patterns) <- make.unique(names(patterns))
-
-  if (nt_suffix) {
-    names(subject) <- paste0(names(subject), "_", nchar(as.character(subject)), "nt")
-    names(patterns) <- paste0(names(patterns), "_", sapply(as.character(patterns), function(x) nchar(x)), "nt")
-  }
 
   ## save original names for replacement later
   ### avoid using names from pa then
@@ -427,6 +400,72 @@ prep_subject_and_patterns <- function(subject,
 
   assign("original_names", original_names, envir = parent.frame())
   assign("pattern_original_order", pattern_original_order, envir = parent.frame())
+  assign("pattern_groups", pattern_groups, envir = parent.frame())
+}
+
+
+check_for_invalid_chars <- function(subject,
+                                    patterns,
+                                    max_mismatch) {
+
+  if (!is.na(max_mismatch) && max_mismatch < 0) {
+    message("max_mismatch has to be NA or >= 0. Is set to NA now.")
+    max_mismatch <- NA
+  }
+
+  patterns_invalid <- NULL
+  pattern_mismatching_return <- NULL
+  if (!is.na(max_mismatch) && methods::is(subject, "DNAStringSet") && methods::is(patterns, "DNAStringSet")) {
+    if (grepl("[^ACTGU]", subject)) {
+      message("subject contains non-DNA or non-RNA characters. To check for max_mismatch currenly only ACTGU are allowed. max_mismatch is now set to NA.")
+      max_mismatch <- NA
+    }
+    inds <- grepl("[^ACTGU]", patterns)
+    if (any(inds)) {
+      message(length(which(inds)), " patterns with non-DNA or non-RNA characters detected. Those patterns are removed in order to allow checking for max_mismatch. They are returned as patterns_invalid.")
+      patterns_invalid <- patterns[which(inds)]
+      patterns <- patterns[which(!inds)]
+
+      if (length(patterns) == 0) {
+        stop("No patterns left after filtering for ones with valid DNA/RNA characters only. Please fix the sequences or set max_mismatch = NA.")
+      }
+    }
+
+    ####
+    ####
+    pattern_mismatching <- purrr::map(stats::setNames(0:max_mismatch, 0:max_mismatch), function(x) {
+      ## different lengths of patterns not allowed - split patterns by length; then have the names returned
+      ## if too slow, think of other procedure
+      pattern_names <- purrr::map(unique(nchar(as.character(patterns))), function(y) {
+        patterns_temp <- patterns[which(nchar(as.character(patterns)) == y)]
+        inds <- Biostrings::vwhichPDict(subject = subject,
+                                        pdict = Biostrings::PDict(x = patterns_temp, max.mismatch = x),
+                                        max.mismatch = x)[[1]]
+        names(patterns_temp[inds])
+      })
+      return(unlist(pattern_names))
+    })
+    # last index of pattern_mismatching contains all patterns with the amount of mismatches at this index or less
+    message(length(pattern_mismatching[[length(pattern_mismatching)]]), " of ", length(patterns), " patterns found to have less or equal to ",  max_mismatch, " mismatches with the subject.")
+
+    print_pattern_mismatching <- utils::stack(lengths(pattern_mismatching))
+    names(print_pattern_mismatching) <- c("n patterns", "mismatches")
+    print(print_pattern_mismatching)
+
+    pattern_mismatching_return <- purrr::map(stats::setNames(pattern_mismatching, paste0("max_mis_", names(pattern_mismatching))), function(x) patterns[x])
+    patterns <- patterns[pattern_mismatching[[length(pattern_mismatching)]]]
+    if (length(patterns) == 0) {
+      stop("No pattern left after filtering for max_mismatch.")
+    }
+  } else if (!is.na(max_mismatch)) {
+    message("!is.na(max_mismatch) can only be applied for DNA.")
+    max_mismatch <- NA
+  }
+
+  assign("patterns", patterns, envir = parent.frame())
+  assign("pattern_mismatching_return", pattern_mismatching_return, envir = parent.frame())
+  assign("patterns_invalid", patterns_invalid, envir = parent.frame())
+  assign("max_mismatch", max_mismatch, envir = parent.frame())
 }
 
 check_for_indel_induction <- function(pa,
@@ -474,7 +513,8 @@ check_for_indel_induction <- function(pa,
 check_for_overlapping_indels <- function(pa,
                                          patterns,
                                          subject_inds_indel,
-                                         fix_indels) {
+                                         fix_subject_indels) {
+
 
   if (length(patterns) > 1 && any(subject_inds_indel > 0)) { # min 2 pattern and min 1 indel in subject
     # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
@@ -486,9 +526,8 @@ check_for_overlapping_indels <- function(pa,
     subject_indels$end <- subject_indels$start + subject_indels$width - 1
     subject_indels$corr_end <- NA
 
-    subject.ranges <- mapply("seq", subject_indels$al_start, subject_indels$al_end, SIMPLIFY = F) # this is the same as subject.ranges below; this is like seq2
-    indel_ranges <- mapply("seq", subject_indels$start[!is.na(subject_indels$start)], subject_indels$end[!is.na(subject_indels$end)], SIMPLIFY = F)
-
+    subject.ranges <- seq2(subject_indels$al_start, subject_indels$al_end) # this is the same as subject.ranges below; this is like seq2
+    indel_ranges <- seq2(subject_indels$start[!is.na(subject_indels$start)], subject_indels$end[!is.na(subject_indels$end)])
 
     do_fix <- F
     if (!fix_subject_indels) {
@@ -538,9 +577,30 @@ check_for_overlapping_indels <- function(pa,
 }
 
 
-make_pa_unique_and_order_and_rm_subset_alignments <- function(pa) {
+make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
+                                                              pattern_groups) {
   #subject.ranges <- brathering::seq2(pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
-  subject.ranges <- mapply("seq", pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
+  #subject.ranges <- mapply("seq", pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
+  subject.ranges <- seq2(pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
+  names(subject.ranges) <- pa@pattern@unaligned@ranges@NAMES
+
+  ## check if subject ranges within groups are overlapping
+
+  if (!is.null(pattern_groups)) {
+    subject.ranges.split <- split(names(subject.ranges), pattern_groups[names(subject.ranges)])
+    overlap_subject_ranges <- unlist(lapply(subject.ranges.split, function(y) {
+      ranges_comb <- combn(y, 2, simplify = F)
+      if (any(unlist(lapply(ranges_comb, function(x) length(intersect(subject.ranges[[x[1]]], subject.ranges[[x[2]]])) > 1)))) {
+        return(T)
+      } else {
+        return(F)
+      }
+    }))
+    if (any(overlap_subject_ranges)) {
+      stop("These groups have patterns with overlapping alignment ranges in subject: ", paste(names(which(overlap_subject_ranges)), collapse = ", "))
+    }
+  }
+
   non_dups <- which(!duplicated(subject.ranges))
   subject.ranges.unique <- subject.ranges[non_dups]
   pa.unique <- pa[non_dups]
@@ -608,12 +668,78 @@ paste_subject_seq <- function(subject,
   return(df)
 }
 
-coalesce2 <- function(...) {
-  Reduce(function(x, y) {
-    i <- which(!x)
-    #i <- which(is.na(x))
-    x[i] <- y[i]
-    x
-  },
-  list(...))
+
+paste_patterns_to_subject <- function(subject_indels,
+                                      patterns,
+                                      pa,
+                                      df,
+                                      pattern_original_order) {
+  # gaps only account for the next sequence, respectively, hence add 0 at beginning, and delete last index
+  # these lines assumed that indels are not overlapping with the subsequent pattern
+  #gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
+  #gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
+
+  # check if the subject_indel is at the same position as previous, then do not increment gap_corr at next index
+  if (!is.null(subject_indels)) {
+    subject_indels$gap_insert <- subject_indels$width
+    for (i in 1:(nrow(subject_indels)-1)) {
+      subject_indels$gap_insert[i] <- ifelse((subject_indels$start[i+1] == subject_indels$start[i] && subject_indels$end[i+1] == subject_indels$end[i]), 0, subject_indels$gap_insert[i])
+    }
+    gaps <- c(0, subject_indels$gap_insert)
+    gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
+  } else {
+    gap_corr <- 0
+  }
+
+  start <- pa@subject@range@start
+  alPa <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
+  seq <- stack(strsplit(alPa, ""))
+  names(seq) <- c("seq", "pattern")
+  position_var <- seq2((start + gap_corr), (start+nchar(alPa) - 1 + gap_corr))
+  position = stack(stats::setNames(position_var, names(alPa)))
+  names(position) <- c("position", "pattern")
+
+  dfs <- cbind(seq[,"seq",drop=F], position)
+  dfs <- split(dfs, dfs$pattern)
+  dfs <- purrr::map(dfs, function(x) {
+    names(x)[1] <- unique(as.character(x[,"pattern",drop=T]))
+    x <- x[-which(names(x) == "pattern")]
+    return(x)
+  })
+
+  dfs <- join_chunkwise(data_frame_list = dfs, join_by = "position")
+  # then left join with complete seq in index 1
+  df <- purrr::reduce(c(list(df), dfs), dplyr::left_join, by = "position")
+  ## order patterns in data.frames below by factor order
+  pattern_order <- match(names(patterns), pattern_original_order)
+
+  assign("df", df, envir = parent.frame())
+  assign("subject_indels", subject_indels, envir = parent.frame())
+  assign("pattern_order", pattern_order, envir = parent.frame())
+
+}
+
+seq2_default <- Vectorize(seq.default, vectorize.args = c("from", "to"))
+seq2 <- function(from = 1, to = 1) {
+  x <- seq2_default(from = from, to = to)
+  # make sure always a list is returned
+  if (is.matrix(x)) {
+    x <- unname(as.list(as.data.frame(x)))
+  }
+  return(x)
+}
+
+
+join_chunkwise <- function(data_frame_list,
+                           join_fun = dplyr::full_join,
+                           join_by,
+                           chunks = 10,
+                           max_final_size = 20) {
+  # chunk wise joining can be much faster
+  join_fun <- match.fun(join_fun)
+  while (length(data_frame_list) > max_final_size) {
+    data_frame_list <- purrr::map(split(c(1:length(data_frame_list)), ceiling(seq_along(c(1:length(data_frame_list)))/chunks)),
+                                  function(x) purrr::reduce(data_frame_list[x], join_fun, by = join_by))
+  }
+  return(data_frame_list)
 }
