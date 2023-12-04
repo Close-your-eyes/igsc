@@ -23,10 +23,10 @@
 align_imgt_ref_to_TCR_seq <- function(chain,
                                       TCR,
                                       cl_long,
-                                      cl_wide,
+                                      #cl_wide,
                                       imgt_ref,
-                                      sequence_col = "consensus_seq_cr",
-                                      C_allele,
+                                      sequence_col = "consensus_seq",
+                                      C_allele = NULL,
                                       type = "local",
                                       ...) {
 
@@ -42,39 +42,57 @@ align_imgt_ref_to_TCR_seq <- function(chain,
 
   chain <- match.arg(chain, c("TRA", "TRB"))
   cl_long <- as.data.frame(cl_long)
-  cl_wide <- as.data.frame(cl_wide)
+  #cl_wide <- as.data.frame(cl_wide)
 
   V_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "V_imgt"])
   if (length(V_imgt.name) > 1) {
-    print(paste0("More than one V allele: ", paste(V_imgt.name, collapse = ", "), "."))
-    print("Splitting output by those. Double check results, please.")
+    message("More than one V allele: ", paste(V_imgt.name, collapse = ", "), ".")
+    message("Splitting output by those. Double check results, please.")
   }
 
   J_imgt.name <- unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), "J_imgt"])
   if (length(J_imgt.name) > 1) {
-    print(paste0("More than one J allele: ", paste(J_imgt.name, collapse = ", "), "."))
-    print("Splitting output by those. Double check results, please.")
+    message("More than one J allele: ", paste(J_imgt.name, collapse = ", "), ".")
+    message("Splitting output by those. Double check results, please.")
   }
 
-  pairs <- paste(strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
+  cl_long_sub <-
+    cl_long %>%
+    dplyr::filter(chain == !!chain) %>% # https://stackoverflow.com/questions/34219912/how-to-use-a-variable-in-dplyrfilter, https://stackoverflow.com/questions/40169949/filter-dataframe-using-global-variable-with-the-same-name-as-column-name
+    dplyr::filter(!!rlang::sym(names(TCR)) == TCR) %>%
+    dplyr::select(V_imgt, J_imgt) %>%
+    dplyr::distinct(V_imgt, J_imgt)
+
+  pairs <- character(nrow(cl_long_sub))
+  for (i in 1:nrow(cl_long_sub)) {
+    pairs[i] <- paste(cl_long_sub$V_imgt[i], cl_long_sub$J_imgt[i], sep = ",")
+  }
+
+  #pairs <- paste(strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("V_imgt_", chain)]), ",")[[1]], strsplit(unique(cl_wide[which(cl_wide[,names(TCR)] == TCR),paste0("J_imgt_", chain)]), ",")[[1]], sep = ",")
 
   out <- lapply(pairs, function(x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
     raw.cs <- cl_long[Reduce(intersect, list(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR), which(cl_long[,"V_imgt"] == v), which(cl_long[,"J_imgt"] == j))), sequence_col]
+    names(raw.cs) <- paste0("seq_", seq_along(raw.cs))
     if (length(raw.cs) > 1) {
-      raw.cs <- collapse_duplicate_sequences(raw.cs)
+      raw.cs <- collapse_duplicate_sequences(seq_set = raw.cs)
 
       if (length(raw.cs) > 1) {
         consensus_seq <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F)
-        consensus_seq <- DECIPHER::ConsensusSequence(consensus_seq, includeTerminalGaps = F)
+        consensus_seq <- DECIPHER::ConsensusSequence(consensus_seq, includeTerminalGaps = F, minInformation = 0.8, threshold = 0.1)
         consensus_seq <- stats::setNames(as.character(consensus_seq), "consensus")
       } else {
         consensus_seq <- stats::setNames(raw.cs, "consensus")
       }
 
+
       raw.cs <- c(raw.cs, consensus_seq)
-      al_df <- check_ref_seq_for_matches(DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F), ref_seq_name = "consensus")
+      al_df <- check_ref_seq_for_matches(seq_set = DECIPHER::AlignSeqs(Biostrings::DNAStringSet(raw.cs), verbose = F),
+                                         ref_seq_name = "consensus",
+                                         pos_col = "position",
+                                         seq_col = "seq",
+                                         name_col = "seq.name")
 
       p1 <- algnmt_plot(al_df) + ggplot2::ggtitle(paste(paste0(unique(cl_long[intersect(which(cl_long$chain == chain), which(cl_long[,names(TCR)] == TCR)), names(TCR)]), "_", v, "_", j), collapse = ", "))
       cs <- consecutive_distinct_seq(consensus_seq, seq_type = "NT")
@@ -124,8 +142,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
   }))
   names(imgt_j_allele_seq) <- J_imgt.name
 
-
-  if (missing(C_allele)) {
+  if (is.null(C_allele)) {
     C.allele.seq <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "seq.nt"]
     names(C.allele.seq) <- imgt_ref[intersect(which(grepl(chain, imgt_ref$Allele)), which(grepl("C", imgt_ref$Allele)))[1], "Allele"]
     if (length(C.allele.seq) > 1) {
@@ -144,35 +161,22 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
                                            patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v],imgt_j_allele_seq[j], C.allele.seq)),
                                            type = type,
-                                           pattern.lim.size = 4,
-                                           subject.lim.lines = T,
-                                           # pasting subject_name here, like this, ist actually not so nice,
-                                           # but necessary for nt_suffix to be attached and working
-                                           # this requires a fix though somewhen
-                                           subject_name = paste0(names(cs[x]), "_", nchar(cs[x]), "nt"),
-                                           ...)
+                                           algnmt_plot_args = list(add_length_suffix = T, subject.lim.lines = T, subject_name = names(cs[x])))
   })
   names(p2) <- pairs
 
   p3 <- lapply(pairs, function (x) {
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
+
     MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
-                                           patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v], imgt_j_allele_seq[j])),
+                                           patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v],imgt_j_allele_seq[j])),
                                            type = type,
-                                           pattern.lim.size = 4,
-                                           subject.lim.lines = T,
-                                           # pasting subject_name here, like this, ist actually not so nice,
-                                           # but necessary for nt_suffix to be attached and working
-                                           # this requires a fix though somewhen
-                                           subject_name = paste0(names(cs[x]), "_", nchar(cs[x]), "nt"),
-                                           ...)
+                                           algnmt_plot_args = list(add_length_suffix = T, subject.lim.lines = T, subject_name = names(cs[x])))
   })
   names(p3) <- pairs
 
-  TCR.seq <- unlist(lapply(pairs, function (x) {
-    stringr::str_sub(cs[x], start = p3[[x]][["min.max.subject.position"]][1], end = p3[[x]][["min.max.subject.position"]][2])
-  }))
+  TCR.seq <- unlist(lapply(pairs, function (x) stringr::str_sub(cs[x], start = p3[[x]][["min.max.subject.position"]][1], end = p3[[x]][["min.max.subject.position"]][2])))
   names(TCR.seq) <- paste0(TCR, "_", chain, "_", pairs)
 
   return(list("consensus.alingments" = p1, "consensus.seqs.uncut" = cs, "VJC.alignments" = p2, "VJ.alignments" = p3, "V.to.J.TCR.seqs" = TCR.seq))

@@ -255,7 +255,7 @@ prep_df_for_algnmt_plot <- function(df,
 
   df <-
     df %>%
-    tidyr::pivot_longer(cols = dplyr::all_of(unname(original_names)), names_to = "seq.name", values_to = "seq") %>%
+    tidyr::pivot_longer(cols = dplyr::all_of(names(original_names)), names_to = "seq.name", values_to = "seq") %>%
     ## here, original names are restored
     dplyr::mutate(seq.name = original_names[seq.name]) %>%
     ## factor order with original names
@@ -315,7 +315,7 @@ prep_subject_and_patterns <- function(subject,
   } else if (is.list(patterns) && length(patterns) > 1 && all(lengths(patterns) == 1)) {
     # each list entry if length = 1
     patterns <- unlist(patterns)
-  } else {
+  } else if (is.list(patterns)) {
     patterns <- patterns[[1]]
     if (is.null(patterns) || all(is.na(patterns))) {
       stop("patterns is Null or NA.")
@@ -391,7 +391,6 @@ prep_subject_and_patterns <- function(subject,
 
   # save original order in case filterings below shuffles it
   pattern_original_order <- names(patterns)
-
 
   # assigns in parent environment (https://stackoverflow.com/questions/10904124/global-and-local-variables-in-r?rq=1)
   assign("subject", subject, envir = parent.frame())

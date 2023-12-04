@@ -11,8 +11,8 @@
 #' @examples
 collapse_duplicate_sequences <- function(seq_set) {
 
-  seq_set <- as.character(seq_set)
-  if (length(unique((seq_set))) != length(seq_set))  {
+ # seq_set <- as.character(seq_set)
+  if (length(unique((as.character(seq_set)))) != length(as.character(seq_set)))  {
     unique_seq_set <- unique(seq_set)
     n.dup <- sapply(unique_seq_set, function(x) {length(which(x == seq_set))})
     names(unique_seq_set) <- paste("unique seq ", seq(1,length(unique_seq_set)), " (", n.dup, ")", sep = "")
