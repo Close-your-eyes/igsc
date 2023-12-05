@@ -477,6 +477,7 @@ pa_to_df <- function(pa) {
 }
 
 guess_type <- function(seq_vector) {
+  seq_vector <- unique(toupper(seq_vector))
   # current not so strict because even c("A", "T", "G", "C") could not be guessed
   if (all(unique(seq_vector) %in% unique(c(Biostrings::DNA_ALPHABET, Biostrings::RNA_ALPHABET, "N")))) {
     # && !all(seq_vector %in% c(Biostrings::AA_ALPHABET, "N"))

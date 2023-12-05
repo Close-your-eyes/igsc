@@ -186,6 +186,7 @@ prep_df_for_algnmt_plot <- function(df,
   # mismatch
   # insertion
 
+  browser()
   if (matches_to_subject && !matches_to_pattern) {
     stop("For matches_to_subject, matches_to_pattern has to be TRUE.")
   }
@@ -295,6 +296,7 @@ prep_subject_and_patterns <- function(subject,
     stop("subject has to be a XStringSet or character vector.")
   }
 
+  browser()
   # handel list of patterns
   patterns_list <- NULL
   pattern_groups <- NULL
@@ -341,7 +343,7 @@ prep_subject_and_patterns <- function(subject,
   }
 
   ## pull seqs from subject and patterns, then run guess_type
-  unique_letters <- unique(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), ""))))
+  unique_letters <- unique(toupper(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), "")))))
   if (is.null(seq_type)) {
     seq_type <- guess_type(unique_letters)
   } else {
