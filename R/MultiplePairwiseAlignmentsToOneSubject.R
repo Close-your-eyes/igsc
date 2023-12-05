@@ -45,6 +45,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    rm_indel_inducing_pattern = F,
                                                    seq_type = NULL,
                                                    return_max_mismatch_info_only = F,
+                                                   matches_to_subject_and_pattern = list(c(T,T),c(F,T),c(F,F)),
                                                    pairwiseAlignment_args = list(),
                                                    algnmt_plot_args = list(add_length_suffix = T)) {
 
@@ -58,6 +59,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     message("fix_indels does not work yet. Set to F.")
     fix_indels <- F
   }'
+
+  if (!is.list(matches_to_subject_and_pattern) || any(lengths(matches_to_subject_and_pattern) < 2) || any(!sapply(matches_to_subject_and_pattern, is.logical))) {
+    stop("matches_to_subject_and_pattern has to be a list of vectors of lengths two, containing T or F only.")
+  }
 
   type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
@@ -115,55 +120,38 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                             pattern_original_order = pattern_original_order)
 
 
-  df.match <- prep_df_for_algnmt_plot(df = df,
-                                      subject_name = names(subject),
-                                      pattern_names = names(patterns),
-                                      original_names = original_names,
-                                      order_patterns = order_patterns,
-                                      subject.ranges = subject.ranges,
-                                      pattern_order = pattern_order,
-                                      pattern_groups = pattern_groups,
-                                      matches_to_pattern = T,
-                                      matches_to_subject = T)
-
-  df <- prep_df_for_algnmt_plot(df = df,
-                                subject_name = names(subject),
-                                pattern_names = names(patterns),
-                                original_names = original_names,
-                                order_patterns = order_patterns,
-                                subject.ranges = subject.ranges,
-                                pattern_order = pattern_order,
-                                pattern_groups = pattern_groups,
-                                matches_to_pattern = F,
-                                matches_to_subject = F)
-
-
   if (!is.null(pattern_groups)) {
     algnmt_plot_args <- c(algnmt_plot_args, list(y_group_col = "pattern.group"))
   }
-
+  # fix algnmt_plot_args: remove duplicate args
   # write original names into alignments; when the object cycles through C-code (with altered names) certain symbols (maybe like asterisk (*)) may cause problems.
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
-  g1 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df,
-                                                     algnmt_type = seq_type,
-                                                     pairwiseAlignment = pa),
-                                                algnmt_plot_args))
 
-  # many things to adjust when y_group_col is provided
-  g2 <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df.match,
-                                                     algnmt_type = seq_type,
-                                                     pairwiseAlignment = pa),
-                                                algnmt_plot_args))
+  data_plot <- lapply(matches_to_subject_and_pattern, function(y) {
+    df2 <- prep_df_for_algnmt_plot(df = df,
+                                   subject_name = names(subject),
+                                   pattern_names = names(patterns),
+                                   original_names = original_names,
+                                   order_patterns = order_patterns,
+                                   subject.ranges = subject.ranges,
+                                   pattern_order = pattern_order,
+                                   pattern_groups = pattern_groups,
+                                   matches_to_subject = y[1],
+                                   matches_to_pattern = y[2])
+    plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
+                                                         algnmt_type = seq_type,
+                                                         pairwiseAlignment = pa),
+                                                    algnmt_plot_args))
+    return(list(data = df2, plot = plot))
+  })
 
-  return(list(base.plot = g1,
-              match.plot = g2,
-              algnmt.df.base = df,
-              algnmt.df.match = df.match,
-              min.max.subject.position = c(df %>% dplyr::filter(seq.name != original_names[1]) %>% dplyr::filter(seq != "-") %>% dplyr::slice_min(order_by = position, n = 1, with_ties = F) %>% dplyr::pull(subject.position),
-                                           df %>% dplyr::filter(seq.name != original_names[1]) %>% dplyr::filter(seq != "-") %>% dplyr::slice_min(order_by = -position, n = 1, with_ties = F) %>% dplyr::pull(subject.position)),
+  return(list(data = stats::setNames(sapply(data_plot, "[", "data"), nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
+              plot = stats::setNames(sapply(data_plot, "[", "plot") , nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
+              min.max.subject.position = c(min(sapply(names(patterns), function(x) min(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T]))),
+                                           max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])))),
+              data_wide = df,
               pairwise_alignments = pa,
-              #pairwise_alignment_list = pal,
               pattern = if(order_patterns) {patterns[order(purrr::map_int(subject.ranges, min))]} else {patterns},
               pattern_invalid = patterns_invalid,
               pattern_indel_inducing = pattern_indel_inducing,
@@ -186,15 +174,11 @@ prep_df_for_algnmt_plot <- function(df,
   # mismatch
   # insertion
 
-  browser()
-  if (matches_to_subject && !matches_to_pattern) {
-    stop("For matches_to_subject, matches_to_pattern has to be TRUE.")
-  }
-
   # "-" in subject is a gap
   ## if is.na(subject.position) --> always gap in subject and always insertion in pattern
 
-  if (matches_to_pattern) {
+  if (matches_to_pattern || matches_to_subject) {
+    df_original <- df
     # is.na(subject.position) --> always gap in subject and always insertion in pattern
     subject_gap <- which(is.na(df[,"subject.position"]))
     for (i in pattern_names) {
@@ -210,11 +194,13 @@ prep_df_for_algnmt_plot <- function(df,
       df[pattern_gap_rows[i], names(pattern_gap_cols[[i]])] <- "gap"
     }
 
+    # then find matches and mismatches
+    # pattern first
     match_mismatch_list <- lapply(stats::setNames(pattern_names, pattern_names), function(x) df[,x] == df[,subject_name])
     for (i in names(match_mismatch_list)) {
       df[which(!df[,i] %in% c("gap", "insertion")),i] <- ifelse(match_mismatch_list[[i]][which(!df[,i] %in% c("gap", "insertion"))], "match", "mismatch")
     }
-
+    # then subject
     any_false <- function(x) {
       if (all(is.na(x))) {
         return(T)
@@ -226,32 +212,21 @@ prep_df_for_algnmt_plot <- function(df,
         stop("Logical error.")
       }
     }
-
-    test3 <- purrr::pmap_lgl(match_mismatch_list, function(...) {
+    # find if any pattern has mismatch to subject
+    matches <- purrr::pmap_lgl(match_mismatch_list, function(...) {
       any_false(unlist(list(...)))
     })
-    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(test3)),subject_name] <- "match"
-    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(!test3)),subject_name] <- "mismatch"
+    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(matches)),subject_name] <- "match"
+    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(!matches)),subject_name] <- "mismatch"
 
-    '    for (x in pattern_names) {
-      df[,x] <- ifelse(df[,x] == df[,subject_name], "match", "mismatch")
-      df[,x] <- ifelse(df[,x] == "mismatch" & df[,subject_name] == "-", "insertion", df[,x])
-      df[,x] <- ifelse(df[,x] == "-" & df[,subject_name] != "-", "gap", df[,x])
+    if (!matches_to_subject) {
+      df[,subject_name] <- df_original[,subject_name]
     }
-    df[,subject_name] <- ifelse(df[,subject_name] == "-", "gap", df[,subject_name])
-'
-    'if (matches_to_subject) {
-      all_match_or_NA <- apply(df[,pattern_names,drop=F], 1, function(x) is.na(x) | all(x[which(!is.na(x))] == "match"), simplify = F)
-      all_match_or_NA <- sapply(all_match_or_NA, all)
-      df[,subject_name] <- ifelse(all_match_or_NA, "match", df[,subject_name])
-      any_mismatch <- apply(df[,pattern_names,drop=F], 1, function(x) any(x[which(!is.na(x))] == "mismatch"), simplify = F)
-      any_mismatch <- sapply(any_mismatch, any)
-      df[,subject_name] <- ifelse(any_mismatch, "mismatch", df[,subject_name])
-      any_insertion <- apply(df[,pattern_names,drop=F], 1, function(x) any(x[which(!is.na(x))] == "gap"), simplify = F)
-      any_insertion <- sapply(any_insertion, any)
-      df[,subject_name] <- ifelse(any_insertion, "insertion", df[,subject_name])
-      df[,subject_name][which(df[,subject_name] == "-")] <- "gap"
-    }'
+    if (!matches_to_pattern) {
+      for (i in pattern_names) {
+        df[,i] <- df_original[,i]
+      }
+    }
   }
 
   df <-
@@ -296,8 +271,7 @@ prep_subject_and_patterns <- function(subject,
     stop("subject has to be a XStringSet or character vector.")
   }
 
-  browser()
-  # handel list of patterns
+  # handle list of patterns
   patterns_list <- NULL
   pattern_groups <- NULL
   if (is.list(patterns) && length(patterns) > 1 && !all(lengths(patterns) == 1)) {
@@ -516,7 +490,6 @@ check_for_overlapping_indels <- function(pa,
                                          subject_inds_indel,
                                          fix_subject_indels) {
 
-
   if (length(patterns) > 1 && any(subject_inds_indel > 0)) { # min 2 pattern and min 1 indel in subject
     # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
     subject_indels <- as.data.frame(pa@subject@range)
@@ -680,13 +653,33 @@ paste_patterns_to_subject <- function(subject_indels,
   #gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
   #gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
 
+  # if indels are at same position has been checked above
+
   # check if the subject_indel is at the same position as previous, then do not increment gap_corr at next index
   if (!is.null(subject_indels)) {
-    subject_indels$gap_insert <- subject_indels$width
-    for (i in 1:(nrow(subject_indels)-1)) {
-      subject_indels$gap_insert[i] <- ifelse((subject_indels$start[i+1] == subject_indels$start[i] && subject_indels$end[i+1] == subject_indels$end[i]), 0, subject_indels$gap_insert[i])
+    # replace NAs first
+    subject_indels$start <- ifelse(is.na(subject_indels$start), 0 , subject_indels$start)
+    subject_indels$end <- ifelse(is.na(subject_indels$end), 0 , subject_indels$end)
+    subject_indels$gap_insert <- ifelse(is.na(subject_indels$width), 0, subject_indels$width)
+    subject_indels <- dplyr::arrange(subject_indels, al_start, group) # why not ordered by default??
+    ## group by group = multiple indels by one pattern are grouped; gaps induced are summed because only the sum of gaps
+    ## is relevant to shift patterns afterwards
+    subject_indels_grouped <-
+      subject_indels %>%
+      dplyr::group_by(group, al_start) %>%
+      dplyr::summarise(start = list(start), end = list(end), gap_insert = sum(gap_insert), .groups = "drop") %>%
+      dplyr::arrange(al_start)
+    for (i in 1:(nrow(subject_indels_grouped)-1)) {
+      subject_indels_grouped$gap_insert[i] <- ifelse((identical(subject_indels_grouped$start[i+1], subject_indels_grouped$start[i]) && identical(subject_indels_grouped$end[i+1], subject_indels_grouped$end[i])), 0, subject_indels_grouped$gap_insert[i])
     }
-    gaps <- c(0, subject_indels$gap_insert)
+'    for (i in 1:(nrow(subject_indels)-1)) {
+      subject_indels$gap_insert[i] <- ifelse((!is.na() subject_indels$start[i+1] == subject_indels$start[i] && subject_indels$end[i+1] == subject_indels$end[i]), 0, subject_indels$gap_insert[i])
+    }'
+'    non_na_rows <- as.numeric(rownames(subject_indels[which(!is.na(subject_indels$width)),]))
+    for (i in non_na_rows[-length(non_na_rows)]) {
+      subject_indels$gap_insert[i] <- ifelse((subject_indels$start[i+1] == subject_indels$start[i] && subject_indels$end[i+1] == subject_indels$end[i]), 0, subject_indels$gap_insert[i])
+    }'
+    gaps <- c(0, subject_indels_grouped$gap_insert)
     gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
   } else {
     gap_corr <- 0
@@ -694,6 +687,7 @@ paste_patterns_to_subject <- function(subject_indels,
 
   start <- pa@subject@range@start
   alPa <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
+  #alPa <- stats::setNames(as.character(pa@subject), pa@pattern@unaligned@ranges@NAMES)
   seq <- stack(strsplit(alPa, ""))
   names(seq) <- c("seq", "pattern")
   position_var <- seq2((start + gap_corr), (start+nchar(alPa) - 1 + gap_corr))
@@ -710,11 +704,11 @@ paste_patterns_to_subject <- function(subject_indels,
 
   dfs <- join_chunkwise(data_frame_list = dfs, join_by = "position")
   # then left join with complete seq in index 1
-  df <- purrr::reduce(c(list(df), dfs), dplyr::left_join, by = "position")
+  df2 <- purrr::reduce(c(list(df), dfs), dplyr::left_join, by = "position")
   ## order patterns in data.frames below by factor order
   pattern_order <- match(names(patterns), pattern_original_order)
 
-  assign("df", df, envir = parent.frame())
+  assign("df", df2, envir = parent.frame())
   assign("subject_indels", subject_indels, envir = parent.frame())
   assign("pattern_order", pattern_order, envir = parent.frame())
 
