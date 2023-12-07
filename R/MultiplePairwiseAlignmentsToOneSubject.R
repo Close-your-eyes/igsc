@@ -51,6 +51,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # take algorithm from timeline to decided automatically what can be in one row
 
+  # have optionally pattern removed that have (i) mismatches, or (ii) do not align full length ?!
+
+
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
@@ -80,7 +83,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
     return(list(patterns_invalid = patterns_invalid,
                 pattern_mismatching = pattern_mismatching_return))
   }
-
 
   # calculate all alignments
   # fastDoCall does not work here, maybe due to method written in C
@@ -149,10 +151,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   return(list(data = stats::setNames(sapply(data_plot, "[", "data"), nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
               plot = stats::setNames(sapply(data_plot, "[", "plot") , nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
               min.max.subject.position = c(min(sapply(names(patterns), function(x) min(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T]))),
-                                           max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])))),
+                                           max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])))), # or min(unlist(subject.ranges)) ?
               data_wide = df,
               pairwise_alignments = pa,
-              pattern = if(order_patterns) {patterns[order(purrr::map_int(subject.ranges, min))]} else {patterns},
+              subject.ranges = subject.ranges,
               pattern_invalid = patterns_invalid,
               pattern_indel_inducing = pattern_indel_inducing,
               pattern_mismatching = pattern_mismatching_return))
@@ -177,6 +179,8 @@ prep_df_for_algnmt_plot <- function(df,
   # "-" in subject is a gap
   ## if is.na(subject.position) --> always gap in subject and always insertion in pattern
 
+
+
   if (matches_to_pattern || matches_to_subject) {
     df_original <- df
     # is.na(subject.position) --> always gap in subject and always insertion in pattern
@@ -186,7 +190,7 @@ prep_df_for_algnmt_plot <- function(df,
     }
     df[subject_gap, subject_name] <- "gap"
     # "-" in any pattern --> gap in pattern, insertion in subject
-    pattern_gap <- apply(df[,pattern_names], 1, function(x) which(x == "-"))
+    pattern_gap <- apply(df[,pattern_names,drop=F], 1, function(x) which(x == "-"))
     pattern_gap_rows <- which(lengths(pattern_gap) > 0)
     df[pattern_gap_rows, subject_name] <- "insertion"
     pattern_gap_cols <- pattern_gap[pattern_gap_rows]
@@ -315,6 +319,7 @@ prep_subject_and_patterns <- function(subject,
     }
     message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
   }
+
 
   ## pull seqs from subject and patterns, then run guess_type
   unique_letters <- unique(toupper(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), "")))))
