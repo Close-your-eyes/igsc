@@ -47,7 +47,16 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    return_max_mismatch_info_only = F,
                                                    matches_to_subject_and_pattern = list(c(T,T),c(F,T),c(F,F)),
                                                    pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list(add_length_suffix = T)) {
+                                                   algnmt_plot_args = list(add_length_suffix = T),
+                                                   order_subject_ranges = F) {
+
+  ## if a pattern has no mismatches, or only a maximum number of them, then could be used to find multiple matches
+  # restrict that to type = "local" or type = "global-local"
+  #y <- joined_TCR_data[19,"values"]
+  #y <- "GCGGCCGCGCCACCATGGACTCCTGGACCCTCTGCTGTGTGTCCCTTTGCATCCTGGTAGCAAAGCACACAGATGCTGGAGTTATCCAGTCACCCCGGCACGAGGTGACAGAGATGGGACAAGAAGTGACTCTGAGATGTAAACCAATTTCAGGACACGACTACCTTTTCTGGTACAGACAGACCATGATGCGGGGACTGGAGTTGCTCATTTACTTTAACAACAACGTTCCGATAGATGATTCAGGGATGCCCGAGGATCGATTCTCAGCTAAGATGCCTAATGCATCATTCTCCACTCTGAAGATCCAGCCCTCAGAACCCAGGGACTCAGCTGTGTACTTCTGTGCCAGCCGGGGCGGGGACAATGAGCAGTTCTTCGGGCCAGGGACACGGCTCACCGTGCTAGAGGATCTGAGAAATGTGACTCCACCCAAGGTCTCCTTGTTTGAGCCATCAAAAGCAGAGATTGCAAACAAACAAAAGGCTACCCTCGTGTGCTTGGCCAGGGGCTTCTTCCCTGACCACGTGGAGCTGAGCTGGTGGGTGAATGGCAAGGAGGTCCACAGTGGGGTCTGCACGGACCCTCAGGCCTACAAGGAGAGCAATTATAGCTACTGCCTGAGCAGCCGCCTGAGGGTCTCTGCTACCTTCTGGCACAATCCTCGAAACCACTTCCGCTGCCAAGTGCAGTTCCATGGGCTTTCAGAGGAGGACAAGTGGCCAGAGGGCTCACCCAAACCTGTCACACAGAACATCAGTGCAGAGGCCTGGGGCCGAGCAGACTGTGGAATCACTTCAGCATCCTATCATCAGGGGGTTCTGTCTGCAACCATCCTCTATGAGATCCTACTGGGGAAGGCCACCCTATATGCTGTGCTGGTCAGTGGCCTGGTGCTGATGGCCATGGTCAAGAAAAAAAATTCCGGCAGCGGCGCCACCAACTTCAGCCTGCTGAAGCAGGCCGGCGACGTGGAAGAGAACCCCGGGCCCATGGAAACTCTCCTGGGAGTGTCTTTGGTGATTCTATGGCTTCAACTGGCTAGGGTGAACAGTCAACAGGGAGAAGAGGATCCTCAGGCCTTGAGCATCCAGGAGGGTGAAAATGCCACCATGAACTGCAGTTACAAAACTAGTATAAACAATTTACAGTGGTATAGACAAAATTCAGGTAGAGGCCTTGTCCACCTAATTTTAATACGTTCAAATGAAAGAGAGAAACACAGTGGAAGATTAAGAGTCACGCTTGACACTTCCAAGAAAAGCAGTTCCTTGTTGATCACGGCTTCCCGGGCAGCAGACACTGCTTCTTACTTCTGTGCTACGAAAGATGGCCAGAAGCTGCTCTTTGCAAGGGGAACCATGTTAAAGGTGGATCTTAACATCCAGAACCCAGAACCTGCTGTGTACCAGTTAAAAGATCCTCGGTCTCAGGACAGCACCCTCTGCCTGTTCACCGACTTTGACTCCCAAATCAATGTGCCGAAAACCATGGAATCTGGAACGTTCATCACTGACAAATGCGTGCTGGACATGAAAGCTATGGATTCCAAGAGCAATGGGGCCATTGCCTGGAGCAACCAGACAAGCTTCACCTGCCAAGATATCTTCAAAGAGACCAACGCCACCTACCCCAGTTCAGACGTTCCCTGTGATGCCACGTTGACTGAGAAAAGCTTTGAAACAGATATGAACCTAAACTTTCAAAACCTGTCAGTTATGGGACTCCGAATCCTCCTGCTGAAAGTAGCCGGATTTAACCTGCTCATGACGCTGAGGCTGTGGTCCAGTTGAGAATTC"
+  #tt <- Biostrings::matchPattern(subject = y, max.mismatch=2, pattern = Biostrings::DNAString(igsc::read_fasta(system.file("extdata", "TCR_cassette_elements.fasta", package = "igsc"))[["Kozak_sequence"]]))
+  #Biostrings::countPattern(subject = y, pattern = Biostrings::DNAString(igsc::read_fasta(system.file("extdata", "TCR_cassette_elements.fasta", package = "igsc"))[["Kozak_sequence"]]))
+
 
   # take algorithm from timeline to decided automatically what can be in one row
 
@@ -71,11 +80,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # this function assigns new values via assign
   #report identical pattern?
+  #assigns: subject, patterns, seq_type, original_names, pattern_original_order, pattern_groups
   prep_subject_and_patterns(subject = subject,
                             patterns = patterns,
                             seq_type = seq_type)
 
   # check for non-DNA characters first
+  #assigns: pa, patterns, pattern_indel_inducing, subject_inds_indel
   check_for_invalid_chars(subject = subject,
                           patterns = patterns,
                           max_mismatch = max_mismatch)
@@ -94,11 +105,13 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # pal <- stats::setNames(as.list(pa), patnames(patterns)terns.names)
   # pal <- stats::setNames(purrr::flatten(parallel::mclapply(split(c(1:length(pa)), ceiling(seq_along(c(1:length(pa)))/10)), function(x) as.list(pa[x]), mc.cores = parallel::detectCores()-1)), names(patterns))
 
+  #assigns: pa, patterns, pattern_indel_inducing, subject_inds_indel
   check_for_indel_induction(pa = pa,
                             patterns = patterns,
                             max_mismatch = max_mismatch,
                             rm_indel_inducing_pattern = rm_indel_inducing_pattern)
 
+  #assigns: pa, patterns, subject_indels, indel_ranges
   check_for_overlapping_indels(pa = pa,
                                patterns = patterns,
                                subject_inds_indel = subject_inds_indel,
@@ -106,6 +119,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # subject.ranges are defined herein
   # here also overlapping subject.ranges within groups are checked for
+  #assigns: subject.ranges, subject.ranges.unique, pa.unique, pa
   make_pa_unique_and_order_and_rm_subset_alignments(pa = pa,
                                                     pattern_groups = pattern_groups)
 
@@ -115,6 +129,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
 
   # pattern_order is defined here
+  #assigns: df, subject_indels, pattern_order
   paste_patterns_to_subject(subject_indels = subject_indels,
                             patterns = patterns,
                             pa = pa,
@@ -141,6 +156,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                    pattern_groups = pattern_groups,
                                    matches_to_subject = y[1],
                                    matches_to_pattern = y[2])
+
     plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
                                                          algnmt_type = seq_type,
                                                          pairwiseAlignment = pa),
@@ -154,7 +170,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                            max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])))), # or min(unlist(subject.ranges)) ?
               data_wide = df,
               pairwise_alignments = pa,
-              subject.ranges = subject.ranges,
+              subject.ranges = if (order_subject_ranges) {subject.ranges[order(sapply(subject.ranges, min))]} else {subject.ranges},
               pattern_invalid = patterns_invalid,
               pattern_indel_inducing = pattern_indel_inducing,
               pattern_mismatching = pattern_mismatching_return))
@@ -716,7 +732,6 @@ paste_patterns_to_subject <- function(subject_indels,
   assign("df", df2, envir = parent.frame())
   assign("subject_indels", subject_indels, envir = parent.frame())
   assign("pattern_order", pattern_order, envir = parent.frame())
-
 }
 
 seq2_default <- Vectorize(seq.default, vectorize.args = c("from", "to"))
