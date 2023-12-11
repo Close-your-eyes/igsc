@@ -134,6 +134,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # pattern_order is defined here
   #assigns: df, subject_indels, pattern_order
   paste_patterns_to_subject(subject_indels = subject_indels,
+                            subject.ranges = subject.ranges,
                             patterns = patterns,
                             pa = pa,
                             df = df,
@@ -479,7 +480,8 @@ check_for_indel_induction <- function(pa,
   # caution: leading gaps are not considered as indels!
   #indel_list <- 0
   pattern_indel_inducing <- NULL
-  if (is.na(max_mismatch) || max_mismatch > 0) {
+  subject_inds_indel <- NULL
+  if (is.na(max_mismatch) || max_mismatch > 0) { # why this condition?
     # based on pa, not pal!!
     #indel_lists <- Biostrings::nindel(pa) # this does not discriminate pattern and subject
     #indel_list <- stats::setNames(apply(cbind(indel_lists@insertion, indel_lists@deletion), 1, sum), names(patterns))
@@ -669,23 +671,34 @@ paste_subject_seq <- function(subject,
 
     if (i < length(subject.ranges.unique)) {
       r <- min(subject.ranges.unique[[i]])
-      # 2023-12-08: this if is new; in case the pattern causes gaps in subject, append as long as the total number of non-gap characters equals the needed subject length by this pattern
-      if (nchar(gsub("-", "", as.character(pa.unique@subject[i]))) != nchar(as.character(pa.unique@subject[i]))) {
-        diff <- (min(subject.ranges.unique[[i+1]])) - (min(subject.ranges.unique[[i]])+1)
-        len <- nchar(gsub("-", "", substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r)))
-        add <- 0
-        # still error here, maybe not valid for every type of alignment check how to make quicker
-        while(len < diff) {
-          add <- add + 1
-          len <- nchar(gsub("-", "", substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r+add)))
+      temp_ref1 <- min(subject.ranges.unique[[i]])-r+1
+      temp_ref2 <- min(subject.ranges.unique[[i+1]])-r
+      # 2023-12-08: this if is new; in case the pattern causes gaps in subject, append as long as the total number of non-gap characters equals the needed subject length by this pattern; only needed if next pattern overlaps
+      gaps_found <- nchar(gsub("-", "", as.character(pa.unique@subject[i]))) != nchar(as.character(pa.unique@subject[i]))
+      if (gaps_found) {
+        next_overlap <- length(intersect(subject.ranges.unique[[i]], subject.ranges.unique[[i+1]])) > 0
+        if (next_overlap) {
+          diff <- (min(subject.ranges.unique[[i+1]])) - (min(subject.ranges.unique[[i]])+1)
+          len <- nchar(gsub("-", "", substr(pa.unique@subject[i], temp_ref1, temp_ref2)))
+          add <- 0
+          max_char <- nchar(as.character(pa.unique@subject[i]))
+
+          # still error here, maybe not valid for every type of alignment check how to make quicker
+          while(len < diff) {
+            add <- add + 1
+            if ((temp_ref2+add) > max_char) {
+              stop("error in extending pattern.")
+            }
+            len <- nchar(gsub("-", "", substr(pa.unique@subject[i], temp_ref1, temp_ref2+add)))
+          }
+          total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], temp_ref1, temp_ref2+add+1))
+        } else {
+          # nothing, then the gap will be filled in next iteration of i, above
         }
-        total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r+add+1))
       } else {
-        total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
+        total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], temp_ref1, temp_ref2))
       }
-
     }
-
     if (i == length(subject.ranges.unique)) {
       total.subject.seq <- paste0(total.subject.seq, pa.unique@subject[i])
     }
@@ -715,6 +728,7 @@ paste_subject_seq <- function(subject,
       }'
 
 paste_patterns_to_subject <- function(subject_indels,
+                                      subject.ranges,
                                       patterns,
                                       pa,
                                       df,
