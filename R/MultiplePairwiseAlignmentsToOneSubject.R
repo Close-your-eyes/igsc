@@ -213,11 +213,10 @@ prep_df_for_algnmt_plot <- function(df,
     pattern_gap <- apply(df[,pattern_names,drop=F], 1, function(x) which(x == "-"))
     pattern_gap_rows <- which(lengths(pattern_gap) > 0)
     df[pattern_gap_rows, subject_name] <- "insertion"
-    pattern_gap_cols <- pattern_gap[pattern_gap_rows]
-    for (i in seq_along(pattern_gap_rows)) {
-      df[pattern_gap_rows[i], names(pattern_gap_cols[[i]])] <- "gap"
+    # write "gap" to patterns individually
+    for (i in pattern_names) {
+      df[which(lengths(apply(df[,i,drop=F], 1, function(x) which(x == "-"))) > 0), i] <- "gap"
     }
-
     # then find matches and mismatches
     # pattern first
     match_mismatch_list <- lapply(stats::setNames(pattern_names, pattern_names), function(x) df_original[,x] == df_original[,subject_name]) # subject seq in df (not df.original) may already contain "insertion"; for overlapping pattern where one receives an insertion and the other not, this is relevant
@@ -648,6 +647,17 @@ paste_subject_seq <- function(subject,
                               subject.ranges.unique,
                               pa.unique) {
 
+
+
+
+  # use this to concat the subject sequence
+  #nchar(as.character(pa.unique@subject))
+  #nchar(as.character(pa.unique@pattern))
+  #lengths(subject.ranges.unique)
+
+  #sapply(subject.ranges.unique, min)
+  #stringr::str_count(as.character(pa.unique@subject)[3], "-")
+
   # paste together the complete subject
   total.subject.seq <- stringr::str_sub(as.character(subject), 1, (min(subject.ranges.unique[[1]]) - 1))
   for (i in seq_along(subject.ranges.unique)) {
@@ -661,9 +671,10 @@ paste_subject_seq <- function(subject,
       r <- min(subject.ranges.unique[[i]])
       # 2023-12-08: this if is new; in case the pattern causes gaps in subject, append as long as the total number of non-gap characters equals the needed subject length by this pattern
       if (nchar(gsub("-", "", as.character(pa.unique@subject[i]))) != nchar(as.character(pa.unique@subject[i]))) {
-        diff <- (min(subject.ranges.unique[[i+1]])-r) - (min(subject.ranges.unique[[i]])-r+1)
+        diff <- (min(subject.ranges.unique[[i+1]])) - (min(subject.ranges.unique[[i]])+1)
         len <- nchar(gsub("-", "", substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r)))
         add <- 0
+        # still error here, maybe not valid for every type of alignment check how to make quicker
         while(len < diff) {
           add <- add + 1
           len <- nchar(gsub("-", "", substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r+add)))
@@ -672,6 +683,7 @@ paste_subject_seq <- function(subject,
       } else {
         total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
       }
+
     }
 
     if (i == length(subject.ranges.unique)) {
@@ -688,6 +700,20 @@ paste_subject_seq <- function(subject,
 }
 
 
+'      if (nchar(gsub("-", "", as.character(pa.unique@subject[i]))) != nchar(as.character(pa.unique@subject[i]))) {
+        diff <- (min(subject.ranges.unique[[i+1]])) - (min(subject.ranges.unique[[i]])+1)
+        len <- nchar(gsub("-", "", substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r)))
+        add <- 0
+        # still error here, maybe not valid for every type of alignment check how to make quicker
+        while(len < diff) {
+          add <- add + 1
+          len <- nchar(gsub("-", "", substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r+add)))
+        }
+        total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r+add+1))
+      } else {
+        total.subject.seq <- paste0(total.subject.seq, substr(pa.unique@subject[i], min(subject.ranges.unique[[i]])-r+1, min(subject.ranges.unique[[i+1]])-r))
+      }'
+
 paste_patterns_to_subject <- function(subject_indels,
                                       patterns,
                                       pa,
@@ -701,6 +727,16 @@ paste_patterns_to_subject <- function(subject_indels,
   # if indels are at same position has been checked above
   # if subject_indel is at the same position as previous, then do not increment gap_corr at next index
   # for overlapping patterns, one of which causes indels but the other not (the second aligns perfectly), gap_corr has to be provided position-wise, not pattern-wise
+
+  all_pattern <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
+  pattern_seq <- stack(strsplit(all_pattern, ""))
+  names(pattern_seq) <- c("seq", "pattern")
+
+  # default for !is.null(subject_indels) and overlap == TRUE
+  # pattern_plot_pos is also needed below when is.null(subject_indels)
+  pattern_plot_pos <- seq2((pa@subject@range@start), (pa@subject@range@start + nchar(all_pattern) - 1))
+  pattern_plot_pos <- stack(stats::setNames(pattern_plot_pos, names(all_pattern)))
+  names(pattern_plot_pos) <- c("position", "pattern")
 
   if (!is.null(subject_indels)) {
     # replace NAs first
@@ -719,14 +755,8 @@ paste_patterns_to_subject <- function(subject_indels,
       }))
     })
 
-
-    all_pattern <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
-    pattern_seq <- stack(strsplit(all_pattern, ""))
-    names(pattern_seq) <- c("seq", "pattern")
-
     # if any pattern overlap, use the more precise method of gap correction
     if (any(overlap)) {
-
       subject_indels <- subject_indels[which(!is.na(subject_indels$width)),]
       ## leave one pattern out, to only add gaps induced by any other pattern
       gap_corr2_list <- purrr::map_dfr(stats::setNames(names(patterns), names(patterns)), function(x) {
@@ -749,9 +779,8 @@ paste_patterns_to_subject <- function(subject_indels,
       }, .id = "pattern")
       gap_corr2_list <- split(gap_corr2_list, gap_corr2_list$pattern)
 
-      pattern_plot_pos <- seq2((pa@subject@range@start), (pa@subject@range@start + nchar(all_pattern) - 1))
-      pattern_plot_pos <- stack(stats::setNames(pattern_plot_pos, names(all_pattern)))
-      names(pattern_plot_pos) <- c("position", "pattern")
+      # pattern_plot_pos was initiated above
+
       # join gap_corr2_list with coalesce join
       for (i in seq_along(gap_corr2_list)) {
         pattern_plot_pos <- coalesce_join(pattern_plot_pos, gap_corr2_list[[i]], by = c("position" = "position", "pattern" = "pattern"))
