@@ -387,6 +387,14 @@ prep_subject_and_patterns <- function(subject,
   }
   names(patterns) <- make.unique(names(patterns))
 
+  # TODO:
+  # do not allow certain names for subject or pattern?
+  # e.g. no pattern name identical to subject name
+  # or pattern name != "subject" if no subject name is given
+  # or seq or position or subject.position - check data frame from later below
+
+
+
   ## save original names for replacement later
   ### avoid using names from pa then
   original_names <- c(names(subject), names(patterns))
