@@ -47,7 +47,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    return_max_mismatch_info_only = F,
                                                    matches_to_subject_and_pattern = list(c(T,T),c(F,T),c(F,F)),
                                                    pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list(add_length_suffix = T),
+                                                   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2),
                                                    order_subject_ranges = F) {
 
   ## if a pattern has no mismatches, or only a maximum number of them, then could be used to find multiple matches
@@ -225,21 +225,8 @@ prep_df_for_algnmt_plot <- function(df,
       df[which(!df[,i] %in% c("gap", "insertion")),i] <- ifelse(match_mismatch_list[[i]][which(!df[,i] %in% c("gap", "insertion"))], "match", "mismatch")
     }
     # then subject
-    any_false <- function(x) {
-      if (all(is.na(x))) {
-        return(T)
-      } else if (any(!x[which(!is.na(x))])) {
-        return(F)
-      } else if (all(x[which(!is.na(x))])) {
-        return(T)
-      } else {
-        stop("Logical error.")
-      }
-    }
     # find if any pattern has mismatch to subject
-    matches <- purrr::pmap_lgl(match_mismatch_list, function(...) {
-      any_false(unlist(list(...)))
-    })
+    matches <- purrr::pmap_lgl(match_mismatch_list, function(...) any_false(unlist(list(...))))
     df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(matches)),subject_name] <- "match"
     df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(!matches)),subject_name] <- "mismatch"
 
@@ -911,5 +898,16 @@ coalesce_join <- function(x, y,
   } else {
     return(joined)
   }
+}
 
+any_false <- function(x) {
+  if (all(is.na(x))) {
+    return(T)
+  } else if (any(!x[which(!is.na(x))])) {
+    return(F)
+  } else if (all(x[which(!is.na(x))])) {
+    return(T)
+  } else {
+    stop("Logical error.")
+  }
 }
