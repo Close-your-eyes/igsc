@@ -12,6 +12,7 @@
 #' @param pattern_mismatch_as
 #' @param change_ref
 #' @param ref_mismatch_as
+#' @param insertion_as
 #'
 #' @return
 #' @export

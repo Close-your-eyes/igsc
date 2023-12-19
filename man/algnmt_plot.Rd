@@ -54,8 +54,6 @@ leave NA to have no borders (quicker plotting and advised for long alignments)}
 \item{text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
 advisable only for short alignments}
 
-\item{line_args}{made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
-
 \item{theme}{ggplot theme to use as basis}
 
 \item{pattern_lim_size}{numeric; plot annotation of pattern alignment limits; value indicates size;
@@ -80,6 +78,8 @@ picked automatically}
 NT or AA cannot be guessed; leave NULL to have it guessed based on data}
 
 \item{ref}{a reference sequence to compare all other sequnces to; e.g. a consensus sequence}
+
+\item{verbose}{made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
 }
 \value{
 ggplot2 object of alignment

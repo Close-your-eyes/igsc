@@ -34,6 +34,11 @@
 #' @param min_gap
 #' @param line
 #' @param line_args
+#' @param theme_args
+#' @param start_end_col
+#' @param pos_shift
+#' @param pos_shift_adjust_axis
+#' @param verbose
 #' made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)
 #' @return ggplot2 object of alignment
 #' @export

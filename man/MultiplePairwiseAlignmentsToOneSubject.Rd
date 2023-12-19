@@ -15,9 +15,11 @@ MultiplePairwiseAlignmentsToOneSubject(
   seq_type = NULL,
   return_max_mismatch_info_only = F,
   matches_to_subject_and_pattern = list(c(T, T), c(F, T), c(F, F)),
+  compare_seq_df_long_args = list(seq_original = NULL, match_symbol = ".", change_pattern
+    = T, pattern_mismatch_as = "base", change_ref = T, ref_mismatch_as = "base",
+    insertion_as = "base"),
   pairwiseAlignment_args = list(),
-  algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, color_values =
-    igsc:::acp, verbose = F),
+  algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
   order_subject_ranges = F
 )
 }
@@ -40,13 +42,11 @@ it is attempted to guess the type}
 
 \item{return_max_mismatch_info_only}{only return information on mismatches of patterns with the subject;
 in this case no alignment is calculated}
+
+\item{order_subject_ranges}{}
 }
 \value{
-a list:
-base.plot ggplot object of alignment shows patterns colored by nt,
-match.plot ggplot object of alignment shows patterns colored match, mismatch, etc,
-base.df = df and match.df are the respective data.frames used for plotting,
-seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)
+a list
 }
 \description{
 This function is useful to visualise the alignment position of multiple patterns on one subject.

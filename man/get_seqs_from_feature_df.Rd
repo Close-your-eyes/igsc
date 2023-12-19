@@ -34,6 +34,8 @@ for writing features into a ref genome do have the it return}
 \item{matches_to_origin_and_feature}{mark matches and mismatches in origin and/or feature sequences}
 
 \item{order_features}{order features by min position}
+
+\item{compare_seq_df_long_args}{}
 }
 \description{
 Get sequences based on data generated with webscrape_ncbi

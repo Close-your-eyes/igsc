@@ -10,6 +10,7 @@
 #' @param return which formats to return; restriction to what is needed saves memory and increases speed
 #' @param matches_to_origin_and_feature mark matches and mismatches in origin and/or feature sequences
 #' @param order_features order features by min position
+#' @param compare_seq_df_long_args
 #'
 #' @return
 #' @export

@@ -21,7 +21,7 @@ compare_seq_df_long(
 )
 }
 \arguments{
-\item{ref_mismatch_as}{}
+\item{insertion_as}{}
 }
 \description{
 Title
