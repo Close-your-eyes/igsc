@@ -70,7 +70,8 @@ algnmt_plot <- function(algnmt,
                         min_gap = 10,
                         ref = NULL,
                         pos_shift = NULL, # fixed position like: 100000 or relative: "+100"
-                        pos_shift_adjust_axis = T) {
+                        pos_shift_adjust_axis = T,
+                        verbose = T) {
   ## check duplicate names
   ## y_group_col actually makes only sense when a algnmt is a dataframe, e.g. from multi pairwisealignment
   ## otherwise y_group_col is set to NULL

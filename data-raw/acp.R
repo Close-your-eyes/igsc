@@ -105,7 +105,7 @@ aa_info <- list(aa_main_prop = aa_main_prop,
                 aa_list = aa_list,
                 aa_df_long = aa_df_long,
                 aa_df_nest = aa_df_nest,
-                aa_df_nest2 = aa_df_nest2
+                aa_df_nest2 = aa_df_nest2,
                 aa_names = utils::stack(Biostrings::AMINO_ACID_CODE[Biostrings::AA_STANDARD]))
 
 # chem_col <- stack(igsc:::scheme_AA[,"Chemistry_AA"]) %>% dplyr::group_by(values) %>% dplyr::summarise(aa = paste(ind, collapse = ","))
