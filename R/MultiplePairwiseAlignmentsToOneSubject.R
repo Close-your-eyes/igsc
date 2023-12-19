@@ -47,7 +47,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    return_max_mismatch_info_only = F,
                                                    matches_to_subject_and_pattern = list(c(T,T),c(F,T),c(F,F)),
                                                    pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, color_values = igsc:::acp),
+                                                   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, color_values = igsc:::acp, verbose = F),
                                                    order_subject_ranges = F) {
 
   ## if a pattern has no mismatches, or only a maximum number of them, then could be used to find multiple matches

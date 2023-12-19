@@ -100,7 +100,7 @@ algnmt_plot <- function(algnmt,
         stop("pos_shift cannot be larger than the largest alignment position.")
       }
     }
-    conv <- setNames(shifted_pos(x = unique(algnmt$position), start_pos = pos_shift), unique(algnmt$position))
+    conv <- setNames(shifted_pos(x = unique(algnmt$position), start_pos = pos_shift), unique(algnmt$position), verbose = verbose)
     algnmt$position <- conv[algnmt$position]
   }
 
@@ -124,7 +124,9 @@ algnmt_plot <- function(algnmt,
     }
     algnmt <- XStringSet_to_df(algnmt)
     if (!is.null(y_group_col)) {
-      message("y_group_col is set to NULL.")
+      if (verbose) {
+        message("y_group_col is set to NULL.")
+      }
       y_group_col <- NULL
     }
   } else if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject")) {
@@ -141,9 +143,11 @@ algnmt_plot <- function(algnmt,
       algnmt_type <- "AA"
     }
 
-    algnmt <- pa_to_df(pa = algnmt)
+    algnmt <- pa_to_df(pa = algnmt, verbose = verbose)
     if (!is.null(y_group_col)) {
-      message("y_group_col is set to NULL.")
+      if (verbose) {
+        message("y_group_col is set to NULL.")
+      }
       y_group_col <- NULL
     }
   }
@@ -181,7 +185,9 @@ algnmt_plot <- function(algnmt,
     if (is.null(subject_name)) {
       max_len <- max(lengths(subject.ranges))
       if (length(which(lengths(subject.ranges) == max_len)) > 1) {
-        message("Subject could not be identified as there are min. 2 sequences which have the max length. Cannot order patterns on y-axis. Provide is as argument 'subject_name'.")
+        if (verbose) {
+          message("Subject could not be identified as there are min. 2 sequences which have the max length. Cannot order patterns on y-axis. Provide is as argument 'subject_name'.")
+        }
         ## TODO: set variable for ordering pattern on y-axis to FALSE here
       } else {
         subject_name <- names(which(lengths(subject.ranges) == max_len))
@@ -222,7 +228,9 @@ algnmt_plot <- function(algnmt,
     algnmt$group <- factor(algnmt$group, levels = c(subject_name, unique(rows[-1])))
 
   } else if (group_on_yaxis && !is.null(y_group_col)) {
-    message("y_group_col is not NULL. Using this one. Ignoring group_on_yaxis.")
+    if (verbose) {
+      message("y_group_col is not NULL. Using this one. Ignoring group_on_yaxis.")
+    }
   }
 
   if (!is.null(ref)) {
@@ -312,7 +320,9 @@ algnmt_plot <- function(algnmt,
         tile_color <- igsc:::scheme_AA[,match.arg(color_values, choices = colnames(igsc:::scheme_AA)),drop=T]
       }
     } else {
-      message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")
+      if (verbose) {
+        message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")
+      }
       tile_color <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
     }
   } else {
@@ -366,11 +376,15 @@ algnmt_plot <- function(algnmt,
   if (subject_lim_lines && is.null(subject_name)) {
     subject_guess <- algnmt_summary %>% dplyr::slice_max(n_not_NA, n = 1, with_ties = T)
     if (nrow(subject_guess) > 1) {
-      message("subject_name is NULL or could not be guessed. subject_lim_lines set to FALSE.")
+      if (verbose) {
+        message("subject_name is NULL or could not be guessed. subject_lim_lines set to FALSE.")
+      }
       subject_lim_lines <- F
     } else {
       subject_name <- as.character(subject_guess[,name_col,drop=T])
-      message("subject guessed: ", subject_name)
+      if (verbose) {
+        message("subject guessed: ", subject_name)
+      }
     }
   }
 
@@ -395,10 +409,14 @@ algnmt_plot <- function(algnmt,
   if (add_length_suffix) {
     # keep this, with pairwiseAlignment
     if (is.null(pairwiseAlignment)) {
-      message("pairwiseAlignment is not provided and orignal sequences are unknown. Length suffix is inferred from number of non-NA elements in seq_col.")
+      if (verbose) {
+        message("pairwiseAlignment is not provided and orignal sequences are unknown. Length suffix is inferred from number of non-NA elements in seq_col.")
+      }
       seq_lengths <- stats::setNames(algnmt_summary[,"n_not_NA",drop=T], algnmt_summary[,name_col,drop=T])
     } else {
-      message("Length suffix is inferred from pairwiseAlignment.")
+      if (verbose) {
+        message("Length suffix is inferred from pairwiseAlignment.")
+      }
       seq_lengths <- stats::setNames(c(pairwiseAlignment@subject@unaligned@ranges@width,
                                        pairwiseAlignment@pattern@unaligned@ranges@width),
                                      c(pairwiseAlignment@subject@unaligned@ranges@NAMES,
@@ -430,7 +448,9 @@ algnmt_plot <- function(algnmt,
 
   if (line) {
     if (!start_end_col %in% names(algnmt)) {
-      message("start_end_col not found in algnmt data frame. Using min and max position to draw line. But this could be wrong if, e.g. the first exon is at later position as the first one.")
+      if (verbose) {
+        message("start_end_col not found in algnmt data frame. Using min and max position to draw line. But this could be wrong if, e.g. the first exon is at later position as the first one.")
+      }
       xmin <- "min_pos"
       xmax <- "max_pos"
     } else {
@@ -521,7 +541,9 @@ algnmt_plot <- function(algnmt,
                                       size = pattern_lim_size,
                                       inherit.aes = F)
   } else if (pattern_lim_size > 0) {
-    message("pattern limits can only be plotted if pairwiseAlignment is provided.")
+    if (verbose) {
+      message("pattern limits can only be plotted if pairwiseAlignment is provided.")
+    }
   }
 
   if (pattern_names) {
@@ -556,7 +578,7 @@ XStringSet_to_df <- function(xstringset) {
   return(out)
 }
 
-pa_to_df <- function(pa) {
+pa_to_df <- function(pa, verbose) {
   if (length(pa) > 1) {
     stop("Please provide one pairwiseAlignment only (= one pattern only). length(algnmt) should be 1.")
   }
@@ -571,7 +593,9 @@ pa_to_df <- function(pa) {
   }
 
   if (any(c(is.null(pa@pattern@unaligned@ranges@NAMES), is.null(pa@subject@unaligned@ranges@NAMES)))) {
-    message("No names provided for pattern and/or subject. If desired provide named XStringSets, each of length 1, to Biostrings::pairwiseAlignment.")
+    if (verbose) {
+      message("No names provided for pattern and/or subject. If desired provide named XStringSets, each of length 1, to Biostrings::pairwiseAlignment.")
+    }
   }
   pattern_name <- ifelse(is.null(pa@pattern@unaligned@ranges@NAMES), "pattern", pa@pattern@unaligned@ranges@NAMES)
   subject_name <- ifelse(is.null(pa@subject@unaligned@ranges@NAMES), "subject", pa@subject@unaligned@ranges@NAMES)
@@ -630,7 +654,8 @@ compare_seqs <- function(subject,
 ## work with start pos - then derive shift
 shifted_pos <- function(x,
                         n = NULL,
-                        start_pos = NULL) {
+                        start_pos = NULL,
+                        verbose) {
 
 
   if (!is.null(n) && is.na(n)) {
@@ -642,7 +667,9 @@ shifted_pos <- function(x,
 
   if (!is.null(start_pos)) {
     if (!is.null(n)) {
-      message("n will be ignored as start_pos is provided.")
+      if (verbose) {
+        message("n will be ignored as start_pos is provided.")
+      }
     }
     n <- which(start_pos == x) - 1
     if (length(n) == 0) {
