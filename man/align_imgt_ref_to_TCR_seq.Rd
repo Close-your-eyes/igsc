@@ -8,10 +8,9 @@ align_imgt_ref_to_TCR_seq(
   chain,
   TCR,
   cl_long,
-  cl_wide,
   imgt_ref,
-  sequence_col = "consensus_seq_cr",
-  C_allele,
+  sequence_col = "consensus_seq",
+  C_allele = NULL,
   type = "local",
   ...
 )
@@ -23,8 +22,6 @@ align_imgt_ref_to_TCR_seq(
 
 \item{cl_long}{clonotype data frame long format}
 
-\item{cl_wide}{clonotype data frame wide format}
-
 \item{imgt_ref}{the prepared data.frame of IMGT references}
 
 \item{sequence_col}{name of the column to pull sequences from}
@@ -34,6 +31,8 @@ align_imgt_ref_to_TCR_seq(
 \item{type}{type of alignment}
 
 \item{...}{arguments to MultiplePairwiseAlignmentsToOneSubject}
+
+\item{cl_wide}{clonotype data frame wide format}
 }
 \value{
 a list

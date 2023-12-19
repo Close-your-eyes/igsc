@@ -42,6 +42,7 @@ scheme_NT <- merge(data.frame(ggmsa:::scheme_NT, rowname = rownames(ggmsa:::sche
                    stats::setNames(utils::stack(acp), c("biostrings", "rowname")),
                    by = "rowname",
                    all = T)
+scheme_NT[1,2:5] <- NA # have the gap replace by our own defined color
 for (i in 1:nrow(scheme_NT)) {
   for (j in 1:ncol(scheme_NT)) {
     if (is.na(scheme_NT[i,j])) {

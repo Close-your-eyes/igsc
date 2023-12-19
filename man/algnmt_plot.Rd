@@ -10,19 +10,32 @@ algnmt_plot(
   tile.border.color = NA,
   tile.border.on.NA = F,
   text = F,
-  font.family = c("sans", "mono", "serif"),
-  theme = ggplot2::theme_bw(base_family = font.family),
-  pattern.lim.size = 2,
-  pa = NULL,
-  subject.lim.lines = F,
+  line = F,
+  line_args = list(linewidth = 0.2, color = "black"),
+  theme = ggplot2::theme_bw(),
+  theme_args = list(panel.grid = ggplot2::element_blank()),
+  pattern_lim_size = 0,
+  pattern_lim_pos = "inner",
+  pattern_names = F,
+  pattern_names_fun = ggrepel::geom_text_repel,
+  pairwiseAlignment = NULL,
+  subject_lim_lines = F,
   subject_name = NULL,
   pos_col = "position",
   seq_col = "seq",
   name_col = "seq.name",
+  start_end_col = "start_end",
+  y_group_col = NULL,
   coord_fixed_ratio = NULL,
-  x.breaks = NULL,
+  x_breaks = NULL,
   algnmt_type = NULL,
-  ref = NULL
+  add_length_suffix = F,
+  group_on_yaxis = F,
+  min_gap = 10,
+  ref = NULL,
+  pos_shift = NULL,
+  pos_shift_adjust_axis = T,
+  verbose = T
 )
 }
 \arguments{
@@ -41,22 +54,16 @@ leave NA to have no borders (quicker plotting and advised for long alignments)}
 \item{text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
 advisable only for short alignments}
 
-\item{font.family}{which font to use for plotting}
+\item{line_args}{made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
 
 \item{theme}{ggplot theme to use as basis}
 
-\item{pattern.lim.size}{numeric; plot annotation of pattern alignment limits; value indicates size;
+\item{pattern_lim_size}{numeric; plot annotation of pattern alignment limits; value indicates size;
 set to 0 to omit plotting; only applicable if pa is provided}
 
-\item{pa}{list of pairwise alignments in form of PairwiseAlignmentsSingleSubject
-or as actual list of single pairwise alignments; the latter will sometime make the alignment quicker
-rather for internal use by igsc::MultiplePairwiseAlignmentsToOneSubject;
-from pa pattern alignment limits are derived}
+\item{subject_lim_lines}{logical whether to plot vertical lines of subject alignment limits}
 
-\item{subject.lim.lines}{logical whether to plot vertical lines of subject alignment limits}
-
-\item{subject_name}{name of the subject sequence in algnmt; only needed if subject.lim.lines = TRUE
-made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
+\item{subject_name}{name of the subject sequence in algnmt; only needed if subject_lim_lines = TRUE}
 
 \item{pos_col}{name of position column in algnmt (applicable if algnmt is a data.frame)}
 
@@ -66,8 +73,8 @@ made with DECIPHER::ConsensusSequence; if provided matching residues are replace
 
 \item{coord_fixed_ratio}{numeric; fixed aspect ratio of plot; leave NULL to not force a ratio}
 
-\item{x.breaks}{numeric vector; manually provide breaks (ticks) on x-axis; leave NULL to have breaks
-picked automatically based on data provided}
+\item{x_breaks}{numeric vector; manually provide breaks (ticks) on x-axis; set NULL to have breaks
+picked automatically}
 
 \item{algnmt_type}{'NT' or 'AA'; only required if algnmt is a data.frame and only if
 NT or AA cannot be guessed; leave NULL to have it guessed based on data}

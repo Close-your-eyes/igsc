@@ -10,12 +10,15 @@ MultiplePairwiseAlignmentsToOneSubject(
   type = c("global-local", "global", "local", "overlap", "local-global"),
   max_mismatch = NA,
   order_patterns = F,
-  nt_suffix = T,
-  fix_indels = F,
+  fix_subject_indels = F,
   rm_indel_inducing_pattern = F,
   seq_type = NULL,
   return_max_mismatch_info_only = F,
-  ...
+  matches_to_subject_and_pattern = list(c(T, T), c(F, T), c(F, F)),
+  pairwiseAlignment_args = list(),
+  algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, color_values =
+    igsc:::acp, verbose = F),
+  order_subject_ranges = F
 )
 }
 \arguments{
@@ -30,17 +33,13 @@ with the subject}
 
 \item{order_patterns}{order pattern increasingly by alignment position (start)}
 
-\item{nt_suffix}{add the length of the string to the name on the axis}
-
-\item{fix_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
+\item{fix_subject_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
 
 \item{seq_type}{set sequence type to AA or NT if necessary; if NULL
 it is attempted to guess the type}
 
 \item{return_max_mismatch_info_only}{only return information on mismatches of patterns with the subject;
 in this case no alignment is calculated}
-
-\item{...}{additional arguments to Biostrings::pairwiseAlignments and igsc::algnmt_plot}
 }
 \value{
 a list:
