@@ -4,12 +4,14 @@ acp <- c("A" = "lightpink",
          "U" = "moccasin", # other col?
          "C" = "darkseagreen1",
          "G" = "lightblue1",
-         "-" = "white",
-         "match" = "grey70",
+         "match" = "grey80",
+         "." = "grey80",
          "mismatch" = "tomato2",
-         "gap" = "mediumpurple1",
-         "insertion" = "black",
-         "ambiguous" = "goldenrod2")
+         "x" = "tomato2",
+         "gap" = "plum1",
+         "-" = "plum1",
+         "insertion" = "grey30",
+         "ambiguous" = "cornsilk2")
 
 ## credit to ggmsa for collecting the color scales NT and AA
 ## to give credit color scales are integrated with dependency

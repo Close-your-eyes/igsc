@@ -192,58 +192,41 @@ prep_df_for_algnmt_plot <- function(df,
                                     pattern_order,
                                     pattern_groups,
                                     matches_to_pattern = F,
-                                    matches_to_subject = F) {
+                                    matches_to_subject = F,
+                                    pattern_mismatch_as = "base",
+                                    ref_mismatch_as = "base",
+                                    insertion_as = "base") {
 
   # gap
   # match
   # mismatch
   # insertion
+  ' df <- compare_seq_previous(df = df,
+                             subject_name = subject_name,
+                             pattern_names = pattern_names,
+                             matches_to_subject = matches_to_subject,
+                             matches_to_pattern = matches_to_pattern)'
 
-  # "-" in subject is a gap
-  ## if is.na(subject.position) --> always gap in subject and always insertion in pattern
+  df <- compare_seq_df_long(df_long =
+                              df %>%
+                              tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq"),
+                            ref = subject_name,
+                            pos_col = "position",
+                            seq_col = "seq",
+                            name_col = "seq.name",
+                            seq_original = NULL,
+                            match_symbol = ".",
+                            mismatch_symbol = "x",
+                            change_pattern = matches_to_pattern,
+                            pattern_mismatch_as = pattern_mismatch_as,
+                            change_ref = matches_to_subject,
+                            ref_mismatch_as = ref_mismatch_as,
+                            insertion_as = insertion_as)
 
-  if (matches_to_pattern || matches_to_subject) {
-    df_original <- df
-    # is.na(subject.position) --> always gap in subject and always insertion in pattern
-    subject_gap <- which(is.na(df[,"subject.position"]))
-    for (i in pattern_names) {
-      df[subject_gap, i][which(!is.na(df[subject_gap, i]))] <- "insertion"
-    }
-    df[subject_gap, subject_name] <- "gap"
-    # "-" in any pattern --> gap in pattern, insertion in subject
-    pattern_gap <- apply(df[,pattern_names,drop=F], 1, function(x) which(x == "-"))
-    pattern_gap_rows <- which(lengths(pattern_gap) > 0)
-    df[pattern_gap_rows, subject_name] <- "insertion"
-    # write "gap" to patterns individually
-    for (i in pattern_names) {
-      df[which(lengths(apply(df[,i,drop=F], 1, function(x) which(x == "-"))) > 0), i] <- "gap"
-    }
-    # then find matches and mismatches
-    # pattern first
-    match_mismatch_list <- lapply(stats::setNames(pattern_names, pattern_names), function(x) df_original[,x] == df_original[,subject_name]) # subject seq in df (not df.original) may already contain "insertion"; for overlapping pattern where one receives an insertion and the other not, this is relevant
-    for (i in names(match_mismatch_list)) {
-      df[which(!df[,i] %in% c("gap", "insertion")),i] <- ifelse(match_mismatch_list[[i]][which(!df[,i] %in% c("gap", "insertion"))], "match", "mismatch")
-    }
-    # then subject
-    # find if any pattern has mismatch to subject
-    matches <- purrr::pmap_lgl(match_mismatch_list, function(...) any_false(unlist(list(...))))
-    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(matches)),subject_name] <- "match"
-    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(!matches)),subject_name] <- "mismatch"
 
-    if (!matches_to_subject) {
-      df[,subject_name] <- df_original[,subject_name]
-    }
-    if (!matches_to_pattern) {
-      for (i in pattern_names) {
-        df[,i] <- df_original[,i]
-      }
-    }
-  }
-
-  #dplyr::all_of(names(original_names))
   df <-
     df %>%
-    tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq") %>%
+    #tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq") %>% # this is now down above
     ## here, original names are restored
     dplyr::mutate(seq.name = original_names[seq.name]) %>%
     ## factor order with original names
@@ -910,4 +893,53 @@ any_false <- function(x) {
   } else {
     stop("Logical error.")
   }
+}
+
+compare_seq_previous <- function(df,
+                                 subject_name,
+                                 pattern_names,
+                                 matches_to_subject,
+                                 matches_to_pattern) {
+  # previous procedure of comparing subject and pattern
+
+  # "-" in subject is a gap
+  ## if is.na(subject.position) --> always gap in subject and always insertion in pattern
+  if (matches_to_pattern || matches_to_subject) {
+    df_original <- df
+    # is.na(subject.position) --> always gap in subject and always insertion in pattern
+    subject_gap <- which(is.na(df[,"subject.position"]))
+    for (i in pattern_names) {
+      df[subject_gap, i][which(!is.na(df[subject_gap, i]))] <- "insertion"
+    }
+    df[subject_gap, subject_name] <- "gap"
+    # "-" in any pattern --> gap in pattern, insertion in subject
+    pattern_gap <- apply(df[,pattern_names,drop=F], 1, function(x) which(x == "-"))
+    pattern_gap_rows <- which(lengths(pattern_gap) > 0)
+    df[pattern_gap_rows, subject_name] <- "insertion"
+    # write "gap" to patterns individually
+    for (i in pattern_names) {
+      df[which(lengths(apply(df[,i,drop=F], 1, function(x) which(x == "-"))) > 0), i] <- "gap"
+    }
+    # then find matches and mismatches
+    # pattern first
+    match_mismatch_list <- lapply(stats::setNames(pattern_names, pattern_names), function(x) df_original[,x] == df_original[,subject_name]) # subject seq in df (not df.original) may already contain "insertion"; for overlapping pattern where one receives an insertion and the other not, this is relevant
+    for (i in names(match_mismatch_list)) {
+      df[which(!df[,i] %in% c("gap", "insertion")),i] <- ifelse(match_mismatch_list[[i]][which(!df[,i] %in% c("gap", "insertion"))], "match", "mismatch")
+    }
+    # then subject
+    # find if any pattern has mismatch to subject
+    matches <- purrr::pmap_lgl(match_mismatch_list, function(...) any_false(unlist(list(...))))
+    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(matches)),subject_name] <- "match"
+    df[intersect(which(!df[,subject_name] %in% c("gap", "insertion")), which(!matches)),subject_name] <- "mismatch"
+
+    if (!matches_to_subject) {
+      df[,subject_name] <- df_original[,subject_name]
+    }
+    if (!matches_to_pattern) {
+      for (i in pattern_names) {
+        df[,i] <- df_original[,i]
+      }
+    }
+  }
+  return(df)
 }

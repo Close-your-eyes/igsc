@@ -151,7 +151,7 @@ algnmt_plot <- function(algnmt,
   if (group_on_yaxis && is.null(y_group_col)) {
     # if pairwise alignment is provided, use this one to derived ranges - but this may not be compatible with shifting?!
     # remove this procedure - too complicated
-   ' if (!is.null(pairwiseAlignment)) {
+    ' if (!is.null(pairwiseAlignment)) {
       subject.ranges <- seq2(pairwiseAlignment@subject@range@start, pairwiseAlignment@subject@range@start+pairwiseAlignment@subject@range@width-1)
       names(subject.ranges) <- pairwiseAlignment@pattern@unaligned@ranges@NAMES
       subject_name <- setdiff(unique(algnmt[,name_col,drop=T]), names(subject.ranges))
@@ -229,12 +229,17 @@ algnmt_plot <- function(algnmt,
       stop("ref not found in names of algnmt.")
     }
     seq_original <- "seq_original"
-    algnmt <- compare_seqs_df(df = algnmt,
-                              ref = ref,
-                              pos_col = pos_col,
-                              seq_col = seq_col,
-                              name_col = name_col,
-                              seq_original = seq_original)
+    algnmt <- compare_seq_df_long(df = algnmt,
+                                  ref = ref,
+                                  pos_col = pos_col,
+                                  seq_col = seq_col,
+                                  name_col = name_col,
+                                  seq_original = seq_original,
+                                  match_symbol = ".",
+                                  mismatch_symbol = "x",
+                                  change_pattern = T,
+                                  pattern_mismatch_as = "mismatch_symbol",
+                                  change_ref = F)
 
     # seq_original will cause that tiles are filled according to chemical property even if they are replaced by a dots when
     # sequence is equal to the reference sequence (ref)
@@ -594,32 +599,6 @@ guess_type <- function(seq_vector) {
   } else {
     stop("Alignment type could not be determined unambigously. Please define it: 'NT' or 'AA'.")
   }
-}
-
-compare_seqs_df <- function(df,
-                            ref,
-                            pos_col = "position",
-                            seq_col = "seq",
-                            name_col = "seq.name",
-                            seq_original = "seq_original") {
-
-  temp_order <- levels(df[,name_col,drop=T])
-  temp_cols <- dplyr::select(df, -!!rlang::sym(seq_col)) # save cols for joining below; if other cols are not excluded, pivotting does not work
-  df <-
-    df %>%
-    dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
-    tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col)) %>%
-    tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% c(ref, pos_col))])) %>%
-    dplyr::mutate(value = paste0(value, "_", ifelse(value == !!rlang::sym(ref), ".", value))) %>%
-    dplyr::mutate({{ref}} := paste0(!!rlang::sym(ref), "_", !!rlang::sym(ref))) %>%
-    tidyr::pivot_wider(names_from = name, values_from = value) %>%
-    tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(names(.) != pos_col)]), names_to = name_col) %>%
-    tidyr::separate(value, into = c(seq_original, seq_col), sep = "_") %>%
-    dplyr::mutate({{name_col}} := factor(!!rlang::sym(name_col), levels = temp_order))
-  df <- dplyr::left_join(df, temp_cols, by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  df[,seq_col] <- ifelse(df[,seq_col,drop=T] == "NA", NA, df[,seq_col,drop=T])
-  df[,seq_original] <- ifelse(df[,seq_original,drop=T] == "NA", NA, df[,seq_original,drop=T])
-  return(df)
 }
 
 compare_seqs <- function(subject,
