@@ -17,12 +17,14 @@
 #' it is attempted to guess the type
 #' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
 #' in this case no alignment is calculated
+#' @param rm_indel_inducing_pattern
+#' @param matches_to_subject_and_pattern
+#' @param compare_seq_df_long_args
+#' @param pairwiseAlignment_args
+#' @param algnmt_plot_args
+#' @param order_subject_ranges
 #'
-#' @return a list:
-#' base.plot ggplot object of alignment shows patterns colored by nt,
-#' match.plot ggplot object of alignment shows patterns colored match, mismatch, etc,
-#' base.df = df and match.df are the respective data.frames used for plotting,
-#' seq min.max.subject.position indicates the outer limits of all aligned patterns (min = start position of first aligned pattern, max = end position of the last aligned pattern)
+#' @return a list
 #' @export
 #'
 #' @importFrom magrittr %>%
@@ -46,8 +48,15 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                    seq_type = NULL,
                                                    return_max_mismatch_info_only = F,
                                                    matches_to_subject_and_pattern = list(c(T,T),c(F,T),c(F,F)),
+                                                   compare_seq_df_long_args = list(seq_original = NULL,
+                                                                                   match_symbol = ".",
+                                                                                   change_pattern = T,
+                                                                                   pattern_mismatch_as = "base",
+                                                                                   change_ref = T,
+                                                                                   ref_mismatch_as = "base",
+                                                                                   insertion_as = "base"),
                                                    pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, color_values = igsc:::acp, verbose = F),
+                                                   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
                                                    order_subject_ranges = F) {
 
   ## if a pattern has no mismatches, or only a maximum number of them, then could be used to find multiple matches
@@ -149,7 +158,37 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
 
-  data_plot <- purrr::map(setNames(matches_to_subject_and_pattern, sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))), function(y) {
+  df2 <- prep_df_for_algnmt_plot(df = df,
+                                 subject_name = names(subject),
+                                 pattern_names = names(patterns),
+                                 original_names = original_names,
+                                 order_patterns = order_patterns,
+                                 subject.ranges = subject.ranges,
+                                 pattern_order = pattern_order,
+                                 pattern_groups = pattern_groups,
+                                 compare_seq_df_long_args)
+
+  plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
+                                                       algnmt_type = seq_type,
+                                                       pairwiseAlignment = pa),
+                                                  algnmt_plot_args))
+
+
+  # c(min(sapply(names(patterns), function(x) min(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T), max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T)),
+  # c(min(sapply(subject.ranges, min), na.rm = T), max(sapply(subject.ranges, max), na.rm = T))
+  # alignment can be so bad, that these two information do not match
+  return(list(data = df2,
+              plot = plot,
+              subject_limits = c(min(sapply(subject.ranges, min), na.rm = T), max(sapply(subject.ranges, max), na.rm = T)),
+              data_wide = df,
+              pairwise_alignments = pa,
+              subject_ranges = if (order_subject_ranges) {subject.ranges[order(sapply(subject.ranges, min))]} else {subject.ranges},
+              pattern_invalid = patterns_invalid,
+              pattern_indel_inducing = pattern_indel_inducing,
+              pattern_mismatching = pattern_mismatching_return))
+}
+
+'data_plot <- purrr::map(setNames(matches_to_subject_and_pattern, sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))), function(y) {
     df2 <- prep_df_for_algnmt_plot(df = df,
                                    subject_name = names(subject),
                                    pattern_names = names(patterns),
@@ -158,8 +197,7 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                    subject.ranges = subject.ranges,
                                    pattern_order = pattern_order,
                                    pattern_groups = pattern_groups,
-                                   matches_to_subject = y[1],
-                                   matches_to_pattern = y[2])
+                                   compare_seq_df_long_args)
 
     plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
                                                          algnmt_type = seq_type,
@@ -169,19 +207,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   })
 
 
-  # c(min(sapply(names(patterns), function(x) min(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T), max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T)),
-  # c(min(sapply(subject.ranges, min), na.rm = T), max(sapply(subject.ranges, max), na.rm = T))
-  # alignment can be so bad, that these two information do not match
-  return(list(data = stats::setNames(sapply(data_plot, "[", "data"), nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
-              plot = stats::setNames(sapply(data_plot, "[", "plot") , nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
-              min.max.subject.position = c(min(sapply(subject.ranges, min), na.rm = T), max(sapply(subject.ranges, max), na.rm = T)),
-              data_wide = df,
-              pairwise_alignments = pa,
-              subject.ranges = if (order_subject_ranges) {subject.ranges[order(sapply(subject.ranges, min))]} else {subject.ranges},
-              pattern_invalid = patterns_invalid,
-              pattern_indel_inducing = pattern_indel_inducing,
-              pattern_mismatching = pattern_mismatching_return))
-}
+data = stats::setNames(sapply(data_plot, "[", "data"), nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
+plot = stats::setNames(sapply(data_plot, "[", "plot") , nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
+
+'
 
 prep_df_for_algnmt_plot <- function(df,
                                     subject_name,
@@ -191,11 +220,7 @@ prep_df_for_algnmt_plot <- function(df,
                                     subject.ranges,
                                     pattern_order,
                                     pattern_groups,
-                                    matches_to_pattern = F,
-                                    matches_to_subject = F,
-                                    pattern_mismatch_as = "base",
-                                    ref_mismatch_as = "base",
-                                    insertion_as = "base") {
+                                    compare_seq_df_long_args) {
 
   # gap
   # match
@@ -207,23 +232,13 @@ prep_df_for_algnmt_plot <- function(df,
                              matches_to_subject = matches_to_subject,
                              matches_to_pattern = matches_to_pattern)'
 
-  df <- compare_seq_df_long(df_long =
-                              df %>%
-                              tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq"),
-                            ref = subject_name,
-                            pos_col = "position",
-                            seq_col = "seq",
-                            name_col = "seq.name",
-                            seq_original = NULL,
-                            match_symbol = ".",
-                            mismatch_symbol = "x",
-                            change_pattern = matches_to_pattern,
-                            pattern_mismatch_as = pattern_mismatch_as,
-                            change_ref = matches_to_subject,
-                            ref_mismatch_as = ref_mismatch_as,
-                            insertion_as = insertion_as)
-
-
+  df <- Gmisc::fastDoCall(compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long =
+                                                                                         df %>%
+                                                                                         tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq"),
+                                                                                       ref = subject_name,
+                                                                                       pos_col = "position",
+                                                                                       seq_col = "seq",
+                                                                                       name_col = "seq.name")))
   df <-
     df %>%
     #tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq") %>% # this is now down above
