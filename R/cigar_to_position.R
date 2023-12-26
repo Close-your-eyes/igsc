@@ -12,6 +12,14 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' reads <- scexpr::reads_from_bam(bamfile_path, genomic_ranges = cd81_range, revcomp_minus_strand = F)
+#' reads_sub <- dplyr::slice_sample(reads, n = 40)
+#' pattern_df <- purrr::pmap_dfr(list(reads_sub$cigar, reads_sub$start, reads_sub$seq, reads_sub$readName), function(x,y,z,a) igsc::cigar_to_position(cigar = x, start = y, seq = z, name = a))
+#' algnmt_df <- data.frame(seq = strsplit(chr11_cd81, "")[[1]], position = 2378344:2391242, seq.name = "chr11")
+#' algnmt_df <- rbind(algnmt_df, pattern_df)
+#' plot <- algnmt_plot(algnmt = algnmt_df, algnmt_type = "NT", ref = "chr11")
+#' }
 cigar_to_position <- function(cigar,
                               start,
                               seq,
