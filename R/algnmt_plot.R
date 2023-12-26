@@ -108,7 +108,7 @@ algnmt_plot <- function(algnmt,
         stop("pos_shift cannot be larger than the largest alignment position.")
       }
     }
-    conv <- setNames(shifted_pos(x = unique(algnmt$position), start_pos = pos_shift), unique(algnmt$position), verbose = verbose)
+    conv <- stats::setNames(shifted_pos(x = unique(algnmt$position), start_pos = pos_shift, verbose = verbose), unique(algnmt$position))
     algnmt$position <- conv[algnmt$position]
   }
 
