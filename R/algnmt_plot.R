@@ -466,7 +466,7 @@ algnmt_plot <- function(algnmt,
       xmax <- "end"
     }
 
-    if (any(algnmt_summary$start > algnmt_summary$end)) {
+    if (start_end_col %in% names(algnmt) && any(algnmt_summary$start > algnmt_summary$end)) {
       # split the plotting of line_segment
       # start to very last position
       plot <- plot + Gmisc::fastDoCall(ggplot2::geom_segment, args = c(line_args,
@@ -568,6 +568,7 @@ algnmt_plot <- function(algnmt,
     max.pos <- algnmt %>% dplyr::filter(!!rlang::sym(seq_col) != "-") %>% dplyr::filter(!is.na(!!rlang::sym(seq_col))) %>% dplyr::filter(!!rlang::sym(name_col) != subject_name) %>% dplyr::slice_max(order_by = !!rlang::sym(pos_col), n = 1) %>% dplyr::pull(!!rlang::sym(pos_col))
     plot <- plot + ggplot2::geom_vline(xintercept = c(min.pos, max.pos), linetype = "dashed")
   }
+
 
   return(plot)
 }
