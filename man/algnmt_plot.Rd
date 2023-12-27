@@ -11,7 +11,7 @@ algnmt_plot(
   tile.border.on.NA = F,
   text = F,
   line = F,
-  line_args = list(linewidth = 0.2, color = "black"),
+  line_args = list(linewidth = 0.1, color = "black"),
   theme = ggplot2::theme_bw(),
   theme_args = list(panel.grid = ggplot2::element_blank()),
   pattern_lim_size = 0,
