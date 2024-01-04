@@ -55,8 +55,9 @@ get_seqs_from_feature_df <- function(feature_df,
   sequences <- NULL
   if ("sequences" %in% return) {
     # concat the sequence from segments
-    sequences <- purrr::pmap(list(x = boundaries, revcomp = feature_df$complement,
-                                  value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
+    # browser() with "NC_006273.2", check index 878. length of x is 1 - how to handle?
+    sequences <- purrr::pmap(list(x = boundaries[878], revcomp = feature_df$complement[878],
+                                  value = feature_df$value[878], range = feature_df$range[878]), function(x,revcomp,value,range) {
                                     seq <- unlist(lapply(x, function(y) {
                                       if (y[1] > y[2]) {
                                         # exon 1 is at later position as first one
