@@ -31,10 +31,17 @@ get_seqs_from_feature_df <- function(feature_df,
   if (missing(origin)) {
     stop("origin sequence has to be provided.")
   }
+  if (is.null(origin)) {
+    stop("origin sequence is NULL.")
+  }
+  if (is.na(origin)) {
+    stop("origin sequence is NA")
+  }
 
-  # how to handle those symbols from NCBI actually?
+  # ">" (greater than): The feature extends beyond the specified coordinate, but the exact endpoint is uncertain and likely to be further downstream or to the right.
+  # "<" (less than): The feature extends before the specified coordinate, but the exact starting point is uncertain and likely to be further upstream or to the left.
   if (any(grepl("<|>", feature_df$range))) {
-    message("'<' or '>' found in range column. Those will be removed.")
+    message("'<' or '>' found in range column. These indicate uncertainty in feature boundaries. Will remove those and stick to the suggested boundary.")
   }
 
   # prepare boundaries
@@ -55,18 +62,27 @@ get_seqs_from_feature_df <- function(feature_df,
   sequences <- NULL
   if ("sequences" %in% return) {
     # concat the sequence from segments
-    # browser() with "NC_006273.2", check index 878. length of x is 1 - how to handle?
-    sequences <- purrr::pmap(list(x = boundaries[878], revcomp = feature_df$complement[878],
-                                  value = feature_df$value[878], range = feature_df$range[878]), function(x,revcomp,value,range) {
+    sequences <- purrr::pmap(list(x = boundaries,
+                                  revcomp = feature_df$complement,
+                                  value = feature_df$value,
+                                  range = feature_df$range), function(x,revcomp,value,range) {
                                     seq <- unlist(lapply(x, function(y) {
+                                      if (length(y) == 2) {
+                                        substr(origin, y[1], y[2])
+                                      } else {
+                                        substr(origin, y[1], y[1])
+                                      }
+                                    }))
+
+                                    'seq <- unlist(lapply(x, function(y) {
                                       if (y[1] > y[2]) {
                                         # exon 1 is at later position as first one
-                                        return(paste0(substr(origin, y[1], nchar(origin)), substr(origin, 1, y[2])))
+                                        #return(paste0(substr(origin, y[1], nchar(origin)), substr(origin, 1, y[2])))
                                       } else {
                                         # exon 1 at smallest position
                                         return(substr(origin, y[1], y[2]))
                                       }
-                                    }))
+                                    }))'
                                     if (revcomp && make_revcomp) {
                                       seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
                                       seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
@@ -93,61 +109,83 @@ get_seqs_from_feature_df <- function(feature_df,
     }
   }
 
-  dfs <- purrr::pmap(list(x = boundaries, revcomp = feature_df$complement,
-                          value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
-                            seq <- unlist(lapply(x, function(y) substr(origin, y[1], y[2])))
-                            if (revcomp && make_revcomp) {
-                              seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
-                              seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
-                            }
-                            seq <- paste(seq, collapse = "")
-                            df <- data.frame(position = unlist(seq2(sapply(x, "[", 1), sapply(x, "[", 2)), use.names = F), seq = strsplit(seq, "")[[1]])
-                            names(df)[2] <- value
-                            return(df)
-                          })
-  df0 <- data.frame(position = seq(1, nchar(origin)), origin = strsplit(origin, "")[[1]]) # origin column
-  dfs <- join_chunkwise(data_frame_list = dfs,
-                        join_fun = dplyr::full_join,
-                        join_by = "position",
-                        max_final_size = 5)
-  df0 <- purrr::reduce(c(list(df0), dfs), dplyr::left_join, by = "position")
-
-  if ("change_pattern" %in% names(compare_seq_df_long_args) || "change_ref" %in% names(compare_seq_df_long_args)) {
-    df0_long <- tidyr::pivot_longer(df0, -position, names_to = "seq.name", values_to = "seq")
-    df0_long <- do.call(compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long = df0_long, ref = "origin", seq_original = NULL)))
-    df0 <- tidyr::pivot_wider(df0_long, values_from = seq, names_from = seq.name)
-  }
-  df0 <- list(df0)
-
   df0_long <- NULL
-  if ("df_long" %in% return) {
-    df0_long <- purrr::map(df0, function(x) tidyr::pivot_longer(x, cols = -position, names_to = "seq.name", values_to = "seq"))
-    # attach a column defining start and end position
-    start_end_boundaries_df <- stack(lapply(boundaries, function(x) c(x[[1]][1], unlist(x)[length(unlist(x))])))
-    names(start_end_boundaries_df) <- c("position", "seq.name")
-    start_end_boundaries_df$seq.name <- as.character(start_end_boundaries_df$seq.name)
-    start_end_boundaries_df <- rbind(start_end_boundaries_df, data.frame(seq.name = c("origin", "origin"), position = c(1,nchar(unname(origin)))))
-    start_end_boundaries_df$start_end <- c("start","end") # recycling, every second position is start or end, respectively
-    df0_long <- purrr::map(df0_long, function(x) dplyr::left_join(x, start_end_boundaries_df, by = c("position" = "position", "seq.name" = "seq.name")))
-    if (order_features) {
-      df0_long <- purrr::map(df0_long, function(x) {
-        x$seq.name <- factor(x$seq.name, levels = names(df0[[1]])[-which(names(df0[[1]]) == "position")]) # do it like this, with names of df0[[1]], in case duplicate column names have been altered; order should have been maintained as defined at the beginning
-        return(x)
-      })
-    } else {
-      df0_long <- purrr::map(df0_long, function(x) {
-        x$seq.name <- as.factor(x$seq.name)
-        return(x)
-      })
+  df0_wide <- NULL
+  if ("df_wide" %in% return || "df_long" %in% return) {
+    # maybe use data.table here to increase performance for large number of features and large genomes?
+    df0_wide <- purrr::pmap(list(x = boundaries, revcomp = feature_df$complement,
+                            value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
+                              seq <- unlist(lapply(x, function(y) substr(origin, y[1], y[2])))
+                              if (revcomp && make_revcomp) {
+                                seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
+                                seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
+                              }
+                              seq <- paste(seq, collapse = "")
+                              df <- data.frame(position = unlist(igsc:::seq2(sapply(x, "[", 1), sapply(x, "[", 2)), use.names = F), seq = strsplit(seq, "")[[1]])
+                              names(df)[2] <- value
+                              return(df)
+                            })
+
+    ## for many features and a large genome this takes quite some time
+    message("Joining ", length(df0_wide), " features to a ", nchar(origin), " position long origin sequence.")
+
+    df0_wide2 <- data.frame(matrix(nrow = nchar(origin), ncol = nrow(feature_df) + 2)) # +1 for position, +1 for origin
+    names(df0_wide2) <- c("position", "origin", names(df0_wide))
+    df0_wide2$position <- seq(1, nchar(origin))
+    df0_wide2$origin <- strsplit(origin, "")[[1]]
+    for (i in names(df0_wide)) {
+      df0_wide2[[i]] <- c(rep(NA, df0_wide[[i]][,1][1]-1),
+                   df0_wide[[i]][[i]],
+                   rep(NA, (nchar(origin)-(rev(df0_wide[[i]][,1])[1]))))
+    }
+    df0_wide <- df0_wide2
+    rm(df0_wide2)
+
+    'df0_wide <- join_chunkwise(data_frame_list = df0_wide,
+                          join_fun = dplyr::full_join,
+                          join_by = "position")
+    df0_wide <- dplyr::left_join(data.frame(position = seq(1, nchar(origin)), origin = strsplit(origin, "")[[1]]), # origin column,
+                                 purrr::reduce(df0_wide, dplyr::full_join, by = "position"),
+                                 by = "position")'
+
+
+    if ("change_pattern" %in% names(compare_seq_df_long_args) || "change_ref" %in% names(compare_seq_df_long_args)) {
+      df0_long <- tidyr::pivot_longer(df0_wide, -position, names_to = "seq.name", values_to = "seq")
+      df0_long <- do.call(compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long = df0_long, ref = "origin", seq_original = NULL)))
+      df0_wide <- tidyr::pivot_wider(df0_long, values_from = seq, names_from = seq.name)
+    }
+    df0_wide <- list(df0_wide)
+
+    df0_long <- NULL
+    if ("df_long" %in% return) {
+      df0_long <- purrr::map(df0_wide, function(x) tidyr::pivot_longer(x, cols = -position, names_to = "seq.name", values_to = "seq"))
+      # attach a column defining start and end position
+      start_end_boundaries_df <- stack(lapply(boundaries, function(x) c(x[[1]][1], unlist(x)[length(unlist(x))])))
+      names(start_end_boundaries_df) <- c("position", "seq.name")
+      start_end_boundaries_df$seq.name <- as.character(start_end_boundaries_df$seq.name)
+      start_end_boundaries_df <- rbind(start_end_boundaries_df, data.frame(seq.name = c("origin", "origin"), position = c(1,nchar(unname(origin)))))
+      start_end_boundaries_df$start_end <- c("start","end") # recycling, every second position is start or end, respectively
+      df0_long <- purrr::map(df0_long, function(x) dplyr::left_join(x, start_end_boundaries_df, by = c("position" = "position", "seq.name" = "seq.name")))
+      if (order_features) {
+        df0_long <- purrr::map(df0_long, function(x) {
+          x$seq.name <- factor(x$seq.name, levels = names(df0[[1]])[-which(names(df0[[1]]) == "position")]) # do it like this, with names of df0[[1]], in case duplicate column names have been altered; order should have been maintained as defined at the beginning
+          return(x)
+        })
+      } else {
+        df0_long <- purrr::map(df0_long, function(x) {
+          x$seq.name <- as.factor(x$seq.name)
+          return(x)
+        })
+      }
+    }
+
+    if (!"df_wide" %in% return) {
+      df0_wide <- NULL
     }
   }
 
-  if (!"df_wide" %in% return) {
-    df0 <- NULL
-  }
-
   # df0 and df0_long being list is remaining from previous procedure
-  return(list(sequences = sequences, df_wide = df0[[1]], df_long = df0_long[[1]]))
+  return(list(sequences = sequences, df_wide = df0_wide[[1]], df_long = df0_long[[1]]))
 }
 
 any_false <- function(x) {

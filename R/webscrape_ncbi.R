@@ -1,22 +1,36 @@
 #' Scrape data from NCBI nucleotide pages
 #'
 #' @param accession accession number to get data from
+#' @param origin provide origin manually
 #'
 #' @return
 #' @export
 #'
 #' @examples
-webscrape_ncbi <- function(accession) {
+webscrape_ncbi <- function(accession,
+                           origin = NULL) {
+  if (missing(accession)) {
+    stop("accession is missing.")
+  }
+  if (is.null(accession)) {
+    stop("accession is NULL")
+  }
+  if (is.na(accession)) {
+    stop("accession is NA")
+  }
+
   ncbi_text <- rentrez::entrez_fetch("nucleotide", accession, rettype = "text")
 
   # check ncbi_text ?
 
-  if (!grepl("ORIGIN", ncbi_text, ignore.case = F)) {
-    message("ORIGIN not found in text from NCBI.")
-    origin <- NULL
-  } else {
-    origin <- get_origin(x = ncbi_text)
-    names(origin) <- accession
+  if (is.null(origin)) {
+    if (!grepl("ORIGIN", ncbi_text, ignore.case = F)) {
+      message("ORIGIN not found in text from NCBI.")
+      origin <- NULL
+    } else {
+      origin <- get_origin(x = ncbi_text)
+      names(origin) <- accession
+    }
   }
 
   if (!grepl("FEATURES", ncbi_text, ignore.case = F)) {
@@ -59,7 +73,10 @@ get_features <- function(x) {
 
   seq <- strsplit(x, "FEATURES", fixed = T)[[1]][2]
   seq <- strsplit(seq, "ORIGIN", fixed = T)[[1]]
-  seq <- seq[-length(seq)] # remove last index
+  if (length(seq) > 1) {
+    # when and when not??
+    seq <- seq[-length(seq)] # remove last index
+  }
   seqs <- strsplit(seq, "\n")[[1]][-1]
   seqs <- fix_lines2(z = seqs)
   seqs <- trimws(gsub(" {1,}", " ", seqs))
