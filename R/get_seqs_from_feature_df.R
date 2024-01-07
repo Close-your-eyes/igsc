@@ -37,6 +37,9 @@ get_seqs_from_feature_df <- function(feature_df,
   if (is.na(origin)) {
     stop("origin sequence is NA")
   }
+  if (nrow(feature_df) == 0) {
+    stop("feature_df has no rows.")
+  }
 
   # ">" (greater than): The feature extends beyond the specified coordinate, but the exact endpoint is uncertain and likely to be further downstream or to the right.
   # "<" (less than): The feature extends before the specified coordinate, but the exact starting point is uncertain and likely to be further upstream or to the left.
@@ -114,22 +117,22 @@ get_seqs_from_feature_df <- function(feature_df,
   if ("df_wide" %in% return || "df_long" %in% return) {
     # maybe use data.table here to increase performance for large number of features and large genomes?
     df0_wide <- purrr::pmap(list(x = boundaries, revcomp = feature_df$complement,
-                            value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
-                              seq <- unlist(lapply(x, function(y) substr(origin, y[1], y[2])))
-                              if (revcomp && make_revcomp) {
-                                seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
-                                seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
-                              }
-                              seq <- paste(seq, collapse = "")
-                              df <- data.frame(position = unlist(igsc:::seq2(sapply(x, "[", 1), sapply(x, "[", 2)), use.names = F), seq = strsplit(seq, "")[[1]])
-                              names(df)[2] <- value
-                              return(df)
-                            })
+                                 value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
+                                   seq <- unlist(lapply(x, function(y) substr(origin, y[1], y[2])))
+                                   if (revcomp && make_revcomp) {
+                                     seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
+                                     seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
+                                   }
+                                   seq <- paste(seq, collapse = "")
+                                   df <- data.frame(position = unlist(igsc:::seq2(sapply(x, "[", 1), sapply(x, "[", 2)), use.names = F), seq = strsplit(seq, "")[[1]])
+                                   names(df)[2] <- value
+                                   return(df)
+                                 })
 
     ## for many features and a large genome this takes quite some time
     message("Joining ", length(df0_wide), " features to a ", nchar(origin), " position long origin sequence.")
 
-    df0_wide2 <- data.frame(matrix(nrow = nchar(origin), ncol = nrow(feature_df) + 2)) # +1 for position, +1 for origin
+    '  df0_wide2 <- data.frame(matrix(nrow = nchar(origin), ncol = nrow(feature_df) + 2)) # +1 for position, +1 for origin
     names(df0_wide2) <- c("position", "origin", names(df0_wide))
     df0_wide2$position <- seq(1, nchar(origin))
     df0_wide2$origin <- strsplit(origin, "")[[1]]
@@ -139,15 +142,14 @@ get_seqs_from_feature_df <- function(feature_df,
                    rep(NA, (nchar(origin)-(rev(df0_wide[[i]][,1])[1]))))
     }
     df0_wide <- df0_wide2
-    rm(df0_wide2)
+    rm(df0_wide2)'
 
-    'df0_wide <- join_chunkwise(data_frame_list = df0_wide,
-                          join_fun = dplyr::full_join,
-                          join_by = "position")
+    df0_wide <- join_chunkwise(data_frame_list = df0_wide,
+                               join_fun = dplyr::full_join,
+                               join_by = "position")
     df0_wide <- dplyr::left_join(data.frame(position = seq(1, nchar(origin)), origin = strsplit(origin, "")[[1]]), # origin column,
                                  purrr::reduce(df0_wide, dplyr::full_join, by = "position"),
-                                 by = "position")'
-
+                                 by = "position")
 
     if ("change_pattern" %in% names(compare_seq_df_long_args) || "change_ref" %in% names(compare_seq_df_long_args)) {
       df0_long <- tidyr::pivot_longer(df0_wide, -position, names_to = "seq.name", values_to = "seq")
