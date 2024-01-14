@@ -157,7 +157,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   # write original names into alignments; when the object cycles through C-code (with altered names) certain symbols (maybe like asterisk (*)) may cause problems.
   pa@pattern@unaligned@ranges@NAMES <- original_names[pa@pattern@unaligned@ranges@NAMES]
 
-
   df2 <- prep_df_for_algnmt_plot(df = df,
                                  subject_name = names(subject),
                                  pattern_names = names(patterns),
@@ -251,7 +250,7 @@ prep_df_for_algnmt_plot <- function(df,
   #unname(c(original_names[1], original_names[-1][ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))
 
   if (!is.null(pattern_groups)) {
-    pattern_groups <- c(stats::setNames("subject", subject_name), pattern_groups)
+    pattern_groups <- c(stats::setNames(subject_name, subject_name), pattern_groups) # c(stats::setNames("subject", subject_name), pattern_groups)
     df$pattern.group <- pattern_groups[df$seq.name]
     df$pattern.group <- factor(df$pattern.group, levels = unique(pattern_groups))
   }
@@ -287,7 +286,8 @@ prep_subject_and_patterns <- function(subject,
   # handle list of patterns
   patterns_list <- NULL
   pattern_groups <- NULL
-  if (is.list(patterns) && length(patterns) > 1 && !all(lengths(patterns) == 1)) {
+  # why was && length(patterns) > 1 needed? why not have one pattern group only?
+  if (is.list(patterns) && !all(lengths(patterns) == 1)) { # && length(patterns) > 1
     patterns <- patterns[which(!sapply(patterns, is.null))]
     patterns <- patterns[which(!sapply(sapply(patterns, is.na, simplify = F), all))]
 
@@ -301,7 +301,7 @@ prep_subject_and_patterns <- function(subject,
     }
     pattern_groups <- lapply(patterns_list, names)
     pattern_groups <- stats::setNames(as.character(stack(pattern_groups)$ind), stack(pattern_groups)$values)
-  } else if (is.list(patterns) && length(patterns) > 1 && all(lengths(patterns) == 1)) {
+  } else if (is.list(patterns) && all(lengths(patterns) == 1)) { # && length(patterns) > 1
     # each list entry if length = 1
     patterns <- unlist(patterns)
   } else if (is.list(patterns)) {
