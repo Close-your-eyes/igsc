@@ -137,12 +137,12 @@ algnmt_plot <- function(algnmt,
       }
       y_group_col <- NULL
     }
-  } else if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject")) {
+  } else if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject") || methods::is(algnmt, "list")) {
     # from Biostrings::pairwiseAlignment
-    if (methods::is(pairwiseAlignment, "PairwiseAlignmentsSingleSubject")) {
-      temp <- pairwiseAlignment[1]@pattern@unaligned
-    } else if (methods::is(pairwiseAlignment, "list")) {
-      temp <- pairwiseAlignment[[1]]@pattern@unaligned
+    if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject")) {
+      temp <- algnmt[1]@pattern@unaligned
+    } else if (methods::is(algnmt, "list")) {
+      temp <- algnmt[[1]]@pattern@unaligned
     }
     if (methods::is(temp, "QualityScaledDNAStringSet") || methods::is(temp, "QualityScaledRNAStringSet")) {
       algnmt_type <- "NT"
@@ -608,8 +608,16 @@ pa_to_df <- function(pa, verbose) {
   }
   pattern_name <- ifelse(is.null(pa@pattern@unaligned@ranges@NAMES), "pattern", pa@pattern@unaligned@ranges@NAMES)
   subject_name <- ifelse(is.null(pa@subject@unaligned@ranges@NAMES), "subject", pa@subject@unaligned@ranges@NAMES)
-  return(xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)),
-                                    nm = c(pattern_name, subject_name))))
+
+
+  # how to obtain complete patterns - answer in multiple seq align fun?
+  #Biostrings::pattern(pa)
+  #xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)), nm = c(pattern_name, subject_name)))
+ # xstringfun(stats::setNames(c("AAAA--", "CCCCCC"), nm = c(pattern_name, subject_name)))
+
+
+  return(XStringSet_to_df(xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)),
+                                                     nm = c(pattern_name, subject_name)))))
 }
 
 .integer_breaks <- function(n = 5, ...) {
