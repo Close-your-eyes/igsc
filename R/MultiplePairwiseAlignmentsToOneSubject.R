@@ -57,7 +57,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                                                                    insertion_as = "base"),
                                                    pairwiseAlignment_args = list(),
                                                    algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
-                                                   order_subject_ranges = F) {
+                                                   order_subject_ranges = F,
+                                                   verbose = T) {
 
   ## if a pattern has no mismatches, or only a maximum number of them, then could be used to find multiple matches
   # restrict that to type = "local" or type = "global-local"
@@ -97,7 +98,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   #assigns: subject, patterns, seq_type, original_names, pattern_original_order, pattern_groups
   prep_subject_and_patterns(subject = subject,
                             patterns = patterns,
-                            seq_type = seq_type)
+                            seq_type = seq_type,
+                            verbose = verbose)
 
   # check for non-DNA characters first
   #assigns: pa, patterns, pattern_indel_inducing, subject_inds_indel
@@ -261,7 +263,8 @@ prep_df_for_algnmt_plot <- function(df,
 
 prep_subject_and_patterns <- function(subject,
                                       patterns,
-                                      seq_type) {
+                                      seq_type,
+                                      verbose) {
 
   if (length(subject) > 1) {
     stop("Please provide only one subject as DNAString, DNAStringSet or character.")
@@ -312,23 +315,24 @@ prep_subject_and_patterns <- function(subject,
   }
 
   # make this a separate fun somewhen?
-  if (anyDuplicated(patterns)) {
-    if (is.null(patterns_list)) {
-      message("These pattern are duplicates: ", paste((unique(sapply(which(duplicated(patterns)), function(x) which(patterns[x] == patterns)))), collapse = ", "))
-    } else {
-      message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
-      # similar fun as above but cylce through list and return list indices on top
-      '      tt<-sapply(which(duplicated(patterns)), function(x) {
+  if (verbose) {
+    if (anyDuplicated(patterns)) {
+      if (is.null(patterns_list)) {
+        message("These pattern are duplicates: ", paste((unique(sapply(which(duplicated(patterns)), function(x) which(patterns[x] == patterns)))), collapse = ", "))
+      } else {
+        message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
+        # similar fun as above but cylce through list and return list indices on top
+        '      tt<-sapply(which(duplicated(patterns)), function(x) {
         unlist(purrr::discard(sapply(stats::setNames(seq_along(patterns_list), seq_along(patterns_list)), function(y) {
           which(patterns[x] == patterns_list[[y]])
         }), function(z) length(z) == 0))
       }, simplify = F)
       paste(tt)'
 
+      }
+      message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
     }
-    message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
   }
-
 
   ## pull seqs from subject and patterns, then run guess_type
   unique_letters <- unique(toupper(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), "")))))
