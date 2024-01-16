@@ -94,7 +94,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
 
-
   #assigns: subject, patterns, seq_type, original_names, pattern_original_order, pattern_groups
   prep_subject_and_patterns(subject = subject,
                             patterns = patterns,
@@ -483,27 +482,40 @@ check_for_indel_induction <- function(pa,
     #indel_lists <- Biostrings::nindel(pa) # this does not discriminate pattern and subject
     #indel_list <- stats::setNames(apply(cbind(indel_lists@insertion, indel_lists@deletion), 1, sum), names(patterns))
     # loop over pa elements to create list of matrices, then tell which pattern had gap in subject or pattern
-    indel_mat_pattern <- lapply(seq_along(pa), function(z) as.matrix(pa[z]@pattern@indel@unlistData))
-    indel_mat_subject <- lapply(seq_along(pa), function(z) as.matrix(pa[z]@subject@indel@unlistData))
 
-    # this if FYI
-    pattern_inds_indel <- which(unlist(lapply(indel_mat_pattern, nrow)) > 0)
-    if (length(pattern_inds_indel) > 0) {
-      message(sum(pattern_inds_indel > 0), " patterns got indels. Indices: ", paste(pattern_inds_indel, collapse = ", "))
-    }
 
-    subject_inds_indel <- which(unlist(lapply(indel_mat_subject, nrow)) > 0)
-    subject_inds_indel_pass <- which(unlist(lapply(indel_mat_subject, nrow)) == 0)
-    if (any(subject_inds_indel > 0)) {
-      message(sum(subject_inds_indel > 0), " patterns caused indels in subject. Indices: ", paste(subject_inds_indel, collapse = ", "))
-      if (rm_indel_inducing_pattern) {
-        message("Those are removed as rm_indel_inducing_pattern = T. They are returned as pattern_indel_inducing.")
-        pattern_indel_inducing <- patterns[subject_inds_indel]
-        patterns <- patterns[subject_inds_indel_pass]
-        pa <- pa[subject_inds_indel_pass]
-        #subject_inds_indel <- subject_inds_indel[which(subject_inds_indel == 0)] # needed?
+    ## how to speed up ???
+    if (nrow(as.matrix(pa@pattern@indel@unlistData)) > 0) {
+      pattern_indel_list <- pa@pattern@indel
+      indel_mat_pattern <- purrr::map(seq_along(pattern_indel_list), function(z) as.matrix(pattern_indel_list[z]@unlistData), .progress = F)
+      # this if FYI
+      pattern_inds_indel <- which(unlist(lapply(indel_mat_pattern, nrow)) > 0)
+      if (length(pattern_inds_indel) > 0) {
+        message(sum(pattern_inds_indel > 0), " patterns got indels. Indices: ", paste(pattern_inds_indel, collapse = ", "))
       }
     }
+
+    if (nrow(as.matrix(pa@subject@indel@unlistData)) > 0) {
+      subject_indel_list <- pa@subject@indel
+      indel_mat_subject <- purrr::map(seq_along(subject_indel_list), function(z) as.matrix(subject_indel_list[z]@unlistData), .progress = F)
+
+      subject_inds_indel <- which(unlist(lapply(indel_mat_subject, nrow)) > 0)
+      subject_inds_indel_pass <- which(unlist(lapply(indel_mat_subject, nrow)) == 0)
+      if (any(subject_inds_indel > 0)) {
+        message(sum(subject_inds_indel > 0), " patterns caused indels in subject. Indices: ", paste(subject_inds_indel, collapse = ", "))
+        if (rm_indel_inducing_pattern) {
+          message("Those are removed as rm_indel_inducing_pattern = T. They are returned as pattern_indel_inducing.")
+          pattern_indel_inducing <- patterns[subject_inds_indel]
+          patterns <- patterns[subject_inds_indel_pass]
+          pa <- pa[subject_inds_indel_pass]
+          #subject_inds_indel <- subject_inds_indel[which(subject_inds_indel == 0)] # needed?
+        }
+      }
+    }
+
+    #indel_mat_pattern <- purrr::map(seq_along(pa), function(z) as.matrix(pa[z]@pattern@indel@unlistData))
+    #indel_mat_subject <- lapply(seq_along(pa), function(z) as.matrix(pa[z]@subject@indel@unlistData))
+
   }
 
   assign("pa", pa, envir = parent.frame())
