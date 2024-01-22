@@ -15,6 +15,17 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path, fastq_path_r2 = r2_path, min_len = 40, mc.cores = 8)
+#' r1_table <- table(reads_paired[["reads"]][["r1"]][["seq"]], useNA = "no")
+#' r2_table <- table(reads_paired[["reads"]][["r2"]][["seq"]], useNA = "no")
+#' read_align_list <- align_reads(r1 = reads_paired[["reads"]][["r1"]][["seq"]],
+#'   r2 = reads_paired[["reads"]][["r2"]][["seq"]],
+#'   r1_table = r1_table,
+#'   r2_table = r2_table,
+#'   ref_seq_list = list(ref1 = c("ATCGTGCTG", "ACTTTTGGGCTTAAA"), ref2 = c("AAAGGTTTCCCGTC", "TTGGCCAA", "GGCTA")),
+#'   mc.cores = 2)
+#' }
 align_reads <- function(r1,
                         r2,
                         r1_table = NULL,
