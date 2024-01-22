@@ -4,10 +4,12 @@
 \alias{webscrape_ncbi}
 \title{Scrape data from NCBI nucleotide pages}
 \usage{
-webscrape_ncbi(accession)
+webscrape_ncbi(accession, origin = NULL)
 }
 \arguments{
 \item{accession}{accession number to get data from}
+
+\item{origin}{provide origin manually}
 }
 \description{
 Scrape data from NCBI nucleotide pages

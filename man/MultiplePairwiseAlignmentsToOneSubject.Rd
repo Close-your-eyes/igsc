@@ -20,7 +20,8 @@ MultiplePairwiseAlignmentsToOneSubject(
     insertion_as = "base"),
   pairwiseAlignment_args = list(),
   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
-  order_subject_ranges = F
+  order_subject_ranges = F,
+  verbose = T
 )
 }
 \arguments{
