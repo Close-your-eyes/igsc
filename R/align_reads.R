@@ -1,10 +1,10 @@
 #' Align reads r1 and r2 to a set of reference sequences
 #'
-#' @param r1
-#' @param r2
-#' @param r1_table
-#' @param r2_table
-#' @param ref_seq_list
+#' @param r1 vector of r1 reads from paired sequencing, must be same length as r2
+#' @param r2 see r1
+#' @param r1_table optional, table of r1 generated with table(r1, useNA = "no")
+#' @param r2_table see r1_table
+#' @param ref_seq_list names list of vectors of reference seqences to align r1 and r2 to
 #' @param mapply_fun
 #' @param min_reads_to_plot
 #' @param max_reads_to_plot
@@ -59,9 +59,27 @@ align_reads <- function(r1,
       message("some r1 are not in names of r1_table.")
     }
   }
-  #tables <- list(r1 = r1_table, r2 = r2_table)
 
-  ## unnest df not needed - remove!
+  if (is.null(names(ref_seq_list))) {
+    stop("ref_seq_list does not have names.")
+  }
+
+  if (!is.numeric(min_reads_to_plot) || !is.numeric(max_reads_to_plot)) {
+    stop("min_reads_to_plot and max_reads_to_plot have to be numeric.")
+  }
+  if (min_reads_to_plot < 0 || max_reads_to_plot < 0) {
+    stop("min_reads_to_plot and max_reads_to_plot have be positive integers.")
+  }
+  if (max_reads_to_plot <= min_reads_to_plot) {
+    stop("max_reads_to_plot should be greate than min_reads_to_plot")
+  }
+
+  if (!is.numeric(maxmis)) {
+    stop("maxmis has to be numeric.")
+  }
+  if (maxmis < 0) {
+    stop("maxmis has to be zero or a positive integer.")
+  }
 
   # rrr <- r1
   # revcomp <- F
