@@ -19,6 +19,9 @@
 #' @export
 #'
 #' @examples
+#' #' \dontrun{
+#' reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path, fastq_path_r2 = r2_path, vroom_lines_args = list(progress = T, skip_empty_rows = T), min_len = 40, mc.cores = 8)
+#' }
 read_paired_reads <- function(fastq_path_r1,
                               fastq_path_r2,
                               min_len = NULL,
@@ -26,7 +29,7 @@ read_paired_reads <- function(fastq_path_r1,
                               filter_paired = F,
                               quality_filter = T,
                               max_freq_below_Q30 = 0.1,
-                              vroom_lines_args = list(progress = F),
+                              vroom_lines_args = list(progress = F, skip_empty_rows = T),
                               mc.cores = 1) {
 
   # do not return qual_num - would also allow to make parallel computing easier
