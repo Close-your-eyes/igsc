@@ -168,10 +168,10 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
                                  pattern_groups = pattern_groups,
                                  compare_seq_df_long_args)
 
-  plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
-                                                       algnmt_type = seq_type,
-                                                       pairwiseAlignment = pa),
-                                                  algnmt_plot_args))
+  plot <- Gmisc::fastDoCall(igsc::algnmt_plot, args = c(list(algnmt = df2,
+                                                             algnmt_type = seq_type,
+                                                             pairwiseAlignment = pa),
+                                                        algnmt_plot_args))
 
 
   # c(min(sapply(names(patterns), function(x) min(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T), max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T)),
@@ -232,13 +232,13 @@ prep_df_for_algnmt_plot <- function(df,
                              matches_to_subject = matches_to_subject,
                              matches_to_pattern = matches_to_pattern)'
 
-  df <- Gmisc::fastDoCall(compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long =
-                                                                                         df %>%
-                                                                                         tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq"),
-                                                                                       ref = subject_name,
-                                                                                       pos_col = "position",
-                                                                                       seq_col = "seq",
-                                                                                       name_col = "seq.name")))
+  df <- Gmisc::fastDoCall(igsc::compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long =
+                                                                                               df %>%
+                                                                                               tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq"),
+                                                                                             ref = subject_name,
+                                                                                             pos_col = "position",
+                                                                                             seq_col = "seq",
+                                                                                             name_col = "seq.name")))
   df <-
     df %>%
     #tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq") %>% # this is now down above
@@ -628,28 +628,40 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
   #subject.ranges.unique2 <- IRanges::IRangesList(subject.ranges.unique)
   #subject.ranges.unique3 <- unlist(subject.ranges.unique2)
   #tt <- findOverlaps(subject.ranges.unique2, subject.ranges.unique2)
-  is_subset <- function(x, y) {
-    all(x %in% y)
-  }
-  subset_inds <- function(lst) {
-    indices_to_remove <- logical(length(lst))
-    for (i in seq_along(lst)) {
-      for (j in seq_along(lst)) {
-        if (i != j && !indices_to_remove[j]) {
-          if (is_subset(lst[[i]], lst[[j]])) {
+  if (length(subject.ranges.unique) > 1) {
+    is_subset <- function(x, y) {
+      all(x %in% y)
+    }
+    min_ind <- purrr::map_int(subject.ranges.unique, min)
+    max_ind <- purrr::map_int(subject.ranges.unique, max)
+    lens <- purrr::map_int(subject.ranges.unique, length)
+    subset_inds <- function(lst) {
+      indices_to_remove <- logical(length(lst))
+      for (i in seq_along(lst)) {
+        for (j in seq_along(lst)) {
+          if (i != j && max_ind[i] > min_ind[j] && min_ind[i] >= min_ind[j] && max_ind[i] <= max_ind[j] && !indices_to_remove[j]) {
+            # this logic may avoid to test if every single element of i is in j.
+            # uniqueness of subject.ranges.unique is guaranteed above
+            # subject.ranges.unique should be consecutive
+
             indices_to_remove[i] <- TRUE
             break
+            '            if (is_subset(x = lst[[i]], y = lst[[j]])) {
+              indices_to_remove[i] <- TRUE
+              break
+            }'
           }
         }
       }
+      return(indices_to_remove)
     }
-    return(indices_to_remove)
+    rm_inds <- subset_inds(lst = subject.ranges.unique)
+    subject.ranges.unique <- subject.ranges.unique[!rm_inds]
+    pa.unique <- pa.unique[!rm_inds]
   }
-  rm_inds <- subset_inds(subject.ranges.unique)
-  subject.ranges.unique <- subject.ranges.unique[rm_inds]
-  pa.unique <- pa.unique[rm_inds]
 
- ' if (length(subject.ranges.unique) > 1) {
+
+  ' if (length(subject.ranges.unique) > 1) {
     is.subset <- purrr::map_lgl(seq_along(subject.ranges.unique), function(i) {
       print(i)
       any(purrr::map_lgl(seq_along(subject.ranges.unique), function (j) {
@@ -691,6 +703,7 @@ paste_subject_seq <- function(subject,
 
   #sapply(subject.ranges.unique, min)
   #stringr::str_count(as.character(pa.unique@subject)[3], "-")
+
 
   # paste together the complete subject
   total.subject.seq <- stringr::str_sub(as.character(subject), 1, (min(subject.ranges.unique[[1]]) - 1))

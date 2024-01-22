@@ -171,7 +171,7 @@ read_paired_reads <- function(fastq_path_r1,
       split_sizes <- list(r1 = ceiling(length(reads[["r1"]][["qual"]])/mc.cores),
                           r2 = ceiling(length(reads[["r2"]][["qual"]])/mc.cores))
       b30_freq <- purrr::map(stats::setNames(c("r1", "r2"), c("r1", "r2")), function(x) {
-        unlist(parallel::mclapply(split(reads[[x]][["qual"]], ceiling(seq_along(reads[[x]][["qual"]])/split_size[[x]])),
+        unlist(parallel::mclapply(split(reads[[x]][["qual"]], ceiling(seq_along(reads[[x]][["qual"]])/split_sizes[[x]])),
                                   temp_fun,
                                   mc.cores = mc.cores))
       })

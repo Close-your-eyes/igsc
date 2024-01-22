@@ -6,8 +6,6 @@
 #' @param r2_table see r1_table
 #' @param ref_seq_list names list of vectors of reference seqences to align r1 and r2 to
 #' @param mapply_fun
-#' @param min_reads_to_plot
-#' @param max_reads_to_plot
 #' @param maxmis
 #' @param ...
 #'
@@ -32,8 +30,6 @@ align_reads <- function(r1,
                         r2_table = NULL,
                         ref_seq_list,
                         mapply_fun = parallel::mcmapply,
-                        min_reads_to_plot = 3,
-                        max_reads_to_plot = 200,
                         maxmis = 0,
                         ...) {
 
@@ -45,9 +41,9 @@ align_reads <- function(r1,
     stop("r1 and r2 are of different length.")
   }
 
-  # lapply_fun parallel::mclapply, lapply, purrr::map
+  # mapply_fun parallel::mcmapply, lapply, purrr::map2 ???
   # ... args to lapply_fun like mc.cores
-  lapply_fun <- match.fun(lapply_fun)
+  mapply_fun <- match.fun(mapply_fun)
 
 
   if (is.null(r1_table)) {
@@ -75,16 +71,6 @@ align_reads <- function(r1,
     stop("ref_seq_list does not have names.")
   }
 
-  if (!is.numeric(min_reads_to_plot) || !is.numeric(max_reads_to_plot)) {
-    stop("min_reads_to_plot and max_reads_to_plot have to be numeric.")
-  }
-  if (min_reads_to_plot < 0 || max_reads_to_plot < 0) {
-    stop("min_reads_to_plot and max_reads_to_plot have be positive integers.")
-  }
-  if (max_reads_to_plot <= min_reads_to_plot) {
-    stop("max_reads_to_plot should be greate than min_reads_to_plot")
-  }
-
   if (!is.numeric(maxmis)) {
     stop("maxmis has to be numeric.")
   }
@@ -98,12 +84,12 @@ align_reads <- function(r1,
   match_df_list <- purrr::map2(list(r1 = r1, r2 = r2), c(F,T), function(rrr, revcomp, ...) {
     # here, do not make r2 revcomp but the subjects
     message("aligning reads.")
-    match_df <- match_read_unpaired3(reads = rrr,
-                                     ref_seq_list = ref_seq_list,
-                                     revcomp_subject = revcomp,
-                                     maxmis = maxmis,
-                                     mapply_fun = mapply_fun, # purrr::map2 will not work due to argument passing, .x and .y, can this be fixed?
-                                     ...) # ...
+    match_df <- match_reads(reads = rrr,
+                            ref_seq_list = ref_seq_list,
+                            revcomp_subject = revcomp,
+                            maxmis = maxmis,
+                            mapply_fun = mapply_fun, # purrr::map2 will not work due to argument passing, .x and .y, can this be fixed?
+                            ...) # ...
     message("  done.")
     if (is.null(match_df)) {
       return(NULL)
@@ -113,9 +99,6 @@ align_reads <- function(r1,
     # return freq of unique reads?
     return(match_df)
   })
-
-  # remove NULL from lists
-  # TODO ??
 
   # add read sequences to data frame
   for (i in c("r1", "r2")) {
@@ -132,6 +115,9 @@ align_reads <- function(r1,
   ref_names <- setNames(ref_names, ref_names)
   r1_r2_intersect <- purrr::map(ref_names, function(ref_name) {
     if (!is.null(match_df_list[["r1"]][[ref_name]]) && !is.null(match_df_list[["r2"]][[ref_name]])) {
+      return(NULL)
+    }
+    if (!is.null(match_df_list[["r1"]][[ref_name]]) || !is.null(match_df_list[["r2"]][[ref_name]])) {
       paired <- intersect(match_df_list[["r1"]][[ref_name]]$read_ind, match_df_list[["r2"]][[ref_name]]$read_ind)
     } else {
       paired <- NULL
@@ -150,55 +136,6 @@ align_reads <- function(r1,
       return(NULL)
     }
   })
-  ## now use r1_r2_match_df for igsc::MultiplePairwiseAlignmentsToOneSubject
-  ## loop over all ref_seq which got reads aligned
-  #ref_seq_ind <- 1485
-
-  plot_list <- purrr::map(names(match_df_list[["r1_r2"]]), function(ref_name) {
-    ref_seq_ind_table <- table(match_df_list[["r1_r2"]][[ref_name]][["ref_seq_ind"]])
-    # min and max number of paired reads to plot per ref_seq_ind
-    inds_to_plot <- intersect(names(which(ref_seq_ind_table >= min_reads_to_plot)), names(which(ref_seq_ind_table <= max_reads_to_plot)))
-    plots <- purrr::map(setNames(inds_to_plot, inds_to_plot), function(ref_seq_ind) {
-      #print(ref_seq_ind)
-      temp <-
-        match_df_list[["r1_r2"]][[ref_name]] %>%
-        dplyr::filter(ref_seq_ind == !!ref_seq_ind) %>%
-        dplyr::group_by(read_seq_r1, read_seq_r2) %>%
-        dplyr::summarise(n = dplyr::n(), .groups = "drop")
-
-      # make r2 rev comp
-      temp$read_seq_r2[which(!is.na(temp$read_seq_r2))] <- revcompDNA(temp$read_seq_r2[which(!is.na(temp$read_seq_r2))])
-      reads_groups <- apply(temp, 1, function(z) c(z["read_seq_r1"], z["read_seq_r2"]), simplify = F)
-      names(reads_groups) <- as.character(seq(1, length(reads_groups), 1))
-      ## assign names to reads groups based on if any read is NA
-      r1_na <- sapply(reads_groups, function(z) is.na(z[["read_seq_r1"]]))
-      r2_na <- sapply(reads_groups, function(z) is.na(z[["read_seq_r2"]]))
-      if (length(temp_ind <- which(!r1_na & !r2_na)) > 0) {
-        names(reads_groups)[temp_ind] <- paste0("read_pair_", seq(1,length(temp_ind),1), "\n(n=", temp$n[temp_ind], ")")
-      }
-      if (length(temp_ind <- which(!r1_na & r2_na)) > 0) {
-        names(reads_groups)[temp_ind] <- paste0("r1_", seq(1,length(temp_ind),1), "\n(n=", temp$n[temp_ind], ")")
-      }
-      if (length(temp_ind <- which(r1_na & !r2_na)) > 0) {
-        names(reads_groups)[temp_ind] <- paste0("r2_", seq(1,length(temp_ind),1), "\n(n=", temp$n[temp_ind], ")")
-      }
-
-      # reorder
-      reads_groups <- c(reads_groups[which(grepl("pair", names(reads_groups)))],
-                        reads_groups[which(!grepl("pair", names(reads_groups)))])
-
-      plot_data <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
-                                                                patterns = reads_groups,
-                                                                type = "local",
-                                                                seq_type = "NT",
-                                                                verbose = F)
-      plot_data[["plot"]] <-
-        plot_data[["plot"]] +
-        labs(title = stringr::str_wrap(names(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)]), width = 40), y = NULL, x = NULL) +
-        theme(title = element_text(size = 6))
-      return(plot_data)
-    })
-  })
 
   # stats
   # attach summary statistic:
@@ -211,8 +148,13 @@ align_reads <- function(r1,
 
   r1_r2_unqiue_paired_n <- nrow(tidyr::drop_na(data.frame(r1 = r1, r2 = r2))) # length(which(!is.na(r1) & !is.na(r2)))
   r1_r2_unqiue_paired_distinct_n <- nrow(dplyr::distinct(tidyr::drop_na(data.frame(r1 = r1, r2 = r2))))
-  ## NULL?
-  r1_r2_match_df_paired <- purrr::map(match_df_list[["r1_r2"]], tidyr::drop_na)
+  r1_r2_match_df_paired <- purrr::map(match_df_list[["r1_r2"]], function(x) {
+    if (is.null(x)) {
+      return(NULL)
+    } else {
+      return(tidyr::drop_na(x))
+    }
+  })
 
   stat_df_wide <- purrr::map(ref_names, function(ref_name) {
     data.frame(r1__matches_total_n = ifelse(!is.null(match_df_list[["r1"]][[ref_name]]), nrow(match_df_list[["r1"]][[ref_name]]), NA),
@@ -240,9 +182,13 @@ align_reads <- function(r1,
   stat_df_long <- purrr::map(stat_df_wide, function(x) x %>% tidyr::pivot_longer(cols = names(.), names_to = "stat"))
   stat_df <- purrr::map(stat_df_long, function(x) x %>% tidyr::separate(col = stat, into = c("read", "stat"), sep = "__") %>% tidyr::pivot_wider(names_from = read, values_from = value))
 
+  #nulls <- names(which(purrr::map_lgl(r1_r2_match_df_paired, is.null)))
+  #stat_df_wide[nulls] <- NULL
+  #stat_df_long[nulls] <- NULL
+  #stat_df[nulls] <- NULL
+
   # what to return now?
-  read_matches <- list(plot_data = plot_list,
-                       match_df_nest = match_df_list,
+  read_matches <- list(match_df_list = match_df_list,
                        read_indices = r1_r2_intersect,
                        match_stats = list(wide = stat_df_wide,
                                           long = stat_df_long,
@@ -276,7 +222,218 @@ align_reads <- function(r1,
 
 }
 
+match_reads <- function(reads,
+                        ref_seq_list = NULL,
+                        revcomp_subject = F,
+                        maxmis = 0,
+                        mapply_fun = mapply,
+                        ...) {
+
+  # maxmis can be > 1 to be absolute or < 1 to define a fraction of mismatches allowed
+
+  # R2 reads have to be aligned reverse complement; I think it is quicker to make rev comp of the subjects, rather then the reads
+
+  if (is.null(ref_seq_list)) {
+    stop("ref_seq_list cannot be NULL.")
+  }
+
+  if (is.null(maxmis)) {
+    message("maxmis is NULL, will allow approx. 10 % mismatching bases per read to be aligned.")
+  }
+  if (maxmis < 0) {
+    maxmis <- 0
+    message("maxmis set to 0.")
+  }
+
+  read_lengths <- nchar(as.character(reads))
+  #hist(read_lengths)
+  #sum(read_lengths < 76)/length(read_lengths)
+  read_lengths_un <- sort(unique(read_lengths), decreasing = T)
+
+  # this returns one list entry for every read length
+  if (revcomp_subject) {
+    temp_fun <- function(x) {
+      Biostrings::reverseComplement(Biostrings::DNAStringSet(x))
+    }
+    subject_list <- lapply(ref_seq_list, temp_fun)
+  } else {
+    subject_list <- lapply(ref_seq_list, Biostrings::DNAStringSet)
+  }
+
+  # this is done quickly
+  read_pdict_list <- purrr::map(setNames(read_lengths_un, read_lengths_un), function(y) {
+    if (maxmis >= y-1) {
+      maxmis <- y-1
+    }
+    if (maxmis < 1) {
+      maxmis <- floor(y/(1/maxmis))
+    }
+    dict <- Biostrings::PDict(x = reads[which(read_lengths == y)], max.mismatch = maxmis)
+    attr(dict, "maxmis") <- maxmis
+    return(dict)
+  })
+
+  combs <- expand.grid(names(subject_list), names(read_pdict_list), stringsAsFactors = F)
+  inds_list <- mapply_fun(subject_ind = combs$Var1, pdict_ind = combs$Var2, function(subject_ind, pdict_ind) {
+    inds <- Biostrings::vwhichPDict(subject = subject_list[[subject_ind]],
+                                    pdict = read_pdict_list[[pdict_ind]],
+                                    max.mismatch = attr(read_pdict_list[[pdict_ind]], "maxmis"))
+    names(inds) <- seq_along(inds)
+    inds <- inds[which(lengths(inds) > 0)]
+    # original read index
+    inds <- lapply(inds, function(x) which(read_lengths == as.numeric(pdict_ind))[x])
+    return(inds)
+  }, ...)
+
+
+  names(inds_list) <- paste(combs$Var1, combs$Var2, sep = "__-__-__")
+  inds_list3 <- split(inds_list, sapply(strsplit(names(inds_list), "__-__-__"), "[", 1))
+  inds_list4 <- lapply(inds_list3, function(x) {
+    x <- x[which(lengths(x) > 0)]
+    if (length(x) == 0) {
+      return(NULL)
+    }
+    x <- dplyr::bind_rows(lapply(x, stack))
+    names(x) <- c("read_ind", "ref_seq_ind")
+    x$ref_seq_ind <- as.numeric(as.character(x$ref_seq_ind))
+    return(x)
+  })
+
+  # former alternative:
+'  inds_list2 <- purrr::discard(inds_list, ~length(.x) == 0)
+  if (length(inds_list2) == 0) {
+    return(NULL)
+  }
+  inds_list3 <- split(inds_list2, sapply(strsplit(names(inds_list2), "__-__-__"), "[", 1))
+  inds_list4 <- lapply(inds_list3, function(x) {
+    x <- dplyr::bind_rows(lapply(x, stack))
+    names(x) <- c("read_ind", "ref_seq_ind")
+    x$ref_seq_ind <- as.numeric(as.character(x$ref_seq_ind))
+    return(x)
+  })'
+
+  return(inds_list4)
+
+  ### run a bit more memory saving
+  ### but less parallel potential
+  'read_ind_with_matches <- parallel::mclapply(setNames(read_lengths_un, read_lengths_un), function(y) {
+    print(y)
+    if (maxmis < 0) {
+      maxmis <- 0
+      message("maxmis set to 0.")
+    }
+    if (maxmis >= y-1) {
+      maxmis <- y-1
+      message("maxmis set to y-1.")
+    }
+    if (maxmis < 1) {
+      maxmis <- floor(y/(1/maxmis))
+    }
+    read_pdict <- Biostrings::PDict(x = reads[which(read_lengths == y)], max.mismatch = maxmis)
+
+    # vcountPDict - this returns a matrix of n columns for n subjects and m rows for m reads_temp
+    # vwhichPDict - this returns a vector of indices which have matches
+    inds_list <- lapply(subject_list, function(subject) {
+      inds <- Biostrings::vwhichPDict(subject = subject, pdict = read_pdict, max.mismatch = maxmis)
+      names(inds) <- seq_along(inds)
+      inds <- inds[which(lengths(inds) > 0)]
+      # original read index
+      inds <- lapply(inds, function(x) which(read_lengths == y)[x])
+      return(inds)
+    })
+
+    return(inds_list)
+  }, ...)
+
+  tt <- lapply(setNames(names(ref_seq_list), names(ref_seq_list)), function(x) {
+    purrr::discard(purrr::map(read_ind_with_matches, `[[`, x), ~length(.x) == 0)
+  })
+  tt <- purrr::discard(tt, ~length(.x) == 0)
+  if (length(tt) == 0) {
+    return(NULL)
+  }
+  # discard again?
+  tt <- lapply(tt, function(x) {
+    x <- dplyr::bind_rows(lapply(x, stack))
+    names(x) <- c("read_ind", "ref_seq_ind")
+    x$ref_seq_ind <- as.numeric(as.character(x$ref_seq_ind))
+    return(x)
+  })
+  return(tt)'
+}
 
 revcompDNA <- function(x) {
   as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(x)))
 }
+
+
+
+plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
+                               min_reads_to_plot = 3,
+                               max_reads_to_plot = 300,
+                               ref_seq_list) {
+
+  if (!is.numeric(min_reads_to_plot) || !is.numeric(max_reads_to_plot)) {
+    stop("min_reads_to_plot and max_reads_to_plot have to be numeric.")
+  }
+  if (min_reads_to_plot < 0 || max_reads_to_plot < 0) {
+    stop("min_reads_to_plot and max_reads_to_plot have be positive integers.")
+  }
+  if (max_reads_to_plot <= min_reads_to_plot) {
+    stop("max_reads_to_plot should be greate than min_reads_to_plot")
+  }
+
+  ## now use r1_r2_match_df for igsc::MultiplePairwiseAlignmentsToOneSubject
+  ## loop over all ref_seq which got reads aligned
+  #ref_seq_ind <- 1485
+
+  plot_list <- purrr::map(stats::setNames(names(match_df_list), names(match_df_list)), function(ref_name) {
+    ref_seq_ind_table <- table(match_df_list[[ref_name]][["ref_seq_ind"]])
+    # min and max number of paired reads to plot per ref_seq_ind
+    inds_to_plot <- intersect(names(which(ref_seq_ind_table >= min_reads_to_plot)), names(which(ref_seq_ind_table <= max_reads_to_plot)))
+    if (length(inds_to_plot) == 0) {
+      return(NULL)
+    }
+    plots <- purrr::map(setNames(inds_to_plot, inds_to_plot), function(ref_seq_ind) {
+      #print(ref_seq_ind)
+      temp <-
+        match_df_list[[ref_name]] %>%
+        dplyr::filter(ref_seq_ind == !!ref_seq_ind) %>%
+        dplyr::group_by(read_seq_r1, read_seq_r2) %>%
+        dplyr::summarise(n = dplyr::n(), .groups = "drop")
+
+      # make r2 rev comp
+      temp$read_seq_r2[which(!is.na(temp$read_seq_r2))] <- revcompDNA(temp$read_seq_r2[which(!is.na(temp$read_seq_r2))])
+      reads_groups <- apply(temp, 1, function(z) c(z["read_seq_r1"], z["read_seq_r2"]), simplify = F)
+      names(reads_groups) <- as.character(seq(1, length(reads_groups), 1))
+      ## assign names to reads groups based on if any read is NA
+      r1_na <- sapply(reads_groups, function(z) is.na(z[["read_seq_r1"]]))
+      r2_na <- sapply(reads_groups, function(z) is.na(z[["read_seq_r2"]]))
+      if (length(temp_ind <- which(!r1_na & !r2_na)) > 0) {
+        names(reads_groups)[temp_ind] <- paste0("read_pair_", seq(1,length(temp_ind),1), "\n(n=", temp$n[temp_ind], ")")
+      }
+      if (length(temp_ind <- which(!r1_na & r2_na)) > 0) {
+        names(reads_groups)[temp_ind] <- paste0("r1_", seq(1,length(temp_ind),1), "\n(n=", temp$n[temp_ind], ")")
+      }
+      if (length(temp_ind <- which(r1_na & !r2_na)) > 0) {
+        names(reads_groups)[temp_ind] <- paste0("r2_", seq(1,length(temp_ind),1), "\n(n=", temp$n[temp_ind], ")")
+      }
+
+      # reordering, only
+      reads_groups <- c(reads_groups[which(grepl("pair", names(reads_groups)))], reads_groups[which(!grepl("pair", names(reads_groups)))])
+      plot_data <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
+                                                                patterns = reads_groups,
+                                                                type = "local",
+                                                                seq_type = "NT",
+                                                                verbose = F)
+      plot_data[["plot"]] <-
+        plot_data[["plot"]] +
+        labs(title = stringr::str_wrap(names(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)]), width = 40), y = NULL, x = NULL) +
+        theme(title = element_text(size = 6))
+      return(plot_data)
+    })
+  })
+}
+
+
+
