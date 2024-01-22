@@ -599,10 +599,14 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
   subject.ranges <- seq2(pa@subject@range@start, pa@subject@range@start+pa@subject@range@width-1)
   names(subject.ranges) <- pa@pattern@unaligned@ranges@NAMES
 
+  order1 <- order(purrr::map_int(subject.ranges, min))
+  pa <- pa[order1]
+  subject.ranges <- subject.ranges[order1]
+
+
   #out <- IRanges::findOverlapPairs(pa@subject@range, pa@subject@range)
 
   ## check if subject ranges within groups are overlapping
-
   if (!is.null(pattern_groups)) {
     subject.ranges.split <- split(names(subject.ranges), pattern_groups[names(subject.ranges)])
     overlap_subject_ranges <- unlist(lapply(subject.ranges.split, function(y) {
@@ -617,18 +621,42 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
       stop("These groups have patterns with overlapping alignment ranges in subject: ", paste(names(which(overlap_subject_ranges)), collapse = ", "))
     }
   }
-
   non_dups <- which(!duplicated(subject.ranges))
   subject.ranges.unique <- subject.ranges[non_dups]
   pa.unique <- pa[non_dups]
 
-  if (length(subject.ranges.unique) > 1) {
+  #subject.ranges.unique2 <- IRanges::IRangesList(subject.ranges.unique)
+  #subject.ranges.unique3 <- unlist(subject.ranges.unique2)
+  #tt <- findOverlaps(subject.ranges.unique2, subject.ranges.unique2)
+  is_subset <- function(x, y) {
+    all(x %in% y)
+  }
+  subset_inds <- function(lst) {
+    indices_to_remove <- logical(length(lst))
+    for (i in seq_along(lst)) {
+      for (j in seq_along(lst)) {
+        if (i != j && !indices_to_remove[j]) {
+          if (is_subset(lst[[i]], lst[[j]])) {
+            indices_to_remove[i] <- TRUE
+            break
+          }
+        }
+      }
+    }
+    return(indices_to_remove)
+  }
+  rm_inds <- subset_inds(subject.ranges.unique)
+  subject.ranges.unique <- subject.ranges.unique[rm_inds]
+  pa.unique <- pa.unique[rm_inds]
+
+ ' if (length(subject.ranges.unique) > 1) {
     is.subset <- purrr::map_lgl(seq_along(subject.ranges.unique), function(i) {
+      print(i)
       any(purrr::map_lgl(seq_along(subject.ranges.unique), function (j) {
         if (i == j) {
           return(F)
         } else {
-          all(subject.ranges.unique[[i]] %in% subject.ranges.unique[[j]])
+          all(subject.ranges.unique[[i] %in% subject.ranges.unique[[j]])
         }
       }))
     })
@@ -636,30 +664,25 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
     is.subset <- rep(F, length(subject.ranges.unique))
   }
   not.subset <- which(!is.subset)
-
   subject.ranges.unique <- subject.ranges.unique[not.subset]
-  pa.unique <- pa.unique[not.subset]
+  pa.unique <- pa.unique[not.subset]'
+
+
 
   # order alignment and subject ranges increasingly
-  al_order <- order(purrr::map_int(subject.ranges.unique, min))
-  pa.unique <- pa.unique[al_order]
-  subject.ranges.unique <- subject.ranges.unique[al_order]
-
-  pa <- pa[order(purrr::map_int(subject.ranges, min))]
+  #al_order <- order(purrr::map_int(subject.ranges.unique, min))
+  #pa.unique <- pa.unique[al_order]
+  #subject.ranges.unique <- subject.ranges.unique[al_order]
 
   assign("subject.ranges", subject.ranges, envir = parent.frame()) # needed? - yes
   assign("subject.ranges.unique", subject.ranges.unique, envir = parent.frame())
   assign("pa.unique", pa.unique, envir = parent.frame())
   assign("pa", pa, envir = parent.frame())
-
 }
 
 paste_subject_seq <- function(subject,
                               subject.ranges.unique,
                               pa.unique) {
-
-
-
 
   # use this to concat the subject sequence
   #nchar(as.character(pa.unique@subject))
