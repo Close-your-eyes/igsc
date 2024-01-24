@@ -64,7 +64,7 @@ https://www.ensembl.org/info/website/upload/gff.html, https://support.10xgenomic
 https://kb.10xgenomics.com/hc/en-us/articles/115003327112-How-can-we-add-genes-to-a-reference-package-for-Cell-Ranger-
 }
 \examples{
-\dontrun {
+\dontrun{
 # example accession from viral genomes
 # these are small genomes hence the complete genome sequence is found under these accession
 # for larger genomes, e.g. from bacteria, checkout NCBIs genome repository: https://www.ncbi.nlm.nih.gov/datasets/genome/

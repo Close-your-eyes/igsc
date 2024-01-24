@@ -34,7 +34,7 @@
 #' @export
 #'
 #' @examples
-#' \dontrun {
+#' \dontrun{
 #' # example accession from viral genomes
 #' # these are small genomes hence the complete genome sequence is found under these accession
 #' # for larger genomes, e.g. from bacteria, checkout NCBIs genome repository: https://www.ncbi.nlm.nih.gov/datasets/genome/
