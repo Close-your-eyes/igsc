@@ -11,8 +11,6 @@ align_reads(
   r2_table = NULL,
   ref_seq_list,
   mapply_fun = parallel::mcmapply,
-  min_reads_to_plot = 3,
-  max_reads_to_plot = 200,
   maxmis = 0,
   ...
 )
