@@ -162,7 +162,7 @@ get_seqs_from_feature_df <- function(feature_df,
     if ("df_long" %in% return) {
       df0_long <- purrr::map(df0_wide, function(x) tidyr::pivot_longer(x, cols = -position, names_to = "seq.name", values_to = "seq"))
       # attach a column defining start and end position
-      start_end_boundaries_df <- stack(lapply(boundaries, function(x) c(x[[1]][1], unlist(x)[length(unlist(x))])))
+      start_end_boundaries_df <- utils::stack(lapply(boundaries, function(x) c(x[[1]][1], unlist(x)[length(unlist(x))])))
       names(start_end_boundaries_df) <- c("position", "seq.name")
       start_end_boundaries_df$seq.name <- as.character(start_end_boundaries_df$seq.name)
       start_end_boundaries_df <- rbind(start_end_boundaries_df, data.frame(seq.name = c("origin", "origin"), position = c(1,nchar(unname(origin)))))

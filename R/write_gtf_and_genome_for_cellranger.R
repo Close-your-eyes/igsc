@@ -39,7 +39,7 @@
 #' # these are small genomes hence the complete genome sequence is found under these accession
 #' # for larger genomes, e.g. from bacteria, checkout NCBIs genome repository: https://www.ncbi.nlm.nih.gov/datasets/genome/
 #' viral_genome_accessions <- c("NC_007605.1","NC_006273.2","NC_001806.2","NC_001798.2","NC_001348.1")
-#' ncbi_data_list <- lapply(setNames(viral_genome_accessions, viral_genome_accessions), function(x) igsc::webscrape_ncbi(accession = x))
+#' ncbi_data_list <- lapply(stats::setNames(viral_genome_accessions, viral_genome_accessions), function(x) igsc::webscrape_ncbi(accession = x))
 #' # select a subset of features only
 #' # other modification to features data are possible to restrict what ends up in the gtf file
 #' ncbi_data_list <- purrr::map(ncbi_data_list, function(x) {
@@ -151,7 +151,7 @@ write_gtf_and_genome_for_cellranger <- function(data,
 
   dir.create(save_path, showWarnings = F, recursive = T)
   feat_select <- unique(c(features_to_become_exon, other_features_to_write))
-  lines_to_genome_and_gtf <- purrr::map(setNames(names(data), names(data)), function(x) {
+  lines_to_genome_and_gtf <- purrr::map(stats::setNames(names(data), names(data)), function(x) {
 
     # allow for other column names, and check above
     features <-

@@ -75,8 +75,8 @@ read_cellranger_outs2 <- function(vdj_outs_path) {
 
 
 .add_clonotype_names <- function(cl_long,
-                                strict_TCR_biology = F,
-                                names_to_avoid = NULL) {
+                                 strict_TCR_biology = F,
+                                 names_to_avoid = NULL) {
 
   ## this function is not made for general usage yet
   ## several columns are not being checked for presence: V_IMGT, J_IMGT, sample, patient, etc.
@@ -305,8 +305,8 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .check.clonotype.id.levels <- function(cl_wide,
-                                      id_cols = c("clonotype_id_TRA", "clonotype_id_TRB"),
-                                      group_cols = c("sample")) {
+                                       id_cols = c("clonotype_id_TRA", "clonotype_id_TRB"),
+                                       group_cols = c("sample")) {
 
   # maybe this function is useless
 
@@ -331,9 +331,9 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .collapse.clonotypes <- function(cl_wide,
-                                clonotype_col = "cl_name",
-                                cdr3_cols = c("cdr3_TRB", "cdr3_TRA"),
-                                split_cols = NULL) {
+                                 clonotype_col = "cl_name",
+                                 cdr3_cols = c("cdr3_TRB", "cdr3_TRA"),
+                                 split_cols = NULL) {
   # e.g. c("clonotype_id_TRB", "cdr3_TRB", "sample")
   # e.g. c("clonotype_id_TRA", "cdr3_TRA", "sample")
   # e.g. c("cdr3_TRA", "cdr3_TRB", "patient")
@@ -527,13 +527,13 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .check.clonotype.changes <- function(cl_wide_before,
-                                    cl_wide_after,
-                                    clonotype_col = "cl_name") {
+                                     cl_wide_after,
+                                     clonotype_col = "cl_name") {
 
   combined_cl <-
-    stack(table(cl_wide_before[,clonotype_col,drop=T])) %>%
+    utils::stack(table(cl_wide_before[,clonotype_col,drop=T])) %>%
     dplyr::rename("prev" = values) %>%
-    dplyr::left_join(stack(table(cl_wide_after[,clonotype_col,drop=T])) %>%
+    dplyr::left_join(utils::stack(table(cl_wide_after[,clonotype_col,drop=T])) %>%
                        dplyr::rename("new" = values), by = "ind") %>%
     dplyr::mutate(new = ifelse(is.na(new), 0, new)) %>% # now missing cl_name (assigned completely to another cl_name) get a 0
     dplyr::mutate(diff = new-prev)
@@ -542,18 +542,18 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .compare.cl.wide.df <- function(cl_wide1,
-                               cl_wide2,
-                               ref_cols = c("clonotype_id_TRB", "clonotype_id_TRA", "patient"),
-                               clonotype_col = "cl_name") {
+                                cl_wide2,
+                                ref_cols = c("clonotype_id_TRB", "clonotype_id_TRA", "patient"),
+                                clonotype_col = "cl_name") {
 
   cl_wide1_summ <- igsc:::.get.clonotype.levels.per.ref(cl_wide = cl_wide1,
-                                                ref_cols = ref_cols,
-                                                clonotype_col = clonotype_col)
+                                                        ref_cols = ref_cols,
+                                                        clonotype_col = clonotype_col)
   names(cl_wide1_summ)[which(names(cl_wide1_summ) %in% c("cl_names_str", "cl_names"))] <- paste0(names(cl_wide1_summ)[which(names(cl_wide1_summ) %in% c("cl_names_str", "cl_names"))], "1")
 
   cl_wide2_summ <- igsc:::.get.clonotype.levels.per.ref(cl_wide = cl_wide2,
-                                                ref_cols = ref_cols,
-                                                clonotype_col = clonotype_col)
+                                                        ref_cols = ref_cols,
+                                                        clonotype_col = clonotype_col)
   names(cl_wide2_summ)[which(names(cl_wide2_summ) %in% c("cl_names_str", "cl_names"))] <- paste0(names(cl_wide2_summ)[which(names(cl_wide2_summ) %in% c("cl_names_str", "cl_names"))], "2")
 
   cl_wide_summ <-
@@ -568,8 +568,8 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .get.clonotype.levels.per.ref <- function(cl_wide,
-                                         ref_cols = c("clonotype_id_TRB", "clonotype_id_TRA", "patient"),
-                                         clonotype_col = "cl_name") {
+                                          ref_cols = c("clonotype_id_TRB", "clonotype_id_TRA", "patient"),
+                                          clonotype_col = "cl_name") {
   #cl_names_count = stack(table(cl_name)))
   cl_wide %>%
     dplyr::group_by(!!!rlang::syms(ref_cols)) %>%
@@ -578,8 +578,8 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .get.cdr3.levels.per.clonotype <- function(cl_wide,
-                                          clonotype_col = "cl_name",
-                                          cdr3_cols = c("cdr3_TRA", "cdr3_TRB")) {
+                                           clonotype_col = "cl_name",
+                                           cdr3_cols = c("cdr3_TRA", "cdr3_TRB")) {
 
   # cdr3_cols must be length 2 currently
   ## 3 different comb of cdr3_TRA and cdr3_TRB is possible (NA in TRA and TRB)
@@ -595,9 +595,9 @@ collapse.unique.order.fun <- function(x) {
 }
 
 .get.clname.levels.per.clonotypeid <- function(cl_wide,
-                                              clonotype_col = "cl_name",
-                                              clonotype_id_col = c("clonotype_id_TRB", "clonotype_id_TRA"),
-                                              grouping_cols = c("sample")) {
+                                               clonotype_col = "cl_name",
+                                               clonotype_id_col = c("clonotype_id_TRB", "clonotype_id_TRA"),
+                                               grouping_cols = c("sample")) {
 
   cl_wide %>%
     tidyr::drop_na(!!rlang::sym(clonotype_col)) %>%
