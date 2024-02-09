@@ -112,7 +112,7 @@ align_reads <- function(r1,
 
   # get paired reads which aligned
   ref_names <- unique(c(names(match_df_list[["r1"]]), names(match_df_list[["r2"]])))
-  ref_names <- setNames(ref_names, ref_names)
+  ref_names <- stats::setNames(ref_names, ref_names)
   r1_r2_intersect <- purrr::map(ref_names, function(ref_name) {
     if (!is.null(match_df_list[["r1"]][[ref_name]]) && !is.null(match_df_list[["r2"]][[ref_name]])) {
       return(NULL)
@@ -251,17 +251,13 @@ match_reads <- function(reads,
   read_lengths_un <- sort(unique(read_lengths), decreasing = T)
 
   # this returns one list entry for every read length
+  subject_list <- lapply(ref_seq_list, Biostrings::DNAStringSet)
   if (revcomp_subject) {
-    temp_fun <- function(x) {
-      Biostrings::reverseComplement(Biostrings::DNAStringSet(x))
-    }
-    subject_list <- lapply(ref_seq_list, temp_fun)
-  } else {
-    subject_list <- lapply(ref_seq_list, Biostrings::DNAStringSet)
+    subject_list <- lapply(subject_list, Biostrings::reverseComplement)
   }
 
   # this is done quickly
-  read_pdict_list <- purrr::map(setNames(read_lengths_un, read_lengths_un), function(y) {
+  read_pdict_list <- purrr::map(stats::setNames(read_lengths_un, read_lengths_un), function(y) {
     if (maxmis >= y-1) {
       maxmis <- y-1
     }
@@ -293,14 +289,14 @@ match_reads <- function(reads,
     if (length(x) == 0) {
       return(NULL)
     }
-    x <- dplyr::bind_rows(lapply(x, stack))
+    x <- dplyr::bind_rows(lapply(x, utils::stack))
     names(x) <- c("read_ind", "ref_seq_ind")
     x$ref_seq_ind <- as.numeric(as.character(x$ref_seq_ind))
     return(x)
   })
 
   # former alternative:
-'  inds_list2 <- purrr::discard(inds_list, ~length(.x) == 0)
+  '  inds_list2 <- purrr::discard(inds_list, ~length(.x) == 0)
   if (length(inds_list2) == 0) {
     return(NULL)
   }
@@ -363,6 +359,9 @@ match_reads <- function(reads,
 }
 
 revcompDNA <- function(x) {
+  if (!is.character(x)) {
+    stop("x has to be a character to compute the reverse complement.")
+  }
   as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(x)))
 }
 
@@ -394,7 +393,7 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
     if (length(inds_to_plot) == 0) {
       return(NULL)
     }
-    plots <- purrr::map(setNames(inds_to_plot, inds_to_plot), function(ref_seq_ind) {
+    plots <- purrr::map(stats::setNames(inds_to_plot, inds_to_plot), function(ref_seq_ind) {
       #print(ref_seq_ind)
       temp <-
         match_df_list[[ref_name]] %>%
@@ -421,15 +420,15 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
 
       # reordering, only
       reads_groups <- c(reads_groups[which(grepl("pair", names(reads_groups)))], reads_groups[which(!grepl("pair", names(reads_groups)))])
-      plot_data <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
-                                                                patterns = reads_groups,
-                                                                type = "local",
-                                                                seq_type = "NT",
-                                                                verbose = F)
+      plot_data <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(stats::setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
+                                                          patterns = reads_groups,
+                                                          type = "local",
+                                                          seq_type = "NT",
+                                                          verbose = F)
       plot_data[["plot"]] <-
         plot_data[["plot"]] +
-        labs(title = stringr::str_wrap(names(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)]), width = 40), y = NULL, x = NULL) +
-        theme(title = element_text(size = 6))
+        ggplot2::labs(title = stringr::str_wrap(names(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)]), width = 40), y = NULL, x = NULL) +
+        ggplot2::theme(title = ggplot2::element_text(size = 6))
       return(plot_data)
     })
   })

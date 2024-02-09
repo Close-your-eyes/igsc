@@ -88,7 +88,7 @@ get_features <- function(x) {
   meta_data_belonging <- cut(alt_inds, breaks = inds, labels = F, include.lowest = T)
   meta_data_belonging[which(is.na(meta_data_belonging))] <- max(meta_data_belonging, na.rm = T) + 1 # the alt_inds belonging to final feature are returned as NA from cut-function; label them manually
 
-  list_grouped <- setNames(split(seqs[alt_inds], meta_data_belonging), seqs[inds])
+  list_grouped <- stats::setNames(split(seqs[alt_inds], meta_data_belonging), seqs[inds])
   df <- prep_list(x = list_grouped)
 
   df_distinct <- dplyr::distinct(df, ID, Feature)
@@ -101,7 +101,7 @@ get_features <- function(x) {
 fix_translation_lines <- function(z) {
   # treat lines following translation differently - first - add all lines to the starting line of translation
   translation_lines <- which(grepl("^ {1,}/translation=", z))
-  translation_ranges <- lapply(setNames(translation_lines, translation_lines), function(y) {
+  translation_ranges <- lapply(stats::setNames(translation_lines, translation_lines), function(y) {
     start_gap <- nchar(z[y]) - nchar(trimws(z[y]))
     while (start_gap == 21) {
       y <- y + 1
@@ -166,7 +166,7 @@ prep_list <- function(x) {
   range <- sapply(x_split, "[", 2)
   out <- purrr::map_dfr(x, function(y) {
     z <- strsplit(y, "=")
-    stack(setNames(gsub("\"", "", unlist(sapply(z, "[", 2))), gsub("^/", "", unlist(sapply(z, "[", 1)))))
+    utils::stack(stats::setNames(gsub("\"", "", unlist(sapply(z, "[", 2))), gsub("^/", "", unlist(sapply(z, "[", 1)))))
   }, .id = "ID")
   out$ind <- as.character(out$ind)
   out$Feature <- rep(feature, lengths(x))

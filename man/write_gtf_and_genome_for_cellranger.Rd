@@ -69,7 +69,7 @@ https://kb.10xgenomics.com/hc/en-us/articles/115003327112-How-can-we-add-genes-t
 # these are small genomes hence the complete genome sequence is found under these accession
 # for larger genomes, e.g. from bacteria, checkout NCBIs genome repository: https://www.ncbi.nlm.nih.gov/datasets/genome/
 viral_genome_accessions <- c("NC_007605.1","NC_006273.2","NC_001806.2","NC_001798.2","NC_001348.1")
-ncbi_data_list <- lapply(setNames(viral_genome_accessions, viral_genome_accessions), function(x) igsc::webscrape_ncbi(accession = x))
+ncbi_data_list <- lapply(stats::setNames(viral_genome_accessions, viral_genome_accessions), function(x) igsc::webscrape_ncbi(accession = x))
 # select a subset of features only
 # other modification to features data are possible to restrict what ends up in the gtf file
 ncbi_data_list <- purrr::map(ncbi_data_list, function(x) {

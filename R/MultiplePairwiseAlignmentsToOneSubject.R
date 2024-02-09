@@ -129,7 +129,9 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   check_for_overlapping_indels(pa = pa,
                                patterns = patterns,
                                subject_inds_indel = subject_inds_indel,
-                               fix_subject_indels = fix_subject_indels)
+                               fix_subject_indels = fix_subject_indels,
+                               pairwiseAlignment_args = pairwiseAlignment_args,
+                               type = type)
 
   # subject.ranges are defined herein
   # here also overlapping subject.ranges within groups are checked for
@@ -302,7 +304,7 @@ prep_subject_and_patterns <- function(subject,
       names(patterns_list) <- paste0("Group_", seq_along(patterns_list))
     }
     pattern_groups <- lapply(patterns_list, names)
-    pattern_groups <- stats::setNames(as.character(stack(pattern_groups)$ind), stack(pattern_groups)$values)
+    pattern_groups <- stats::setNames(as.character(utils::stack(pattern_groups)$ind), utils::stack(pattern_groups)$values)
   } else if (is.list(patterns) && all(lengths(patterns) == 1)) { # && length(patterns) > 1
     # each list entry if length = 1
     patterns <- unlist(patterns)
@@ -527,7 +529,9 @@ check_for_indel_induction <- function(pa,
 check_for_overlapping_indels <- function(pa,
                                          patterns,
                                          subject_inds_indel,
-                                         fix_subject_indels) {
+                                         fix_subject_indels,
+                                         pairwiseAlignment_args,
+                                         type) {
 
   if (length(patterns) > 1 && any(subject_inds_indel > 0)) { # min 2 pattern and min 1 indel in subject
     # find out if any pattern alignment overlap with gaps from another pattern alignment. this would cause problem in the alignment.
@@ -610,7 +614,7 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
   if (!is.null(pattern_groups)) {
     subject.ranges.split <- split(names(subject.ranges), pattern_groups[names(subject.ranges)])
     overlap_subject_ranges <- unlist(lapply(subject.ranges.split, function(y) {
-      ranges_comb <- combn(y, 2, simplify = F)
+      ranges_comb <- utils::combn(y, 2, simplify = F)
       if (any(unlist(lapply(ranges_comb, function(x) length(intersect(subject.ranges[[x[1]]], subject.ranges[[x[2]]])) > 1)))) {
         return(T)
       } else {
@@ -788,13 +792,13 @@ paste_patterns_to_subject <- function(subject_indels,
   # for overlapping patterns, one of which causes indels but the other not (the second aligns perfectly), gap_corr has to be provided position-wise, not pattern-wise
 
   all_pattern <- stats::setNames(as.character(pa@pattern), pa@pattern@unaligned@ranges@NAMES)
-  pattern_seq <- stack(strsplit(all_pattern, ""))
+  pattern_seq <- utils::stack(strsplit(all_pattern, ""))
   names(pattern_seq) <- c("seq", "pattern")
 
   # default for !is.null(subject_indels) and overlap == TRUE
   # pattern_plot_pos is also needed below when is.null(subject_indels)
   pattern_plot_pos <- seq2((pa@subject@range@start), (pa@subject@range@start + nchar(all_pattern) - 1))
-  pattern_plot_pos <- stack(stats::setNames(pattern_plot_pos, names(all_pattern)))
+  pattern_plot_pos <- utils::stack(stats::setNames(pattern_plot_pos, names(all_pattern)))
   names(pattern_plot_pos) <- c("position", "pattern")
 
   if (!is.null(subject_indels)) {
@@ -827,7 +831,7 @@ paste_patterns_to_subject <- function(subject_indels,
           }
           gap_corr2 <- c(gap_corr2, rep(gap_corr2[length(gap_corr2)]+temp[i,"gap_insert"], max(df$position)-length(gap_corr2))) # max(df$position) may be longer than necessary
           names(gap_corr2) <- seq(1, length(gap_corr2))
-          gap_corr2 <- stack(gap_corr2)
+          gap_corr2 <- utils::stack(gap_corr2)
           names(gap_corr2) <- c("corr", "position")
           gap_corr2$position <- as.numeric(gap_corr2$position)
         } else {
@@ -863,7 +867,7 @@ paste_patterns_to_subject <- function(subject_indels,
       gap_corr <- purrr::accumulate(gaps[-length(gaps)], `+`)
 
       pattern_plot_pos <- seq2((pa@subject@range@start + gap_corr), (pa@subject@range@start+nchar(all_pattern) - 1 + gap_corr))
-      pattern_plot_pos = stack(stats::setNames(pattern_plot_pos, names(all_pattern)))
+      pattern_plot_pos = utils::stack(stats::setNames(pattern_plot_pos, names(all_pattern)))
       names(pattern_plot_pos) <- c("position", "pattern")
     }
   }
