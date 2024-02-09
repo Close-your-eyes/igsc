@@ -251,9 +251,8 @@ sample_reads <- function(reads, p = 1) {
         reads_paired[["reads"]][[i]][[j]] <- reads_paired[["reads"]][[i]][[j]][q]
       }
     }
-  } else {
-    return(reads)
   }
+  return(reads)
 }
 
 
