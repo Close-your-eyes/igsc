@@ -24,23 +24,41 @@ align_reads(
 
 \item{r2_table}{see r1_table}
 
-\item{ref_seq_list}{names list of vectors of reference seqences to align r1 and r2 to}
+\item{ref_seq_list}{names list of vectors of reference sequences to align r1 and r2 to}
 
 \item{...}{}
 }
+\value{
+a list with results describing the input reads and the matches in ref_seq_list
+}
 \description{
-Align reads r1 and r2 to a set of reference sequences
+Make sure you know that all sequences in ref_seq_list are on the +-strand. Only in that case
+it makes sense to align r2 to their reverse complement.
 }
 \examples{
 \dontrun{
 reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path, fastq_path_r2 = r2_path, min_len = 40, mc.cores = 8)
 r1_table <- table(reads_paired[["reads"]][["r1"]][["seq"]], useNA = "no")
 r2_table <- table(reads_paired[["reads"]][["r2"]][["seq"]], useNA = "no")
-read_align_list <- align_reads(r1 = reads_paired[["reads"]][["r1"]][["seq"]],
+read_align_list <- igsc::align_reads(r1 = reads_paired[["reads"]][["r1"]][["seq"]],
   r2 = reads_paired[["reads"]][["r2"]][["seq"]],
   r1_table = r1_table,
   r2_table = r2_table,
   ref_seq_list = list(ref1 = c("ATCGTGCTG", "ACTTTTGGGCTTAAA"), ref2 = c("AAAGGTTTCCCGTC", "TTGGCCAA", "GGCTA")),
   mc.cores = 2)
+
+# get ref_seq_list from downloaded genomes from NCBI
+local_pathogen_ref <- list.files(file.path(wd, "pathogen_ref_sequences_origin"), full.names = T)
+local_pathogen_ref <- local_pathogen_ref[which(!grepl("\\\\.xlsx|\\\\.fasta", local_pathogen_ref))]
+names(local_pathogen_ref) <- sapply(strsplit(basename(local_pathogen_ref), "__"), "[", 2)
+cds_list_local <- purrr::map(local_pathogen_ref, get_cds_from_local_pathogen_ref, .progress = T)
+
+# or get ref_seq from webscraping ncbi using
+ncbi_data <- igsc::webscrape_ncbi(accession = "NC_006273.2")
+# select for certain features
+feat_df <- ncbi_data \%>\% dplyr::filter(Feature == "CDS", Subfeature == "locus_tag")
+feat_sequences <- igsc::get_seqs_from_feature_df(feature_df = feat_df, origin = ncbi_data$origin, return = "sequences", make_revcomp = T)
+
+
 }
 }
