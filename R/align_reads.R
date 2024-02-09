@@ -12,7 +12,7 @@
 #' @param maxmis
 #' @param ...
 #'
-#' @return
+#' @return a list with results describing the input reads and the matches in ref_seq_list
 #' @export
 #'
 #' @examples
