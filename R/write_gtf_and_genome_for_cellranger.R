@@ -100,14 +100,11 @@ write_gtf_and_genome_for_cellranger <- function(data,
   if (is.null(save_path)) {
     stop("Please provide a save_path.")
   }
+  if (!dir.exists(save_path) && file.exists(save_path)) {
+    stop("save_path seems to be a file, not a path.")
+  }
   if (append && overwrite) {
     stop("append (= attach new lines to existing file) and overwrite (= replacing an existing file), both set to TRUE does not make sense. select one only, please.")
-  }
-  if (genome_file_name != "genome.fa") {
-    message("for 10X pipeline (mkref and cellranger) the genome_file may be preferably named 'genome.fa")
-  }
-  if (gtf_file_name != "genes.gtf") {
-    message("for 10X pipeline (mkref and cellranger) the gtf_file may be preferably named 'genes.gtf")
   }
 
   if (any(!grepl("^##", gtf_header))) {
@@ -151,12 +148,30 @@ write_gtf_and_genome_for_cellranger <- function(data,
 
   dir.create(save_path, showWarnings = F, recursive = T)
   feat_select <- unique(c(features_to_become_exon, other_features_to_write))
+
+  if (append) {
+    linewidths <- table(c(nchar(vroom::vroom_lines(genome_file_path, skip = 1, n_max = 10))))
+    linewidth_given <- as.numeric(names(which.max(linewidths)))
+    if (linewidth_given != genome_file_linewidth) {
+      message("Due to appending, genome_file_linewidth is changed to: ", linewidth_given, ".")
+      genome_file_linewidth <- linewidth_given
+    }
+  }
   lines_to_genome_and_gtf <- purrr::map(setNames(names(data), names(data)), function(x) {
 
     # allow for other column names, and check above
     features <-
       data[[x]][["features"]] %>%
       dplyr::filter(Feature %in% feat_select)
+
+    original_values <- features$value
+    features$value <- gsub("\\.", "", make.names(features$value))
+
+    if (anyDuplicated(features$value)) {
+      message(length(which(duplicated(features$value))), " duplicated feature name(s) was/were made altered with trailing numbers to achieve uniqueness.")
+      features$value <- make.unique(features$value)
+    }
+
     features$Feature[which(features$Feature %in% features_to_become_exon)] <- "exon"
 
     # notify when 0 rows remained
@@ -205,8 +220,8 @@ write_gtf_and_genome_for_cellranger <- function(data,
                            gtf_file_path,
                            append = append)
 
-  message(genome_file_path,
-          gtf_file_path)
+  message(genome_file_path)
+  message(gtf_file_path)
 
   return(lines_to_genome_and_gtf)
 }

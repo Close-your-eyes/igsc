@@ -144,7 +144,7 @@ get_seqs_from_feature_df <- function(feature_df,
     df0_wide <- df0_wide2
     rm(df0_wide2)'
 
-    df0_wide <- join_chunkwise(data_frame_list = df0_wide,
+    df0_wide <- igsc:::join_chunkwise(data_frame_list = df0_wide,
                                join_fun = dplyr::full_join,
                                join_by = "position")
     df0_wide <- dplyr::left_join(data.frame(position = seq(1, nchar(origin)), origin = strsplit(origin, "")[[1]]), # origin column,
@@ -153,7 +153,7 @@ get_seqs_from_feature_df <- function(feature_df,
 
     if ("change_pattern" %in% names(compare_seq_df_long_args) || "change_ref" %in% names(compare_seq_df_long_args)) {
       df0_long <- tidyr::pivot_longer(df0_wide, -position, names_to = "seq.name", values_to = "seq")
-      df0_long <- do.call(compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long = df0_long, ref = "origin", seq_original = NULL)))
+      df0_long <- do.call(igsc::compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long = df0_long, ref = "origin", seq_original = NULL)))
       df0_wide <- tidyr::pivot_wider(df0_long, values_from = seq, names_from = seq.name)
     }
     df0_wide <- list(df0_wide)
@@ -170,7 +170,7 @@ get_seqs_from_feature_df <- function(feature_df,
       df0_long <- purrr::map(df0_long, function(x) dplyr::left_join(x, start_end_boundaries_df, by = c("position" = "position", "seq.name" = "seq.name")))
       if (order_features) {
         df0_long <- purrr::map(df0_long, function(x) {
-          x$seq.name <- factor(x$seq.name, levels = names(df0[[1]])[-which(names(df0[[1]]) == "position")]) # do it like this, with names of df0[[1]], in case duplicate column names have been altered; order should have been maintained as defined at the beginning
+          x$seq.name <- factor(x$seq.name, levels = names(df0_wide[[1]])[-which(names(df0_wide[[1]]) == "position")]) # do it like this, with names of df0_wide[[1]], in case duplicate column names have been altered; order should have been maintained as defined at the beginning
           return(x)
         })
       } else {
