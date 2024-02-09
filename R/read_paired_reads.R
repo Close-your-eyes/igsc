@@ -239,7 +239,7 @@ read_paired_reads <- function(fastq_path_r1,
 
 sample_reads <- function(reads, p = 1) {
   if (p != 1) {
-    len <- length(reads_paired[["reads"]][["r1"]][["seq"]])
+    len <- length(reads[["r1"]][["seq"]])
     if (p > 1) {
       p <- min(p, len)
     } else if (p < 1) {
@@ -248,7 +248,7 @@ sample_reads <- function(reads, p = 1) {
     q <- sample(1:len, p)
     for (i in c("r1", "r2")) {
       for (j in c("seq", "qual")) {
-        reads_paired[["reads"]][[i]][[j]] <- reads_paired[["reads"]][[i]][[j]][q]
+        reads[[i]][[j]] <- reads[[i]][[j]][q]
       }
     }
   }
