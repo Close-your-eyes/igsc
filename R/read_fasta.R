@@ -15,8 +15,11 @@
 #' seqs <- igsc::read_fasta(file = "my/fasta/file.fasta")
 #' }
 read_fasta <- function(file,
-                       rm_comments = T,
-                       comment_indicator = c(";", "#")) {
+                       trimws = F,
+                       rm_comments = F,
+                       comment_indicator = c(";", "#"),
+                       rm_leading_arrow = T,
+                       make.names = F) {
 
   if (missing(file)) {
     stop("Please provide a path to a file in 'file'.")
@@ -34,27 +37,35 @@ read_fasta <- function(file,
   # offer to avoid concatenation ?
 
   lines <- vroom::vroom_lines(file)
+  if (trimws) {
+    lines <- trimws(lines)
+  }
 
+  # this is tooo slow !!
   if (rm_comments) {
-    rm_regex <- paste(paste0("^", comment_indicator), collapse = "|")
-    rm <- !grepl(rm_regex, trimws(lines))
-    if (any(!rm)) {
-      message(sum(which(!rm)), " comment lines removed")
-      lines <- lines[rm]
+    message("looking for comment lines.")
+    rm_inds <- unique(unlist(purrr::map(comment_indicator, function(x) {
+      which(stringi::stri_startswith_fixed(pattern = x, from = 1, str = lines))
+    })))
+    if (length(rm_inds) > 0) {
+      message(length(rm_inds), " comment lines removed")
+      lines <- lines[!which(seq_along(lines) %in% rm_inds)]
     }
   }
 
-  ind <- grep("^>", trimws(lines))
+  ind <- which(stringi::stri_startswith_fixed(pattern = ">", from = 1, str = lines))
   if (length(ind) == 0) {
     stop("fasta-formated sequences (names starting with '>') not found.")
   }
-
   # this is done to compensate linebreaks in sequences
   start <- ind + 1
   end <- ind - 1
   end <- c(end[-1], length(lines))
-  seqs <- mapply(x = start, y = end, function(x,y) paste(lines[x:y], collapse = ""), SIMPLIFY = T)
-  names(seqs) <- gsub("^>", "", trimws(lines[ind]))
+  seqs <- purrr::map_chr(igsc:::seq2(start, end), function(x) paste(lines[x], collapse = ""), .progress = T)
 
+  names(seqs) <- gsub("^>", "", lines[ind])
+  if (make.names) {
+    names(seqs) <- make.names(names(seqs))
+  }
   return(seqs)
 }
