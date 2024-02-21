@@ -6,6 +6,9 @@
 #' @param file path to a file with fasta-formatted sequences
 #' @param rm_comments logical whether to remove comment lines
 #' @param comment_indicator first characters of a line which indicate a comment
+#' @param trimws trim leading and trailing whitespaces? disable in case of trustworthy files. may take time for large fasta files
+#' @param rm_leading_arrow remove leading arrow in fasta names?
+#' @param make.names apply make.names to fasta names?
 #'
 #' @return a named character vector of sequences in file
 #' @export
