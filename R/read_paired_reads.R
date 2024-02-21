@@ -102,7 +102,11 @@ read_paired_reads <- function(fastq_path_r1,
       if (length(both_min_len_NA) > 0) {
         for (x in c("r1", "r2")) {
           reads[[x]][["seq"]] <- reads[[x]][["seq"]][-both_min_len_NA]
+
+          #### check this one. error?!
           message("  made ", format(length(which(len_list[[x]] < min_len))-length(both_min_len_NA), big.mark=","), " ", x,  " reads NA.")
+
+
           if (quality_filter) {
             # also filter which(r1_len < min_len) ??
             reads[[x]][["qual"]] <- reads[[x]][["qual"]][-both_min_len_NA]
