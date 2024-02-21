@@ -13,6 +13,7 @@ read_paired_reads(
   quality_filter = T,
   max_freq_below_Q30 = 0.1,
   vroom_lines_args = list(progress = F, skip_empty_rows = T),
+  sample = 1,
   mc.cores = 1
 )
 }
@@ -34,8 +35,15 @@ then remove both reads (TRUE) or only the respective read (FALSE) by setting it 
 
 \item{vroom_lines_args}{arguments to vroom::lines}
 
+\item{sample}{return a subset (sample) of paired reads only; can be a value greater
+than 1 to sample a fixed absolute number (limited to total number of reads) or
+a value lower than 1 to sample a fraction of reads}
+
 \item{mc.cores}{number of cores to use to parallel computing, speeds up quality filtering;
 is limited to parallel::detectCores()}
+}
+\value{
+a list with read sequences, their quality strings and statistics
 }
 \description{
 Reads fastq files from Illumina paired sequencing and applied optional filtering

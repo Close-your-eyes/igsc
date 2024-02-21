@@ -1,12 +1,12 @@
 #' Convert cigar string to data frame with matched postions and elements from sequence
 #'
-#' @param cigar
-#' @param start
-#' @param seq
+#' @param cigar CIGAR string
+#' @param start start position, integer
+#' @param seq which sequence to pro
 #' @param name
 #' @param name_col
 #' @param rm_clipped
-#' @param skip_as
+#' @param skip_as what to insert for N in CIGAR
 #'
 #' @return
 #' @export
@@ -87,6 +87,7 @@ cigar_to_position <- function(cigar,
       j <- j + 1
     }
     if (op[i] == "N") {
+      browser()
       seq_df$seq[(val_cum[i]+1):val_cum[i+1]] <- rep(skip_as, val[i+1])
       # j remains the same
     }

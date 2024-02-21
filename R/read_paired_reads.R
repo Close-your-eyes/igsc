@@ -14,8 +14,11 @@
 #' @param vroom_lines_args arguments to vroom::lines
 #' @param mc.cores number of cores to use to parallel computing, speeds up quality filtering;
 #' is limited to parallel::detectCores()
+#' @param sample return a subset (sample) of paired reads only; can be a value greater
+#' than 1 to sample a fixed absolute number (limited to total number of reads) or
+#' a value lower than 1 to sample a fraction of reads
 #'
-#' @return
+#' @return a list with read sequences, their quality strings and statistics
 #' @export
 #'
 #' @examples
@@ -30,6 +33,7 @@ read_paired_reads <- function(fastq_path_r1,
                               quality_filter = T,
                               max_freq_below_Q30 = 0.1,
                               vroom_lines_args = list(progress = F, skip_empty_rows = T),
+                              sample = 1,
                               mc.cores = 1) {
 
   # do not return qual_num - would also allow to make parallel computing easier
@@ -208,6 +212,10 @@ read_paired_reads <- function(fastq_path_r1,
     }
   }
 
+  if (sample != 1) {
+    reads <- sample_reads(reads = reads, p = sample)
+  }
+
   message("returning:")
   if (filter_paired) {
     message("  ", format(length(which(!is.na(reads[["r1"]][["seq"]]))), big.mark=","), " paired reads.")
@@ -228,3 +236,23 @@ read_paired_reads <- function(fastq_path_r1,
   return(list(reads = reads,
               stats = stat_df))
 }
+
+sample_reads <- function(reads, p = 1) {
+  if (p != 1) {
+    len <- length(reads[["r1"]][["seq"]])
+    if (p > 1) {
+      p <- min(p, len)
+    } else if (p < 1) {
+      p <- round(p*len,0)
+    }
+    q <- sample(1:len, p)
+    for (i in c("r1", "r2")) {
+      for (j in c("seq", "qual")) {
+        reads[[i]][[j]] <- reads[[i]][[j]][q]
+      }
+    }
+  }
+  return(reads)
+}
+
+
