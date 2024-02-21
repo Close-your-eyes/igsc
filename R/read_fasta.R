@@ -36,7 +36,13 @@ read_fasta <- function(file,
   # how to handle very large fasta files?
   # offer to avoid concatenation ?
 
-  lines <- vroom::vroom_lines(file)
+  if (grepl("\\.fastq\\.gz$", path)) {
+    lines <- vroom::vroom_lines(gzfilefile)
+  } else {
+    lines <- vroom::vroom_lines(file)
+  }
+
+
   if (trimws) {
     lines <- trimws(lines)
   }
