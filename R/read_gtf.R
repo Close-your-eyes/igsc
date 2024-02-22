@@ -25,3 +25,10 @@ read_gtf <- function(file_path,
 
   return(list(gtf = gtf, attr = attr_col))
 }
+
+
+## too slow
+#gtf_attr <- purrr::map(tt3, stringi::stri_split_fixed, pattern = " ", omit_empty = T, .progress = T)
+#out <- purrr::map(gtf_attr, function(x) data.frame(attribute = sapply(x, "[", 2), value = sapply(x, "[", 1)), .progress = T)
+#library(data.table)
+#out2 <- rbindlist(lapply(out, as.data.frame.list), fill=TRUE)
