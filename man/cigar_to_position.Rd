@@ -15,7 +15,13 @@ cigar_to_position(
 )
 }
 \arguments{
-\item{skip_as}{}
+\item{cigar}{CIGAR string}
+
+\item{start}{start position, integer}
+
+\item{seq}{which sequence to pro}
+
+\item{skip_as}{what to insert for N in CIGAR}
 }
 \description{
 Convert cigar string to data frame with matched postions and elements from sequence

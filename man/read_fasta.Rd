@@ -4,14 +4,27 @@
 \alias{read_fasta}
 \title{Read sequences from a fasta-formatted file}
 \usage{
-read_fasta(file, rm_comments = T, comment_indicator = c(";", "#"))
+read_fasta(
+  file,
+  trimws = F,
+  rm_comments = F,
+  comment_indicator = c(";", "#"),
+  rm_leading_arrow = T,
+  make.names = F
+)
 }
 \arguments{
 \item{file}{path to a file with fasta-formatted sequences}
 
+\item{trimws}{trim leading and trailing whitespaces? disable in case of trustworthy files. may take time for large fasta files}
+
 \item{rm_comments}{logical whether to remove comment lines}
 
 \item{comment_indicator}{first characters of a line which indicate a comment}
+
+\item{rm_leading_arrow}{remove leading arrow in fasta names?}
+
+\item{make.names}{apply make.names to fasta names?}
 }
 \value{
 a named character vector of sequences in file
