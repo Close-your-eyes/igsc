@@ -4,10 +4,13 @@
 \alias{read_gtf}
 \title{Read and process a GTF (Gene Transfer Format) file}
 \usage{
-read_gtf(file_path, ...)
+read_gtf(file_path, attr_col_as_list = F, ...)
 }
 \arguments{
 \item{file_path}{path to the file}
+
+\item{attr_col_as_list}{have the attributes column return as named list (TRUE) or
+separated by names and values into two columns}
 
 \item{...}{arguments to vroom::vroom}
 }
@@ -16,4 +19,36 @@ a list with (i) entries of the GTF file including the attribute column as list a
 }
 \description{
 Read and process a GTF (Gene Transfer Format) file
+}
+\examples{
+\dontrun{
+
+gtf <- read_gtf(your_path, attr_col_as_list = F)
+# when attr_col_as_list = F attributes are split into names and values columns
+# this is how to expand the attributes names and vals columns
+# tidyr unnest over two columns matches the list indices
+gtf2 <-
+gtf[["gtf"]] \%>\%
+dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
+               attribute_values = I(strsplit(attribute_values, ","))) \%>\%
+               tidyr::unnest(cols = c(attribute_names, attribute_values))
+
+# this is how to make a named list from separate names and values columns
+# this is returned when attr_col_as_list = T
+gtf2 <-
+gtf[["gtf"]] \%>\%
+dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
+attribute_values = I(strsplit(attribute_values, ","))) \%>\%
+dplyr::rowwise() \%>\%
+dplyr::mutate(attr = I(list(setNames(attribute_names, attribute_values))))
+
+# you may want to use the fst package to write the data frames to disk
+# this allows quick reading and random access
+fst::write_fst(x = gtf,
+path = "your_path/your_filename_gtf.fst",
+compress = 10)
+fst::write_fst(x = attr_col,
+path = "your_path/your_filename_attr.fst",
+compress = 10)
+}
 }
