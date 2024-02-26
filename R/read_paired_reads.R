@@ -220,7 +220,7 @@ read_paired_reads <- function(fastq_path_r1,
     reads <- sample_reads(reads = reads, p = sample)
   }
 
-  message("returning:")
+'  message("returning:")
   if (filter_paired) {
     message("  ", format(length(which(!is.na(reads[["r1"]][["seq"]]))), big.mark=","), " paired reads.")
   } else {
@@ -228,7 +228,7 @@ read_paired_reads <- function(fastq_path_r1,
       message("  ", format(length(which(!is.na(reads[[x]][["seq"]]))), big.mark=","), " reads ", x,".")
       message("  ", format(length(which(is.na(reads[[x]][["seq"]]))), big.mark=","), " reads ", x, " are NA.")
     }
-  }
+  }'
 
 
   stat_df <- data.frame(reads_total = stat_total_reads,
