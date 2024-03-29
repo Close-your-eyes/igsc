@@ -1,5 +1,7 @@
 #' Read and process a GTF (Gene Transfer Format) file
 #'
+#' See https://www.ensembl.org/info/website/upload/gff.html?redirect=no
+#'
 #' @param file_path path to the file
 #' @param gtf data frame from reading gtf file with vroom or similar.
 #' useful to pass a subset of rows only.
