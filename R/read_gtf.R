@@ -1,6 +1,8 @@
 #' Read and process a GTF (Gene Transfer Format) file
 #'
 #' @param file_path path to the file
+#' @param gtf data frame from reading gtf file with vroom or similar.
+#' useful to pass a subset of rows only.
 #' @param attr_col_as_list have the attributes column return as named list (TRUE) or
 #' separated by names and values into two columns
 #' @param ... arguments to vroom::vroom
@@ -42,14 +44,34 @@
 #' compress = 10)
 #' }
 read_gtf <- function(file_path,
+                     gtf,
                      attr_col_as_list = F,
                      ...) {
 
   # file_path <- "/Volumes/CMS_SSD_2TB/2023_UriSeq/RNA_bulk_sequencing/GRCh38.p14/Homo_sapiens.GRCh38.111.gtf"
 
-  gtf <- vroom::vroom(file_path,
-                      col_names = c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"),
-                      comment = "#")
+  if (missing(file_path) && missing(gtf)) {
+    stop("Provide file_path or gtf data frame.")
+  }
+
+  if (!missing(file_path) && !missing(gtf)) {
+    message("file_path and gtf provided. Will ignore file_path and work with the gtf data frame provided.")
+  }
+
+  col_names <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
+
+  if (missing(gtf)) {
+    gtf <- vroom::vroom(file_path,
+                        col_names = col_names,
+                        comment = "#")
+  } else {
+
+    if (!"attribute" %in% names(gtf)) {
+      stop("attribute column not found in gtf data frame.")
+    }
+
+  }
+
 
   message("processing the attribute column.")
   attr_col <- stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)
@@ -63,8 +85,8 @@ read_gtf <- function(file_path,
                                     attr_ind)))
   } else {
     gtf <- gtf[,-which(names(gtf) == "attribute")]
-    gtf$attribute_names <- purrr::map_chr(split(attr_col[seq(1, length(attr_col), 2)], attr_ind), paste, collapse = ",")
-    gtf$attribute_values <- purrr::map_chr(split(attr_col[seq(2, length(attr_col), 2)], attr_ind), paste, collapse = ",")
+    gtf$attribute_names <- unname(purrr::map_chr(split(attr_col[seq(1, length(attr_col), 2)], attr_ind), paste, collapse = ","))
+    gtf$attribute_values <- unname(purrr::map_chr(split(attr_col[seq(2, length(attr_col), 2)], attr_ind), paste, collapse = ","))
   }
 
   attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],

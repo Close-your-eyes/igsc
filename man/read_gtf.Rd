@@ -4,10 +4,13 @@
 \alias{read_gtf}
 \title{Read and process a GTF (Gene Transfer Format) file}
 \usage{
-read_gtf(file_path, attr_col_as_list = F, ...)
+read_gtf(file_path, gtf, attr_col_as_list = F, ...)
 }
 \arguments{
 \item{file_path}{path to the file}
+
+\item{gtf}{data frame from reading gtf file with vroom or similar.
+useful to pass a subset of rows only.}
 
 \item{attr_col_as_list}{have the attributes column return as named list (TRUE) or
 separated by names and values into two columns}

@@ -221,6 +221,7 @@ read_paired_reads <- function(fastq_path_r1,
   }
 
   message("returning:")
+  ## kind of slow
   if (filter_paired) {
     message("  ", format(length(which(!is.na(reads[["r1"]][["seq"]]))), big.mark=","), " paired reads.")
   } else {
