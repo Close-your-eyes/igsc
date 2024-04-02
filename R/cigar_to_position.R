@@ -87,11 +87,15 @@ cigar_to_position <- function(cigar,
       j <- j + 1
     }
     if (op[i] == "N") {
-      browser()
       seq_df$seq[(val_cum[i]+1):val_cum[i+1]] <- rep(skip_as, val[i+1])
       # j remains the same
     }
-    if (op[i] %in% c("I", "D", "H", "F", "R")) {
+    if (op[i] == "D") {
+      #2024_04_02: requires checking
+      seq_df$seq[(val_cum[i]+1):val_cum[i+1]] <- rep("-", val[i+1])
+      j <- j + 1
+    }
+    if (op[i] %in% c("I", "H", "F", "R")) { # D
       message("New operation found in cigar string. index: ", i)
       stop("New operation found in cigar string.")
     }
