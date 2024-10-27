@@ -1,4 +1,4 @@
-#' Convert cigar string to data frame with matched postions and elements from sequence
+#' Convert cigar string to data frame with matched position and elements from sequence
 #'
 #' @param cigar CIGAR string
 #' @param start start position, integer
@@ -27,6 +27,7 @@ cigar_to_position <- function(cigar,
                               name_col = "seq.name",
                               rm_clipped = F,
                               skip_as = NA) {
+                              #ref_start_pos = NULL) {
   # https://davetang.org/wiki/tiki-index.php?page=SAM
   # https://github.com/NBISweden/GAAS/blob/master/annotation/knowledge/cigar.md
 
@@ -40,7 +41,7 @@ cigar_to_position <- function(cigar,
     stop("sequence (seq) for cigar conversion missing.")
   }
 
-  # if val 1 is omited in cigar
+  # if val 1 is omitted in cigar
   if (grepl("[[:alpha:]]{2}", cigar)) {
     message("Omitted 1 in cigar string suspected. Trying to insert the 1.")
     message(cigar)
@@ -62,7 +63,7 @@ cigar_to_position <- function(cigar,
   }
 
   # these are the positions in seq
-  val_seq <- val[-1][which(op %in% c("S", "M", "=", "X"))]
+  val_seq <- val[-1][which(op %in% c("S", "M", "=", "X", "I", "D"))]
   val_seq_cum <- c(0,cumsum(val_seq))
 
   seq_df <- data.frame(seq = character(val_cum[length(val_cum)]),
@@ -72,6 +73,7 @@ cigar_to_position <- function(cigar,
   j <- 1
   for (i in seq_along(op)) {
     if (op[i] %in% c("M", "X", "=")) {
+      #browser()
       seq_df$seq[(val_cum[i]+1):val_cum[i+1]] <- strsplit(substr(seq, val_seq_cum[j]+1, val_seq_cum[j+1]), "")[[1]]
       j <- j + 1
     }
@@ -91,11 +93,22 @@ cigar_to_position <- function(cigar,
       # j remains the same
     }
     if (op[i] == "D") {
-      #2024_04_02: requires checking
+      #browser()
       seq_df$seq[(val_cum[i]+1):val_cum[i+1]] <- rep("-", val[i+1])
+      #val_cum[(i+1):length(val_cum)] <- val_cum[(i+1):length(val_cum)] - val[i+1]
+      val_seq_cum[(j+1):length(val_seq_cum)] <- val_seq_cum[(j+1):length(val_seq_cum)] - val_seq[j]
       j <- j + 1
     }
-    if (op[i] %in% c("I", "H", "F", "R")) { # D
+    if (op[i] == "I") {
+      # to allow for insertion would require to pass the ref seq and totally rewrite the function
+      message("insertion skipped.")
+      #seq_df$seq[(val_cum[i]+1):val_cum[i+1]] <- substr(seq, val_seq_cum[j]+1, val_seq_cum[j+1])
+      val_cum[(i+1):length(val_cum)] <- val_cum[(i+1):length(val_cum)] - val[i+1]
+      #val_seq_cum[(j+1):length(val_seq_cum)] <- val_seq_cum[(j+1):length(val_seq_cum)] - val_seq[j]
+      seq_df <- seq_df[-c((nrow(seq_df)-val[i+1]+1):nrow(seq_df)),]
+      j <- j + 1
+    }
+    if (op[i] %in% c("H", "F", "R")) { # D
       message("New operation found in cigar string. index: ", i)
       stop("New operation found in cigar string.")
     }
@@ -103,6 +116,10 @@ cigar_to_position <- function(cigar,
   if (!is.null(name)) {
     seq_df[,name_col] <- name
   }
+  # seq_df$position_1 <- seq_df$position - min(seq_df$position) + 1
+  # if (!is.null(ref_start_pos)) {
+  #   seq_df$position_rel_start <- seq_df$position - ref_start_pos + 1
+  # }
   return(seq_df)
 }
 

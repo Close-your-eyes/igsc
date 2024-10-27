@@ -48,6 +48,10 @@
 read_gtf <- function(file_path,
                      gtf,
                      attr_col_as_list = F,
+                     seqname_filter = NULL,
+                     feature_filter = NULL,
+                     process_attr_col = T,
+                     attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name", "exon_number"),
                      ...) {
 
   # file_path <- "/Volumes/CMS_SSD_2TB/2023_UriSeq/RNA_bulk_sequencing/GRCh38.p14/Homo_sapiens.GRCh38.111.gtf"
@@ -67,41 +71,53 @@ read_gtf <- function(file_path,
                         col_names = col_names,
                         comment = "#")
   } else {
-
     if (!"attribute" %in% names(gtf)) {
       stop("attribute column not found in gtf data frame.")
     }
-
   }
 
+  if (!is.null(seqname_filter)) {
+    gtf <- gtf[which(gtf$seqname %in% seqname_filter),]
+  }
+  if (!is.null(feature_filter)) {
+    gtf <- gtf[which(gtf$feature %in% feature_filter),]
+  }
+  if (nrow(gtf) == 0) {
+    stop("No rows left in gtf.")
+  }
 
-  message("processing the attribute column.")
-  attr_col <- stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)
-  attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
-  attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = ' \"', omit_empty = T))
-  attr_col <- stringi::stri_trim_both(stringi::stri_replace_all(attr_col, replacement = "", fixed = '"'))
+  if (process_attr_col) {
+    message("processing the attribute column.")
+    attr_col <- stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)
+    attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
+    attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = ' ', omit_empty = T)) #pattern = ' \"'
+    attr_col <- stringi::stri_trim_both(stringi::stri_replace_all(attr_col, replacement = "", fixed = '"'))
 
-  if (attr_col_as_list == T) {
-    gtf$attribute <- I(unname(split(stats::setNames(attr_col[seq(2, length(attr_col), 2)],
-                                                    attr_col[seq(1, length(attr_col), 2)]),
-                                    attr_ind)))
+    if (attr_col_as_list == T) {
+      gtf$attribute <- I(unname(split(stats::setNames(attr_col[seq(2, length(attr_col), 2)],
+                                                      attr_col[seq(1, length(attr_col), 2)]),
+                                      attr_ind)))
+    } else {
+      gtf <- gtf[,-which(names(gtf) == "attribute")]
+      #gtf$attribute_names <- unname(purrr::map_chr(split(attr_col[seq(1, length(attr_col), 2)], attr_ind), paste, collapse = ","))
+      #gtf$attribute_values <- unname(purrr::map_chr(split(attr_col[seq(2, length(attr_col), 2)], attr_ind), paste, collapse = ","))
+    }
+
+    attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],
+                           value = attr_col[seq(2, length(attr_col), 2)],
+                           index = attr_ind)
+
+    gtf$index <- seq(1, nrow(gtf), 1)
+    gtf <- dplyr::left_join(gtf,
+                            attr_col %>%
+                              dplyr::filter(attribute %in% attr_keep) %>%
+                              tidyr::pivot_wider(names_from = attribute, values_from = value), by = "index")
+
+    return(list(gtf = gtf, attr = attr_col))
   } else {
-    gtf <- gtf[,-which(names(gtf) == "attribute")]
-    gtf$attribute_names <- unname(purrr::map_chr(split(attr_col[seq(1, length(attr_col), 2)], attr_ind), paste, collapse = ","))
-    gtf$attribute_values <- unname(purrr::map_chr(split(attr_col[seq(2, length(attr_col), 2)], attr_ind), paste, collapse = ","))
+    return(list(gtf = gtf, attr = NULL))
   }
 
-  attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],
-                         value = attr_col[seq(2, length(attr_col), 2)],
-                         index = attr_ind)
-
-  gtf$index <- seq(1, nrow(gtf), 1)
-  gtf <- dplyr::left_join(gtf,
-                          attr_col %>%
-                            dplyr::filter(attribute %in% c("gene_id", "gene_name", "transcript_id", "exon_number")) %>%
-                            tidyr::pivot_wider(names_from = attribute, values_from = value), by = "index")
-
-  return(list(gtf = gtf, attr = attr_col))
 }
 
 

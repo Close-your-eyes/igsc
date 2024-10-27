@@ -22,7 +22,9 @@ read_fasta <- function(file,
                        rm_comments = F,
                        comment_indicator = c(";", "#"),
                        rm_leading_arrow = T,
-                       make.names = F) {
+                       make.names = F,
+                       start_line = 1,
+                       end_line = Inf) {
 
   if (missing(file)) {
     stop("Please provide a path to a file in 'file'.")
@@ -39,13 +41,17 @@ read_fasta <- function(file,
   # how to handle very large fasta files?
   # offer to avoid concatenation ?
 
-  if (grepl("\\.fastq\\.gz$", file)) {
-    lines <- vroom::vroom_lines(gzfile(file))
+  if (grepl("\\.gz$", file)) {
+    unpack_fun <- gzfile
+    #lines <- vroom::vroom_lines(file = gzfile(file), skip = start_line, n_max = end_line - start_line, skip_empty_rows = T)
   } else {
-    lines <- vroom::vroom_lines(file)
+    unpack_fun <- function(description) {description}
+    #lines <- vroom::vroom_lines(file = file, skip = start_line, n_max = end_line - start_line, skip_empty_rows = T)
   }
-
-
+  lines <- vroom::vroom_lines(file = do.call(unpack_fun, args = list(description = file)),
+                              skip = start_line - 1,
+                              n_max = end_line - start_line + 1,
+                              skip_empty_rows = T)
   if (trimws) {
     lines <- trimws(lines)
   }
@@ -65,6 +71,10 @@ read_fasta <- function(file,
   ind <- which(stringi::stri_startswith_fixed(pattern = ">", from = 1, str = lines))
   if (length(ind) == 0) {
     stop("fasta-formated sequences (names starting with '>') not found.")
+    #return(lines)
+  }
+  if (!1 %in% ind) {
+    stop("first row should be a sequence name.")
   }
   # this is done to compensate linebreaks in sequences
   start <- ind + 1
