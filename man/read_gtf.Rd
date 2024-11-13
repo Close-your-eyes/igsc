@@ -4,7 +4,17 @@
 \alias{read_gtf}
 \title{Read and process a GTF (Gene Transfer Format) file}
 \usage{
-read_gtf(file_path, gtf, attr_col_as_list = F, ...)
+read_gtf(
+  file_path,
+  gtf,
+  attr_col_as_list = F,
+  seqname_filter = NULL,
+  feature_filter = NULL,
+  process_attr_col = T,
+  attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name",
+    "exon_number"),
+  ...
+)
 }
 \arguments{
 \item{file_path}{path to the file}
@@ -21,7 +31,7 @@ separated by names and values into two columns}
 a list with (i) entries of the GTF file including the attribute column as list and some attributes as separate columns and (ii) the attributes as long data frame
 }
 \description{
-Read and process a GTF (Gene Transfer Format) file
+See https://www.ensembl.org/info/website/upload/gff.html?redirect=no
 }
 \examples{
 \dontrun{

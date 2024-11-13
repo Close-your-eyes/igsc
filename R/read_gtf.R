@@ -67,18 +67,25 @@ read_gtf <- function(file_path,
   col_names <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
 
   if (missing(gtf)) {
-    gtf <- vroom::vroom(file_path,
-                        col_names = col_names,
-                        comment = "#")
+    if (!is.null(seqname_filter)) {
+      gtf <- do.call(rbind, lapply(seqname_filter, vroom_gtf, file_path = file_path, col_names = col_names))
+    } else {
+      gtf <- vroom::vroom(file_path,
+                          col_names = col_names,
+                          comment = "#")
+    }
   } else {
     if (!"attribute" %in% names(gtf)) {
       stop("attribute column not found in gtf data frame.")
     }
+    if (!is.null(seqname_filter)) {
+      gtf <- gtf[which(gtf$seqname %in% seqname_filter),]
+    }
   }
 
-  if (!is.null(seqname_filter)) {
+  ' if (!is.null(seqname_filter)) {
     gtf <- gtf[which(gtf$seqname %in% seqname_filter),]
-  }
+  }'
   if (!is.null(feature_filter)) {
     gtf <- gtf[which(gtf$feature %in% feature_filter),]
   }
@@ -120,7 +127,22 @@ read_gtf <- function(file_path,
 
 }
 
+get_bounds <- function(x, file_path) {
+  cmd <- paste0("rg '^", x, "\t' -n ", file_path, " | cut -d: -f1")
+  out <- system(cmd, intern = T)
+  out <- as.numeric(out[c(1, length(out))])
+  return(out)
+}
 
+vroom_gtf <- function(x, file_path, col_names) {
+  bounds <- get_bounds(x, file_path)
+  y <- vroom::vroom(file_path,
+                    col_names = col_names,
+                    skip = bounds[1] - 1,
+                    n_max = bounds[2] - bounds[1] + 1,
+                    comment = "#")
+  return(y)
+}
 
 
 ## too slow

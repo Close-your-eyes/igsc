@@ -10,7 +10,9 @@ read_fasta(
   rm_comments = F,
   comment_indicator = c(";", "#"),
   rm_leading_arrow = T,
-  make.names = F
+  make.names = F,
+  start_line = 1,
+  end_line = Inf
 )
 }
 \arguments{

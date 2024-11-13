@@ -2,7 +2,7 @@
 % Please edit documentation in R/cigar_to_position.R
 \name{cigar_to_position}
 \alias{cigar_to_position}
-\title{Convert cigar string to data frame with matched postions and elements from sequence}
+\title{Convert cigar string to data frame with matched position and elements from sequence}
 \usage{
 cigar_to_position(
   cigar,
@@ -24,7 +24,7 @@ cigar_to_position(
 \item{skip_as}{what to insert for N in CIGAR}
 }
 \description{
-Convert cigar string to data frame with matched postions and elements from sequence
+Convert cigar string to data frame with matched position and elements from sequence
 }
 \examples{
 \dontrun{
