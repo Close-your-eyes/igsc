@@ -16,7 +16,7 @@ align_reads(
 )
 }
 \arguments{
-\item{r1}{vector of r1 reads from paired sequencing, must be same length as r2}
+\item{r1}{vector of r1 reads from paired sequencing, must have same length as r2}
 
 \item{r2}{see r1}
 
@@ -24,16 +24,22 @@ align_reads(
 
 \item{r2_table}{see r1_table}
 
-\item{ref_seq_list}{names list of vectors of reference sequences to align r1 and r2 to}
+\item{ref_seq_list}{named list of vectors of reference sequences to align r1 and r2 to}
 
-\item{...}{}
+\item{mapply_fun}{which mapply fun to use; go single core (sequential) with
+mapply or multicore (parallel computing) with parallel::mcmapply}
+
+\item{maxmis}{number of maximal mismatches for aligned reads}
+
+\item{...}{arguments passed to mapply_fun; provide mc.cores for parallel
+computation with mcmapply}
 }
 \value{
 a list with results describing the input reads and the matches in ref_seq_list
 }
 \description{
-Make sure you know that all sequences in ref_seq_list are on the +-strand. Only in that case
-it makes sense to align r2 to their reverse complement.
+Make sure you know that all sequences in ref_seq_list are on the plus-strand.
+Only in that case it makes sense to align r2 to their reverse complement.
 }
 \examples{
 \dontrun{

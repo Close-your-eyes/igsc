@@ -6,16 +6,16 @@
 \usage{
 algnmt_plot(
   algnmt,
-  color_values = NULL,
-  tile.border.color = NA,
-  tile.border.on.NA = F,
+  tile_fill = NULL,
+  tile_color = NA,
+  tile_color_NA = F,
   text = F,
   line = F,
   line_args = list(linewidth = 0.1, color = "black"),
   theme = ggplot2::theme_bw(),
   theme_args = list(panel.grid = ggplot2::element_blank()),
   pattern_lim_size = 0,
-  pattern_lim_pos = "inner",
+  pattern_lim_pos = c("inner", "outer"),
   pattern_names = F,
   pattern_names_fun = ggrepel::geom_text_repel,
   pairwiseAlignment = NULL,
@@ -35,7 +35,8 @@ algnmt_plot(
   ref = NULL,
   pos_shift = NULL,
   pos_shift_adjust_axis = T,
-  verbose = T
+  verbose = T,
+  focus = NULL
 )
 }
 \arguments{
@@ -43,21 +44,39 @@ algnmt_plot(
 in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (iii) this is a PairwiseAlignmentsSingleSubject;
 alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)}
 
-\item{color_values}{a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
+\item{tile_fill}{a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
 or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or choose one from names(purrr::flatten(Peptides:::AAdata)); or leave NULL for the default scheme}
 
-\item{tile.border.color}{a color to draw tile borders with; e.g. "black" or a hex code;
-leave NA to have no borders (quicker plotting and advised for long alignments)}
+\item{tile_color}{a color to draw tile borders with; e.g. "black" or a hex code;
+leave NA to have no borders (quicker plotting and advised for long alignments);
+rather suited for short detailed alignments}
 
-\item{tile.border.on.NA}{logical whether to draw borders on NA positions}
+\item{tile_color_NA}{logical whether to draw borders on NA positions}
 
 \item{text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
 advisable only for short alignments}
 
+\item{line}{draw a line from start to end of each pattern; this will draw a
+connection between exons separated by introns}
+
+\item{line_args}{arguments for line drawing; passed to geom_segment}
+
 \item{theme}{ggplot theme to use as basis}
+
+\item{theme_args}{theme arguments for ggplot}
 
 \item{pattern_lim_size}{numeric; plot annotation of pattern alignment limits; value indicates size;
 set to 0 to omit plotting; only applicable if pa is provided}
+
+\item{pattern_lim_pos}{where to plot the pattern_lims; only if pattern_lim_size > 0}
+
+\item{pattern_names}{whether to plot pattern names within the plot}
+
+\item{pattern_names_fun}{which function to use for plotting pattern_names;
+e.g., ggrepel::geom_text_repel or ggplot2::geom_text}
+
+\item{pairwiseAlignment}{provide the pairwiseAlignment that algnmt is based on;
+this will enable the use of other function arguments}
 
 \item{subject_lim_lines}{logical whether to plot vertical lines of subject alignment limits}
 
@@ -69,6 +88,16 @@ set to 0 to omit plotting; only applicable if pa is provided}
 
 \item{name_col}{name of column which holds sequence names in algnmt (applicable if algnmt is a data.frame)}
 
+\item{start_end_col}{name of column with start and end position of patterns;
+not mandatory, can be derived from position column; but this may be wrong in
+case when the first exon (or first part of a pattern in general) has a later
+position as subsequent ones (think of circular reference sequences);
+(applicable if algnmt is a data.frame)}
+
+\item{y_group_col}{name of column that contains information on which patterns
+to plot in one row (as one group so to say); this argument competes with
+group_on_yaxis (applicable if algnmt is a data.frame)}
+
 \item{coord_fixed_ratio}{numeric; fixed aspect ratio of plot; leave NULL to not force a ratio}
 
 \item{x_breaks}{numeric vector; manually provide breaks (ticks) on x-axis; set NULL to have breaks
@@ -77,9 +106,32 @@ picked automatically}
 \item{algnmt_type}{'NT' or 'AA'; only required if algnmt is a data.frame and only if
 NT or AA cannot be guessed; leave NULL to have it guessed based on data}
 
-\item{ref}{a reference sequence to compare all other sequnces to; e.g. a consensus sequence}
+\item{add_length_suffix}{whether to add the pattern length as suffix to
+pattern_names}
 
-\item{verbose}{made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)}
+\item{group_on_yaxis}{have an algorithm deciced which patterns to plot in one
+row without overlap; this will use the plot area most efficiently;
+this argument competes with y_group_col}
+
+\item{min_gap}{minimal gap size between patterns to trigger plotting in
+separate rows; only applies if group_on_yaxis is TRUE}
+
+\item{ref}{a reference sequence to compare all other sequences to;
+e.g. a consensus sequence or a gene sequence to align reads to;
+should be a name that appears in name_col; passed to compare_seq_df_long}
+
+\item{pos_shift}{how many positions to shift the whole x-axis; e.g. in order
+to make sure that the first part of a pattern comes most left;
+can be a fixed position which becomes the start or a relative shift in form
+of +100 or +2500 or so}
+
+\item{pos_shift_adjust_axis}{adjust axis labels to maintain true positions}
+
+\item{verbose}{print messages or not}
+
+\item{focus}{focus on aligned patterns by cutting the subject range;
+a positive integer limiting the range to n positions before the first pattern
+position and n positions after the last pattern position}
 }
 \value{
 ggplot2 object of alignment

@@ -1,15 +1,34 @@
 #' Read and process a GTF (Gene Transfer Format) file
 #'
-#' See https://www.ensembl.org/info/website/upload/gff.html?redirect=no
+#' Since GTF files come in an unhandy format, this function may help
+#' to easily read them into memory. As a whole or partly by providing
+#' seqnames and/or features. Processing the attribute column is computationally
+#' costly.
 #'
-#' @param file_path path to the file
+#' See https://www.ensembl.org/info/website/upload/gff.html?redirect=no for
+#' explanation of GTF file format.
+#' GTF files and genomic fasta files may be downloaded here https://www.ncbi.nlm.nih.gov/datasets/genome/
+#' or here https://www.ensembl.org/index.html
+#'
+#' @param file_path path to the file; file may be gunzipped (ending with .gz)
 #' @param gtf data frame from reading gtf file with vroom or similar.
 #' useful to pass a subset of rows only.
 #' @param attr_col_as_list have the attributes column return as named list (TRUE) or
 #' separated by names and values into two columns
-#' @param ... arguments to vroom::vroom
-#'
-#' @return a list with (i) entries of the GTF file including the attribute column as list and some attributes as separate columns and (ii) the attributes as long data frame
+#' @param seqnames seqnames to filter the gtf file for; will decrease computation time
+#' required for processing the attribute column
+#' @param features features to filter the gtf file for; will decrease computation time
+#' required for processing the attribute column
+#' @param process_attr_col convert the attribute column into separate columns
+#' @param attr_keep which attributes to keep from attribute column
+#' @param col_names column names to assign to the gtf data frame;
+#' changing seqname, feature or attribute will break this function;
+#' better leave col_names as it is
+#' @param use_fun which function to use for processing the attr_col; rcpp is
+#' fastest currently
+#' @return a list with (i) entries of the GTF file including the attribute
+#' column as list and some attributes as separate columns and
+#' (ii) the attributes as long data frame
 #' @export
 #'
 #' @importFrom magrittr "%>%"
@@ -19,7 +38,7 @@
 #'
 #' gtf <- read_gtf(your_path, attr_col_as_list = F)
 #' # when attr_col_as_list = F attributes are split into names and values columns
-#' # this is how to expand the attributes names and vals columns
+#' # this is how to expand the attributes names and values columns
 #' # tidyr unnest over two columns matches the list indices
 #' gtf2 <-
 #' gtf[["gtf"]] %>%
@@ -48,13 +67,12 @@
 read_gtf <- function(file_path,
                      gtf,
                      attr_col_as_list = F,
-                     seqname_filter = NULL,
-                     feature_filter = NULL,
+                     seqnames = NULL,
+                     features = NULL,
                      process_attr_col = T,
+                     col_names = c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"),
                      attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name", "exon_number"),
-                     ...) {
-
-  # file_path <- "/Volumes/CMS_SSD_2TB/2023_UriSeq/RNA_bulk_sequencing/GRCh38.p14/Homo_sapiens.GRCh38.111.gtf"
+                     use_fun = c("rcpp","rust", "r")) {
 
   if (missing(file_path) && missing(gtf)) {
     stop("Provide file_path or gtf data frame.")
@@ -64,41 +82,59 @@ read_gtf <- function(file_path,
     message("file_path and gtf provided. Will ignore file_path and work with the gtf data frame provided.")
   }
 
-  col_names <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
+  if (grepl("\\.gz$", file_path)) {
+    unpack_fun <- gzfile
+  } else {
+    unpack_fun <- function(description) {description}
+  }
+
+  use_fun <- match.arg(use_fun, c("rcpp","rust", "r"))
 
   if (missing(gtf)) {
-    if (!is.null(seqname_filter)) {
-      gtf <- do.call(rbind, lapply(seqname_filter, vroom_gtf, file_path = file_path, col_names = col_names))
+    if (!is.null(seqnames)) {
+      gtf <- do.call(rbind, lapply(seqnames, vroom_gtf, file_path = file_path, col_names = col_names, unpack_fun = unpack_fun))
     } else {
-      gtf <- vroom::vroom(file_path,
+      gtf <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
                           col_names = col_names,
-                          comment = "#")
+                          comment = "#",
+                          show_col_types = F)
     }
   } else {
     if (!"attribute" %in% names(gtf)) {
       stop("attribute column not found in gtf data frame.")
     }
-    if (!is.null(seqname_filter)) {
-      gtf <- gtf[which(gtf$seqname %in% seqname_filter),]
-    }
   }
 
-  ' if (!is.null(seqname_filter)) {
-    gtf <- gtf[which(gtf$seqname %in% seqname_filter),]
-  }'
-  if (!is.null(feature_filter)) {
-    gtf <- gtf[which(gtf$feature %in% feature_filter),]
+  if (!is.null(features)) {
+    gtf <- gtf[which(gtf$feature %in% features),]
   }
   if (nrow(gtf) == 0) {
-    stop("No rows left in gtf.")
+    stop("No rows left in gtf, check features argument.")
   }
 
   if (process_attr_col) {
+    #out<<- gtf
+    #browser()
+    #attribue_col <<- gtf$attribute
+    #browser()
     message("processing the attribute column.")
-    attr_col <- stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)
-    attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
-    attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = ' ', omit_empty = T)) #pattern = ' \"'
-    attr_col <- stringi::stri_trim_both(stringi::stri_replace_all(attr_col, replacement = "", fixed = '"'))
+    # use waldo::compare to compare results
+    if (use_fun == "rcpp") {
+      #Rcpp::sourceCpp(system.file("extdata/proc_gtf_attr.cpp", package = "igsc"))
+      attr_col <- igsc:::process_attr_col_rcpp(gtf$attribute) #igsc:::
+      attr_ind <- rep(seq_along(attr_col), lengths(attr_col)/2)
+      attr_col <- unlist(attr_col)
+    } else if (use_fun == "r") {
+      attr_col <- stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)
+      attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
+      attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = " ", omit_empty = T)) #pattern = ' \"'
+      attr_col <- stringi::stri_trim_both(stringi::stri_replace_all(attr_col, replacement = "", fixed = '"'))
+    } else if (use_fun == "rust") {
+      # rust fun was found slower; so using rcpp fun with proper registration
+      rextendr::rust_source(system.file("extdata/lib.rs", package = "igsc"))
+      attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
+      attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
+    }
 
     if (attr_col_as_list == T) {
       gtf$attribute <- I(unname(split(stats::setNames(attr_col[seq(2, length(attr_col), 2)],
@@ -128,19 +164,36 @@ read_gtf <- function(file_path,
 }
 
 get_bounds <- function(x, file_path) {
-  cmd <- paste0("rg '^", x, "\t' -n ", file_path, " | cut -d: -f1")
-  out <- system(cmd, intern = T)
+  # here we get the first and last line of a seqname to read with vroom
+  # actually though, rg and grep do return the full lines allready, not only linenumbers
+  # but, so what
+  out <- tryCatch(
+    {
+      # use ripgrep if possible
+      cmd <- paste0("rg '^", x, "\t' -n ", file_path, " | cut -d: -f1")
+      system(cmd, intern = T)
+    },
+    error = function(err) {
+      # else use grep which is slower but more common
+      cmd <- paste0("grep '^", x, "\t' -n ", file_path, " | cut -d: -f1")
+      system(cmd, intern = T)
+    }
+  )
+  if (length(out) == 0) {
+    stop("seqname not found in gtf file.")
+  }
   out <- as.numeric(out[c(1, length(out))])
   return(out)
 }
 
-vroom_gtf <- function(x, file_path, col_names) {
+vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
   bounds <- get_bounds(x, file_path)
-  y <- vroom::vroom(file_path,
+  y <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
                     col_names = col_names,
                     skip = bounds[1] - 1,
                     n_max = bounds[2] - bounds[1] + 1,
-                    comment = "#")
+                    comment = "#",
+                    show_col_types = F)
   return(y)
 }
 

@@ -7,3 +7,4 @@
 ^pkgdown$
 ^ignore_folder$
 ^data-raw$
+^src/\.cargo$

@@ -16,20 +16,25 @@ read_fasta(
 )
 }
 \arguments{
-\item{file}{path to a file with fasta-formatted sequences}
+\item{file}{path to a file with fasta-formatted sequences; file may
+be gunzipped (ending with .gz)}
 
 \item{trimws}{trim leading and trailing whitespaces? disable in case of trustworthy files. may take time for large fasta files}
 
-\item{rm_comments}{logical whether to remove comment lines}
+\item{rm_comments}{remove comment lines? this is very slow large files, currently.}
 
 \item{comment_indicator}{first characters of a line which indicate a comment}
 
 \item{rm_leading_arrow}{remove leading arrow in fasta names?}
 
 \item{make.names}{apply make.names to fasta names?}
+
+\item{start_line}{passed to vroom::vroom_lines}
+
+\item{end_line}{passed to vroom::vroom_lines to determine n_max}
 }
 \value{
-a named character vector of sequences in file
+a named character vector of sequences
 }
 \description{
 vroom::vroom_lines is used to quickly read lines of a text file (as a fasta file is one).
@@ -37,5 +42,6 @@ vroom::vroom_lines is used to quickly read lines of a text file (as a fasta file
 \examples{
 \dontrun{
 seqs <- igsc::read_fasta(file = "my/fasta/file.fasta")
+seqs_zipped <- igsc::read_fasta(file = "my/fasta/file.fa.gz")
 }
 }

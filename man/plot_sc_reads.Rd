@@ -2,20 +2,55 @@
 % Please edit documentation in R/plot_sc_reads.R
 \name{plot_sc_reads}
 \alias{plot_sc_reads}
-\title{Title}
+\title{Plot reads from a bam file from scRNAseq against the genomic reference}
 \usage{
 plot_sc_reads(
   gtf_file,
   genome_file,
   bam_file,
-  seqname = "chr2",
-  gene = "CD8A",
-  n_reads_sample = 40
+  seqname,
+  gene_name,
+  feature,
+  n_reads_sample = 40,
+  ...
 )
 }
 \arguments{
-\item{n_reads_sample}{}
+\item{gtf_file}{path to the genes.gtf file}
+
+\item{genome_file}{path to the genome.fa file}
+
+\item{bam_file}{path to the possorted_genome_bam.bam file}
+
+\item{seqname}{chromosome the gene is on, used to read this chromosome only
+from genome_file; is passed to igsc::get_fasta_seq_bounds and then
+to igsc::read_fasta; used to filter the gtf_file}
+
+\item{gene_name}{used to filter from the gtf_file}
+
+\item{feature}{used to filter from the gtf_file}
+
+\item{n_reads_sample}{how many sampled reads to plot}
+
+\item{...}{arguments to igsc::algnmt_plot}
+}
+\value{
+a list with a ggplot and intermediate results
 }
 \description{
-Title
+This function should help to memorize the workflow of plotting reads from a
+selected gene against the genomic reference sequence. E.g., to inspect
+their location or to see mismatches. It is assumed that Cellranger pipeline
+was used withe gtf_file and genome_file as input and bam_file as output.
+gtf and genome files are references downloaded from ensemble, for instance.
+}
+\examples{
+\dontrun{
+result <- plot_sc_reads(gtf_file = "path1/genes.gtf",
+genome_file = "path2/genome.fa",
+bam_file = "path3/possorted_genome_bam.bam",
+seqname = "chr2",
+gene_name = "CD8A",
+feature = "gene")
+}
 }

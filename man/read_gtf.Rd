@@ -8,16 +8,18 @@ read_gtf(
   file_path,
   gtf,
   attr_col_as_list = F,
-  seqname_filter = NULL,
-  feature_filter = NULL,
+  seqnames = NULL,
+  features = NULL,
   process_attr_col = T,
+  col_names = c("seqname", "source", "feature", "start", "end", "score", "strand",
+    "frame", "attribute"),
   attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name",
     "exon_number"),
-  ...
+  use_fun = c("rcpp", "rust", "r")
 )
 }
 \arguments{
-\item{file_path}{path to the file}
+\item{file_path}{path to the file; file may be gunzipped (ending with .gz)}
 
 \item{gtf}{data frame from reading gtf file with vroom or similar.
 useful to pass a subset of rows only.}
@@ -25,20 +27,46 @@ useful to pass a subset of rows only.}
 \item{attr_col_as_list}{have the attributes column return as named list (TRUE) or
 separated by names and values into two columns}
 
-\item{...}{arguments to vroom::vroom}
+\item{seqnames}{seqnames to filter the gtf file for; will decrease computation time
+required for processing the attribute column}
+
+\item{features}{features to filter the gtf file for; will decrease computation time
+required for processing the attribute column}
+
+\item{process_attr_col}{convert the attribute column into separate columns}
+
+\item{col_names}{column names to assign to the gtf data frame;
+changing seqname, feature or attribute will break this function;
+better leave col_names as it is}
+
+\item{attr_keep}{which attributes to keep from attribute column}
+
+\item{use_fun}{which function to use for processing the attr_col; rcpp is
+fastest currently}
 }
 \value{
-a list with (i) entries of the GTF file including the attribute column as list and some attributes as separate columns and (ii) the attributes as long data frame
+a list with (i) entries of the GTF file including the attribute
+column as list and some attributes as separate columns and
+(ii) the attributes as long data frame
 }
 \description{
-See https://www.ensembl.org/info/website/upload/gff.html?redirect=no
+Since GTF files come in an unhandy format, this function may help
+to easily read them into memory. As a whole or partly by providing
+seqnames and/or features. Processing the attribute column is computationally
+costly.
+}
+\details{
+See https://www.ensembl.org/info/website/upload/gff.html?redirect=no for
+explanation of GTF file format.
+GTF files and genomic fasta files may be downloaded here https://www.ncbi.nlm.nih.gov/datasets/genome/
+or here https://www.ensembl.org/index.html
 }
 \examples{
 \dontrun{
 
 gtf <- read_gtf(your_path, attr_col_as_list = F)
 # when attr_col_as_list = F attributes are split into names and values columns
-# this is how to expand the attributes names and vals columns
+# this is how to expand the attributes names and values columns
 # tidyr unnest over two columns matches the list indices
 gtf2 <-
 gtf[["gtf"]] \%>\%

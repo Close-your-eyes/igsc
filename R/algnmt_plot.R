@@ -3,11 +3,12 @@
 #' @param algnmt an alignment object returned from (i) igsc::MultiplePairwiseAlignmentsToOneSubject, (ii) DECIPHER::AlignSeqs or (iii) Biostrings::pairwiseAlignment;
 #' in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (iii) this is a PairwiseAlignmentsSingleSubject;
 #' alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)
-#' @param color_values a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
+#' @param tile_fill a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
 #' or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or choose one from names(purrr::flatten(Peptides:::AAdata)); or leave NULL for the default scheme
-#' @param tile.border.color a color to draw tile borders with; e.g. "black" or a hex code;
-#' leave NA to have no borders (quicker plotting and advised for long alignments)
-#' @param tile.border.on.NA logical whether to draw borders on NA positions
+#' @param tile_color a color to draw tile borders with; e.g. "black" or a hex code;
+#' leave NA to have no borders (quicker plotting and advised for long alignments);
+#' rather suited for short detailed alignments
+#' @param tile_color_NA logical whether to draw borders on NA positions
 #' @param text logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
 #' advisable only for short alignments
 #' @param theme ggplot theme to use as basis
@@ -22,24 +23,45 @@
 #' picked automatically
 #' @param algnmt_type 'NT' or 'AA'; only required if algnmt is a data.frame and only if
 #' NT or AA cannot be guessed; leave NULL to have it guessed based on data
-#' @param ref a reference sequence to compare all other sequnces to; e.g. a consensus sequence
+#' @param ref a reference sequence to compare all other sequences to;
+#' e.g. a consensus sequence or a gene sequence to align reads to;
+#' should be a name that appears in name_col; passed to compare_seq_df_long
 #' @param subject_name name of the subject sequence in algnmt; only needed if subject_lim_lines = TRUE
-#' @param pattern_lim_pos
-#' @param pattern_names
-#' @param pairwiseAlignment
-#' @param y_group_col
-#' @param pattern_names_fun
-#' @param add_length_suffix
-#' @param group_on_yaxis
-#' @param min_gap
-#' @param line
-#' @param line_args
-#' @param theme_args
-#' @param start_end_col
-#' @param pos_shift
-#' @param pos_shift_adjust_axis
-#' @param verbose
-#' made with DECIPHER::ConsensusSequence; if provided matching residues are replaced by a dot (.)
+#' @param pattern_lim_pos where to plot the pattern_lims; only if pattern_lim_size > 0
+#' @param pattern_names whether to plot pattern names within the plot
+#' @param pairwiseAlignment provide the pairwiseAlignment that algnmt is based on;
+#' this will enable the use of other function arguments
+#' @param y_group_col name of column that contains information on which patterns
+#' to plot in one row (as one group so to say); this argument competes with
+#' group_on_yaxis (applicable if algnmt is a data.frame)
+#' @param pattern_names_fun which function to use for plotting pattern_names;
+#' e.g., ggrepel::geom_text_repel or ggplot2::geom_text
+#' @param add_length_suffix whether to add the pattern length as suffix to
+#' pattern_names
+#' @param group_on_yaxis have an algorithm deciced which patterns to plot in one
+#' row without overlap; this will use the plot area most efficiently;
+#' this argument competes with y_group_col
+#' @param min_gap minimal gap size between patterns to trigger plotting in
+#' separate rows; only applies if group_on_yaxis is TRUE
+#' @param line draw a line from start to end of each pattern; this will draw a
+#' connection between exons separated by introns
+#' @param line_args arguments for line drawing; passed to geom_segment
+#' @param theme_args theme arguments for ggplot
+#' @param start_end_col name of column with start and end position of patterns;
+#' not mandatory, can be derived from position column; but this may be wrong in
+#' case when the first exon (or first part of a pattern in general) has a later
+#' position as subsequent ones (think of circular reference sequences);
+#' (applicable if algnmt is a data.frame)
+#' @param pos_shift how many positions to shift the whole x-axis; e.g. in order
+#' to make sure that the first part of a pattern comes most left;
+#' can be a fixed position which becomes the start or a relative shift in form
+#' of +100 or +2500 or so
+#' @param pos_shift_adjust_axis adjust axis labels to maintain true positions
+#' @param verbose print messages or not
+#' @param focus focus on aligned patterns by cutting the subject range;
+#' a positive integer limiting the range to n positions before the first pattern
+#' position and n positions after the last pattern position
+#'
 #' @return ggplot2 object of alignment
 #' @export
 #'
@@ -47,18 +69,18 @@
 #'
 #' @examples
 algnmt_plot <- function(algnmt,
-                        color_values = NULL,
-                        tile.border.color = NA,
-                        tile.border.on.NA = F,
+                        tile_fill = NULL,
+                        tile_color = NA,
+                        tile_color_NA = F,
                         text = F,
                         line = F,
                         line_args = list(linewidth = 0.1, color = "black"),
                         theme = ggplot2::theme_bw(),
                         theme_args = list(panel.grid = ggplot2::element_blank()),
                         pattern_lim_size = 0,
-                        pattern_lim_pos = "inner",
+                        pattern_lim_pos = c("inner", "outer"),
                         pattern_names = F,
-                        pattern_names_fun = ggrepel::geom_text_repel, # ggplot2::geom_text
+                        pattern_names_fun = ggrepel::geom_text_repel,
                         pairwiseAlignment = NULL,
                         subject_lim_lines = F,
                         subject_name = NULL,
@@ -66,7 +88,7 @@ algnmt_plot <- function(algnmt,
                         seq_col = "seq",
                         name_col = "seq.name",
                         start_end_col = "start_end",
-                        y_group_col = NULL, # set groups of patterns to plot on same y-axis level
+                        y_group_col = NULL,
                         coord_fixed_ratio = NULL,
                         x_breaks = NULL,
                         algnmt_type = NULL,
@@ -74,9 +96,10 @@ algnmt_plot <- function(algnmt,
                         group_on_yaxis = F,
                         min_gap = 10,
                         ref = NULL,
-                        pos_shift = NULL, # fixed position like: 100000 or relative: "+100"
+                        pos_shift = NULL,
                         pos_shift_adjust_axis = T,
-                        verbose = T) {
+                        verbose = T,
+                        focus = NULL) {
 
   # document and clean up
 
@@ -92,24 +115,6 @@ algnmt_plot <- function(algnmt,
   }
   if (!requireNamespace("viridisLite", quietly = T)){
     utils::install.packages("viridisLite")
-  }
-
-  if (subject_lim_lines && !is.null(subject_name) && !subject_name %in% algnmt[,name_col,drop=T]) {
-    stop("subject_name not found in ", name_col, " of algnmt.")
-  }
-
-  if (!is.null(pos_shift)) {
-    if (!is.numeric(pos_shift) && !grepl("^\\+", pos_shift)) {
-      stop("pos_shift has to be numeric giving and absolute position as start or start with a '+' giving a relative shift.")
-    }
-    if (grepl("^\\+", pos_shift)) {
-      pos_shift <- max(algnmt$position)-as.numeric(gsub("\\+", "", pos_shift)) + 2
-      if (pos_shift < 0) {
-        stop("pos_shift cannot be larger than the largest alignment position.")
-      }
-    }
-    conv <- stats::setNames(shifted_pos(x = unique(algnmt$position), start_pos = pos_shift, verbose = verbose), unique(algnmt$position))
-    algnmt$position <- conv[algnmt$position]
   }
 
   pattern_lim_pos <- match.arg(pattern_lim_pos, c("inner", "outer"))
@@ -130,7 +135,10 @@ algnmt_plot <- function(algnmt,
     if (methods::is(algnmt, "AAStringSet")) {
       algnmt_type <- "AA"
     }
-    algnmt <- XStringSet_to_df(algnmt)
+    algnmt <- XStringSet_to_df(xstringset = algnmt,
+                               name_col = "seq.name",
+                               seq_col = "seq",
+                               pos_col = "position")
     if (!is.null(y_group_col)) {
       if (verbose) {
         message("y_group_col is set to NULL.")
@@ -160,6 +168,38 @@ algnmt_plot <- function(algnmt,
     }
   }
   # else: data frame from igsc::MultiplePairwiseAlignmentsToOneSubject
+
+  if (subject_lim_lines && !is.null(subject_name) && !subject_name %in% algnmt[,name_col,drop=T]) {
+    stop("subject_name not found in ", name_col, " of algnmt. Can't draw subject_lim_lines.")
+  }
+
+  if (!is.null(focus) && !is.null(subject_name)) {
+    if (!is.numeric(focus)) {
+      stop("focus should be a positive integer.")
+    }
+    pos_col_rng <- range(algnmt[which(algnmt[,name_col,drop=T] != subject_name), pos_col])
+    algnmt <-
+      algnmt %>%
+      dplyr::filter(dplyr::between(!!rlang::sym(pos_col), pos_col_rng[1]-focus, pos_col_rng[2]+focus))
+  } else if (!is.null(focus) && is.null(subject_name)) {
+    message("focus requires subject_name which is NULL though.")
+  } else if (!is.null(focus) && !is.null(subject_name) && !subject_name %in% algnmt[,name_col,drop=T]) {
+    message("subject name not found in ", name_col, ". Cannot use focus.")
+  }
+
+  if (!is.null(pos_shift)) {
+    if (!is.numeric(pos_shift) && !grepl("^\\+", pos_shift)) {
+      stop("pos_shift has to be numeric giving and absolute position as start or start with a '+' giving a relative shift.")
+    }
+    if (grepl("^\\+", pos_shift)) {
+      pos_shift <- max(algnmt[,pos_col,drop=T])-as.numeric(gsub("\\+", "", pos_shift)) + 2
+      if (pos_shift < 0) {
+        stop("pos_shift cannot be larger than the largest alignment position.")
+      }
+    }
+    conv <- stats::setNames(shifted_pos(x = unique(algnmt[,pos_col,drop=T]), start_pos = pos_shift, verbose = verbose), unique(algnmt[,pos_col,drop=T]))
+    algnmt[,pos_col] <- conv[algnmt[,pos_col,drop=T]]
+  }
 
   if (group_on_yaxis && is.null(y_group_col)) {
     # if pairwise alignment is provided, use this one to derived ranges - but this may not be compatible with shifting?!
@@ -232,8 +272,8 @@ algnmt_plot <- function(algnmt,
     names(rows) <- names(subject.ranges)
     rows <- c(stats::setNames(subject_name, subject_name), rows)
     y_group_col <- "group"
-    algnmt$group <- rows[as.character(unname(algnmt[,name_col,drop=T]))]
-    algnmt$group <- factor(algnmt$group, levels = c(subject_name, unique(rows[-1])))
+    algnmt[,y_group_col] <- rows[as.character(unname(algnmt[,name_col,drop=T]))]
+    algnmt[,y_group_col] <- factor(algnmt[,y_group_col], levels = c(subject_name, unique(rows[-1])))
 
   } else if (group_on_yaxis && !is.null(y_group_col)) {
     if (verbose) {
@@ -282,73 +322,73 @@ algnmt_plot <- function(algnmt,
 
 
   # use preset colors
-  if (is.null(color_values)) {
+  if (is.null(tile_fill)) {
     if (algnmt_type == "NT") {
       #tile_color <- colnames(igsc:::scheme_NT)[1]
-      color_values <- colnames(igsc:::scheme_NT)[1]
+      tile_fill <- colnames(igsc:::scheme_NT)[1]
     }
     if (algnmt_type == "AA") {
-      color_values <- colnames(igsc:::scheme_AA)[1]
-      # set color_values to Chemistry_AA by default which will cause falling into the special case below
+      tile_fill <- colnames(igsc:::scheme_AA)[1]
+      # set tile_fill to Chemistry_AA by default which will cause falling into the special case below
       # to avoid that, change this here to tile_color (like in case of algnmt_type == "NT") and connect
     }
   }
 
-  #default; may change when algnmt_type == "AA" && color_values == "Chemistry_AA"
+  #default; may change when algnmt_type == "AA" && tile_fill == "Chemistry_AA"
   col_col <- seq_col
 
-  if (length(color_values) == 1 && color_values %in% c(colnames(igsc:::scheme_AA),
+  if (length(tile_fill) == 1 && tile_fill %in% c(colnames(igsc:::scheme_AA),
                                                        colnames(igsc:::scheme_NT),
                                                        names(purrr::flatten(Peptides:::AAdata)))) {
     if (algnmt_type == "NT") {
-      tile_color <- igsc:::scheme_NT[,match.arg(color_values, choices = colnames(igsc:::scheme_NT)),drop=T]
+      tile_fill_internal <- igsc:::scheme_NT[,match.arg(tile_fill, choices = colnames(igsc:::scheme_NT)),drop=T]
     } else if (algnmt_type == "AA") {
-      if (color_values == "Chemistry_AA") {
+      if (tile_fill == "Chemistry_AA") {
         # special case; change legend to chemical property
-        col_col <- color_values
+        col_col <- tile_fill
         chem_col <- utils::stack(igsc:::aa_info[["aa_main_prop"]])
         names(chem_col) <- c(col_col, seq_original)
         chem_col[,seq_original] <- as.character(chem_col[,seq_original,drop=T])
         algnmt <- dplyr::left_join(algnmt, chem_col, by = seq_original)
         algnmt[,col_col] <- ifelse(is.na(algnmt[,col_col,drop=T]), algnmt[,seq_original,drop=T], algnmt[,col_col,drop=T])
-        tile_color <- igsc:::scheme_AA[,match.arg(color_values, choices = colnames(igsc:::scheme_AA)),drop=T]
-        tile_color <- tile_color[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
-        for (i in 1:length(tile_color)) {
-          if (names(tile_color)[i] %in% names(igsc:::aa_info[["aa_main_prop"]])) {
-            names(tile_color)[i] <- igsc:::aa_info[["aa_main_prop"]][names(tile_color)[i]]
+        tile_fill_internal <- igsc:::scheme_AA[,match.arg(tile_fill, choices = colnames(igsc:::scheme_AA)),drop=T]
+        tile_fill_internal <- tile_fill_internal[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
+        for (i in 1:length(tile_fill_internal)) {
+          if (names(tile_fill_internal)[i] %in% names(igsc:::aa_info[["aa_main_prop"]])) {
+            names(tile_fill_internal)[i] <- igsc:::aa_info[["aa_main_prop"]][names(tile_fill_internal)[i]]
           }
         }
-        tile_color <- tile_color[unique(names(tile_color))]
-      } else if (color_values %in% names(purrr::flatten(Peptides:::AAdata))) {
-        col_col <- color_values
-        algnmt[,col_col] <- purrr::flatten(Peptides:::AAdata)[[color_values]][algnmt[,seq_original,drop=T]]
-        tile_color <- viridisLite::viridis(100)[cut(unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))], 100)]
-        names(tile_color) <- unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))]
+        tile_fill_internal <- tile_fill_internal[unique(names(tile_fill_internal))]
+      } else if (tile_fill %in% names(purrr::flatten(Peptides:::AAdata))) {
+        col_col <- tile_fill
+        algnmt[,col_col] <- purrr::flatten(Peptides:::AAdata)[[tile_fill]][algnmt[,seq_original,drop=T]]
+        tile_fill_internal <- viridisLite::viridis(100)[cut(unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))], 100)]
+        names(tile_fill_internal) <- unique(algnmt[,col_col,drop=T])[which(!is.na(unique(algnmt[,col_col,drop=T])))]
       } else {
-        tile_color <- igsc:::scheme_AA[,match.arg(color_values, choices = colnames(igsc:::scheme_AA)),drop=T]
+        tile_fill_internal <- igsc:::scheme_AA[,match.arg(tile_fill, choices = colnames(igsc:::scheme_AA)),drop=T]
       }
     } else {
       if (verbose) {
         message("Type of alignment data (NT or AA) could not be determined. Choosing default ggplot colors.")
       }
-      tile_color <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
+      tile_fill_internal <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
     }
   } else {
     # provide own colors
-    if (is.null(names(color_values))) {
-      if (length(color_values) < length(unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))) {
+    if (is.null(names(tile_fill))) {
+      if (length(tile_fill) < length(unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))) {
         warning("Less colors provided than entities in the alignment.")
       }
     } else {
-      if (any(!unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]) %in% names(color_values))) {
-        warning("Not all values in algnmt[,seq_col] found in names(color_values).")
+      if (any(!unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]) %in% names(tile_fill))) {
+        warning("Not all values in algnmt[,seq_col] found in names(tile_fill).")
       }
     }
-    tile_color <- color_values
+    tile_fill_internal <- tile_fill
   }
 
-  if (!is.null(names(tile_color)) && col_col == seq_col) {
-    tile_color <- tile_color[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
+  if (!is.null(names(tile_fill_internal)) && col_col == seq_col) {
+    tile_fill_internal <- tile_fill_internal[unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))])]
   }
 
   # make sure it is not a factor
@@ -365,7 +405,7 @@ algnmt_plot <- function(algnmt,
     x_breaks <- x_breaks[which(x_breaks < max(algnmt[,pos_col,drop=T]))]
   }
 
-  if (algnmt_type == "AA" && length(color_values) == 1 && color_values == "Chemistry_AA") {
+  if (algnmt_type == "AA" && length(tile_fill) == 1 && tile_fill == "Chemistry_AA") {
     col_breaks = unique(igsc:::aa_info[["aa_main_prop"]])[which(unique(igsc:::aa_info[["aa_main_prop"]]) != "stop")]
   } else {
     col_breaks = ggplot2::waiver()
@@ -451,7 +491,7 @@ algnmt_plot <- function(algnmt,
   if (is.numeric(algnmt[,col_col,drop=T])) {
     plot <- plot + ggplot2::scale_fill_viridis_c(na.value = "white")
   } else {
-    plot <- plot + ggplot2::scale_fill_manual(values = tile_color, breaks = col_breaks, na.value = "white", na.translate = F)
+    plot <- plot + ggplot2::scale_fill_manual(values = tile_fill_internal, breaks = col_breaks, na.value = "white", na.translate = F)
   }
 
   if (line) {
@@ -491,9 +531,9 @@ algnmt_plot <- function(algnmt,
   }
 
 
-  if (!is.na(tile.border.color)) {
-    plot <- plot + ggplot2::geom_tile(data = if(tile.border.on.NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])),]},
-                                      color = tile.border.color,
+  if (!is.na(tile_color)) {
+    plot <- plot + ggplot2::geom_tile(data = if(tile_color_NA) {algnmt} else {algnmt[which(!is.na(algnmt[,seq_col,drop=T])),]},
+                                      color = tile_color,
                                       ggplot2::aes(fill = !!rlang::sym(col_col)))
     # geom_raster seems not take color?!
   } else {
@@ -509,7 +549,7 @@ algnmt_plot <- function(algnmt,
       text_size <- text
     }
 
-    bckgr_colors <- farver::decode_colour(tile_color[as.character(algnmt[,col_col,drop=T])], to = "hcl")
+    bckgr_colors <- farver::decode_colour(tile_fill_internal[as.character(algnmt[,col_col,drop=T])], to = "hcl")
     algnmt$text_colors <- ifelse(bckgr_colors[, "l"] > 50, "black", "white")
 
     plot <-
@@ -573,18 +613,45 @@ algnmt_plot <- function(algnmt,
   return(plot)
 }
 
-XStringSet_to_df <- function(xstringset) {
+XStringSet_to_df <- function(xstringset,
+                             name_col = "seq.name",
+                             seq_col = "seq",
+                             pos_col = "position") {
   out <- purrr::map(as.list(xstringset), as.character)
   out <- purrr::flatten(purrr::map(out, strsplit, split = ""))
-  out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = "seq.name")
-  names(out)[c(2,3)] <- c("seq", "position")
-  out$position <- as.numeric(as.character(out$position))
+  out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = name_col)
+  names(out)[c(2,3)] <- c(seq_col, pos_col)
+  out[[pos_col]] <- as.numeric(as.character(out[[pos_col]]))
   # maintain the original order of sequences
-  out$seq.name <- factor(out$seq.name, levels = names(xstringset))
+  out[[name_col]] <- factor(out[[name_col]], levels = names(xstringset))
 
   # do this in parent fun
   #if (!anyNA(suppressWarnings(as.numeric(out$seq.name)))) {out$seq.name <- factor(out$seq.name, levels = as.character(unique(as.numeric(as.character(out$seq.name)))))}
   return(out)
+}
+
+df_to_XStringSet <- function(df,
+                             type = c("DNA", "RNA", "AA"),
+                             name_col = "seq.name",
+                             seq_col = "seq",
+                             sym_internal_gap = "-",
+                             sym_terminal_gap = "-") {
+
+  type <- match.arg(type, choices = c("DNA", "RNA", "AA"))
+  df <-
+    df %>%
+    dplyr::mutate({{seq_col}} := ifelse(is.na(!!rlang::sym(seq_col)), sym_internal_gap, !!rlang::sym(seq_col))) %>%
+    tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col), values_fill = sym_terminal_gap)
+  df <- df[,-1]
+  df <- unlist(lapply(df, paste, collapse = ""))
+
+  if (type == "DNA") {
+    return(Biostrings::DNAStringSet(x = df))
+  } else if (type == "RNA") {
+    return(Biostrings::RNAStringSet(x = df))
+  } else if (type == "AA") {
+    return(Biostrings::AAStringSet(x = df))
+  }
 }
 
 pa_to_df <- function(pa, verbose) {

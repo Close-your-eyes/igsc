@@ -3,19 +3,23 @@
 #' vroom::vroom_lines is used to quickly read lines of a text file (as a fasta file is one).
 #'
 #'
-#' @param file path to a file with fasta-formatted sequences
-#' @param rm_comments logical whether to remove comment lines
+#' @param file path to a file with fasta-formatted sequences; file may
+#' be gunzipped (ending with .gz)
+#' @param rm_comments remove comment lines? this is very slow large files, currently.
 #' @param comment_indicator first characters of a line which indicate a comment
 #' @param trimws trim leading and trailing whitespaces? disable in case of trustworthy files. may take time for large fasta files
 #' @param rm_leading_arrow remove leading arrow in fasta names?
 #' @param make.names apply make.names to fasta names?
+#' @param start_line passed to vroom::vroom_lines
+#' @param end_line passed to vroom::vroom_lines to determine n_max
 #'
-#' @return a named character vector of sequences in file
+#' @return a named character vector of sequences
 #' @export
 #'
 #' @examples
 #' \dontrun{
 #' seqs <- igsc::read_fasta(file = "my/fasta/file.fasta")
+#' seqs_zipped <- igsc::read_fasta(file = "my/fasta/file.fa.gz")
 #' }
 read_fasta <- function(file,
                        trimws = F,
@@ -38,6 +42,10 @@ read_fasta <- function(file,
     stop("file not found.")
   }
 
+  if (!is.numeric(start_line) || !is.numeric(end_line) || length(start_line) == 0 || length(end_line) == 0) {
+    stop("start_line or end_line is either not numeric or has length zero.")
+  }
+
   # how to handle very large fasta files?
   # offer to avoid concatenation ?
 
@@ -53,7 +61,7 @@ read_fasta <- function(file,
                               n_max = end_line - start_line + 1,
                               skip_empty_rows = T)
   if (trimws) {
-    lines <- trimws(lines)
+    lines <- stringi::stri_trim_both(lines)
   }
 
   # this is tooo slow !!
