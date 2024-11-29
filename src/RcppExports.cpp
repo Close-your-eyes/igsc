@@ -21,9 +21,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// processStrings
+std::vector<std::string> processStrings(std::vector<std::string> x);
+RcppExport SEXP _igsc_processStrings(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(processStrings(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_igsc_process_attr_col_rcpp", (DL_FUNC) &_igsc_process_attr_col_rcpp, 1},
+    {"_igsc_processStrings", (DL_FUNC) &_igsc_processStrings, 1},
     {NULL, NULL, 0}
 };
 

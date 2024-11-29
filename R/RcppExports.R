@@ -5,3 +5,7 @@ process_attr_col_rcpp <- function(x) {
     .Call('_igsc_process_attr_col_rcpp', PACKAGE = 'igsc', x)
 }
 
+processStrings <- function(x) {
+    .Call('_igsc_processStrings', PACKAGE = 'igsc', x)
+}
+

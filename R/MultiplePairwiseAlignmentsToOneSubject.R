@@ -23,6 +23,7 @@
 #' @param pairwiseAlignment_args
 #' @param algnmt_plot_args
 #' @param order_subject_ranges
+#' @param verbose
 #'
 #' @return a list
 #' @export

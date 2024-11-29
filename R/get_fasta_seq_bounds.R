@@ -35,7 +35,7 @@ get_fasta_seq_bounds <- function(file_path) {
     }
   )
 
-  name_lines <- sapply(strsplit(name_lines, " "), "[", 1)
+  #name_lines <- sapply(strsplit(name_lines, " "), "[", 1)
   name_lines <- stats::setNames(sapply(strsplit(name_lines, "\\:>"), "[", 1), sapply(strsplit(name_lines, "\\:>"), "[", 2))
   name_lines <- utils::stack(name_lines)
   name_lines$values <- as.numeric(name_lines$values)

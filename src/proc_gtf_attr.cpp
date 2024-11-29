@@ -3,39 +3,58 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 List process_attr_col_rcpp(std::vector<std::string> x) {
-  List result(x.size());
+  List result(x.size()); // Initialize result as an R List with the size of input vector
 
   for (size_t i = 0; i < x.size(); ++i) {
-    std::vector<std::string> current_result;
+    std::vector<std::string> current_result; // Holds processed parts for the current string
     std::string current_str = x[i];
+    
+    // Remove the last semicolon if it exists
+    //if (!current_str.empty() && current_str.back() == ';') {
+     // current_str.pop_back(); // Remove the last character
+    //}
+
     size_t start = 0, end;
 
-    // Split by semicolon
-    while ((end = current_str.find(';', start)) != std::string::npos) {
+    // Split by "; "
+    while ((end = current_str.find("; ", start)) != std::string::npos) {
       std::string attr = current_str.substr(start, end - start);
-      start = end + 1;
+      start = end + 2; // Advance past "; "
 
-      // Remove double quotes
-      attr.erase(std::remove(attr.begin(), attr.end(), '"'), attr.end());
 
-      // Trim spaces
-      size_t first = attr.find_first_not_of(" \t");
-      size_t last = attr.find_last_not_of(" \t");
-      if (first != std::string::npos)
-        attr = attr.substr(first, last - first + 1);
+      // Split at the first space only
+      size_t first_space = attr.find(' ');
+      if (first_space != std::string::npos) {
+        // Part before the space
+        std::string key = attr.substr(0, first_space);
+        // Part after the space
+        std::string value = attr.substr(first_space + 1);
 
-      // Split by space
-      size_t sub_start = 0, sub_end;
-      while ((sub_end = attr.find(' ', sub_start)) != std::string::npos) {
-        current_result.push_back(attr.substr(sub_start, sub_end - sub_start));
-        sub_start = sub_end + 1;
+        // Remove double quotes
+        key.erase(std::remove(key.begin(), key.end(), '"'), key.end());
+        value.erase(std::remove(value.begin(), value.end(), '"'), value.end());
+
+        // Push results
+        current_result.push_back(key);
+        current_result.push_back(value);
+      } else {
+        // If no space is found, treat the whole string as a key
+        attr.erase(std::remove(attr.begin(), attr.end(), '"'), attr.end());
+
+        // Trim whitespaces
+        size_t first = attr.find_first_not_of(" \t");
+        size_t last = attr.find_last_not_of(" \t");
+        if (first != std::string::npos)
+          attr = attr.substr(first, last - first + 1);
+
+        current_result.push_back(attr);
       }
-      current_result.push_back(attr.substr(sub_start));
     }
 
-    // Store results for current string
+    // Store results for the current string
     result[i] = current_result;
   }
 
-  return result;
+  return result; // Return the R List
 }
+

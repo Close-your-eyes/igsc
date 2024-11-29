@@ -72,7 +72,7 @@ read_gtf <- function(file_path,
                      process_attr_col = T,
                      col_names = c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"),
                      attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name", "exon_number"),
-                     use_fun = c("rcpp","rust", "r")) {
+                     use_fun = c("r","rust", "rcpp")) {
 
   if (missing(file_path) && missing(gtf)) {
     stop("Provide file_path or gtf data frame.")
@@ -88,7 +88,7 @@ read_gtf <- function(file_path,
     unpack_fun <- function(description) {description}
   }
 
-  use_fun <- match.arg(use_fun, c("rcpp","rust", "r"))
+  use_fun <- match.arg(use_fun, c("r","rust", "rcpp"))
 
   if (missing(gtf)) {
     if (!is.null(seqnames)) {
@@ -120,17 +120,19 @@ read_gtf <- function(file_path,
     message("processing the attribute column.")
     # use waldo::compare to compare results
     if (use_fun == "rcpp") {
-      #Rcpp::sourceCpp(system.file("extdata/proc_gtf_attr.cpp", package = "igsc"))
-      attr_col <- igsc:::process_attr_col_rcpp(gtf$attribute) #igsc:::
-      attr_ind <- rep(seq_along(attr_col), lengths(attr_col)/2)
-      attr_col <- unlist(attr_col)
+      # rcpp fun is currently slower than the r procedure
+      attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
+      attr_col <- unlist(processStrings(gtf$attribute)) #igsc:::
     } else if (use_fun == "r") {
-      attr_col <- stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)
+      attr_col <- stringi::stri_replace_last(gtf$attribute, replacement = "", fixed = ";")
+      attr_col <- stringi::stri_split_fixed(attr_col, pattern = "; ", omit_empty = T)
       attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
-      attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = " ", omit_empty = T)) #pattern = ' \"'
-      attr_col <- stringi::stri_trim_both(stringi::stri_replace_all(attr_col, replacement = "", fixed = '"'))
+      # n = 2 --> only split at first space; tag name must not have spaces, tag content may have spaces
+      attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = " ", omit_empty = T, n = 2)) #pattern = ' \"'
+      attr_col[seq(2, length(attr_col), 2)] <- stringi::stri_replace_all(attr_col[seq(2, length(attr_col), 2)], replacement = "", fixed = '"') #stringi::stri_trim_both
     } else if (use_fun == "rust") {
       # rust fun was found slower; so using rcpp fun with proper registration
+      stop("rust fun is not up to date. e.g. splitting at first space only missing.")
       rextendr::rust_source(system.file("extdata/lib.rs", package = "igsc"))
       attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
       attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
@@ -149,12 +151,14 @@ read_gtf <- function(file_path,
     attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],
                            value = attr_col[seq(2, length(attr_col), 2)],
                            index = attr_ind)
-
     gtf$index <- seq(1, nrow(gtf), 1)
     gtf <- dplyr::left_join(gtf,
                             attr_col %>%
                               dplyr::filter(attribute %in% attr_keep) %>%
                               tidyr::pivot_wider(names_from = attribute, values_from = value), by = "index")
+    if ("exon_number" %in% names(gtf)) {
+      gtf[["exon_number"]] <- as.numeric(gtf[["exon_number"]])
+    }
 
     return(list(gtf = gtf, attr = attr_col))
   } else {
@@ -187,7 +191,7 @@ get_bounds <- function(x, file_path) {
 }
 
 vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
-  bounds <- get_bounds(x, file_path)
+  bounds <- igsc:::get_bounds(x, file_path)
   y <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
                     col_names = col_names,
                     skip = bounds[1] - 1,
