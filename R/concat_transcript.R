@@ -4,6 +4,8 @@
 #' one gene, the respective sequences are pulled from refseq and concatenated
 #' into the coding sequence (CDS).
 #'
+#' https://www.biostars.org/p/3423/
+#'
 #' @param gtf_df subsetted gtf data frame
 #' @param refseq reference sequence to pull from
 #'
@@ -12,11 +14,15 @@
 #'
 #' @examples
 concat_transcript <- function(gtf_df,
-                         refseq) {
+                         refseq,
+                         refseq_strand = c("+", "-")) {
+
+  ## argument
+  refseq_strand <- match.arg(refseq_strand, c("+", "-")) # test "for" and "rev"
 
   # check for needed columns start and end
-  if (any(!c("exon_number", "seqname", "start", "end", "transcript_id", "feature") %in% names(gtf_df))) {
-    stop("gtf_df has to have the columns at least: seqname, exon_number, start, end, transcript_id, feature.")
+  if (any(!c("exon_number", "seqname", "start", "end", "transcript_id", "feature", "strand") %in% names(gtf_df))) {
+    stop("gtf_df has to have the columns at least: seqname, exon_number, start, end, transcript_id, feature, strand.")
   }
   # check for exon lines only
   # if (any(gtf_df[["feature"]] != "exon")) {
@@ -40,22 +46,51 @@ concat_transcript <- function(gtf_df,
   # check diffs on - and + strand, name utrs by 3' and 5', label seqlist or attribute with 3' and 5' end
   # what are antisense genes
 
-  gtf_df <- gtf_df[order(gtf_df$start, decreasing = all(gtf_df$start < gtf_df$end)),]
+  # for minus strand: order everything in reverse (for intron range inference below!)
+  # for plus strand: check
+  strand <- unique(gtf_df$strand)
+  gtf_df <- gtf_df[order(gtf_df$start, decreasing = all(gtf_df$start > gtf_df$end)),]
+  seqpos_intron <- stats::setNames(igsc:::seq2(gtf_df_exon$end[-length(gtf_df_exon$end)] + 1 , gtf_df_exon$start[-1] - 1),
+                                   paste0("intron", sprintf("%02d", as.numeric(gtf_df_exon$exon_number[-1]))))
+  intron_ranges <- lapply(seqpos_intron, range)
+  if (strand == "-") {
+    start_fun <- match.fun("max")
+    end_fun <- match.fun("min")
+  } else if (strand == "+") {
+    start_fun <- match.fun("min")
+    end_fun <- match.fun("max")
+  }
+  gtf_df_intron <- data.frame(feature = "intron",
+                              feature2 = names(intron_ranges),
+                              start = unname(sapply(intron_ranges, start_fun)),
+                              end = unname(sapply(intron_ranges, end_fun)))
+  gtf_df <- dplyr::bind_rows(gtf_df, gtf_df_intron)
+
   seqnames <- paste0(gtf_df$feature, gsub("NA", "", sprintf("%02d", as.numeric(gtf_df$exon_number))))
   seqnames[which(grepl("codon", seqnames))] <- stringr::str_sub(seqnames[which(grepl("codon", seqnames))],1,-3)
   # change utr naming later
+  # add introns to gtf_df
   seqlist <- mapply(substr, start = stats::setNames(gtf_df$start, seqnames), stop = gtf_df$end, x = refseq)
+  if (refseq_strand != unique(gtf_df$strand)) {
+    seqlist <- lapply(seqlist, igsc:::revcompDNA)
+  }
   seqpos <- stats::setNames(igsc:::seq2(gtf_df$start, gtf_df$end), seqnames)
   gtf_df$feature2 <- seqnames
   # introns
   gtf_df_exon <- gtf_df[which(gtf_df$feature == "exon"),]
-  seqpos <- c(seqpos, stats::setNames(igsc:::seq2(gtf_df_exon$start[-length(gtf_df_exon$start)] + 1 , gtf_df_exon$end[-1] - 1),
-                                      paste0("intron", sprintf("%02d", as.numeric(gtf_df_exon$exon_number[-length(gtf_df_exon$exon_number)])))))
+  gtf_df_exon$exon_number[-length(gtf_df_exon$exon_number)]
+  seqpos <- c(seqpos, seqpos_intron)
 
-  ##
-  algnmt_df <- data.frame(seq = strsplit(seqlist[["transcript"]], "")[[1]],
+  ## add seq for plus and minus? position for plus and minus?
+  subject_df <- data.frame(seq = strsplit(seqlist[["transcript"]], "")[[1]],
                           position_genome = seqpos[["transcript"]],
                           position = seqpos[["transcript"]] - min(seqpos[["transcript"]]) + 1)
+  intron_exon_df <-
+    do.call(rbind, seqpos_stack[which(grepl("exon|intron", names(seqpos_stack)))]) %>%
+    dplyr::rename("intron_exon" = pattern)
+  intron_exon_df$intron_exon <- stringr::str_sub(intron_exon_df$intron_exon, 1, -3)
+  subject_df <- dplyr::left_join(subject_df, intron_exon_df, by = "position_genome")
+
   seqpos_stack <- list()
   j <- 0
   for (i in which(names(seqpos) != "transcript")) {
@@ -65,13 +100,32 @@ concat_transcript <- function(gtf_df,
     seqpos_stack[[j]]$pattern <- as.character(seqpos_stack[[j]]$pattern)
   }
   names(seqpos_stack) <- names(seqpos)[which(names(seqpos) != "transcript")]
-  algnmt_df <- dplyr::left_join(algnmt_df, do.call(rbind, seqpos_stack[which(grepl("exon|intron", names(seqpos_stack)))]), by = "position_genome")
-  seqpos_stack2 <- dplyr::bind_rows(seqpos_stack[which(!grepl("exon|intron", names(seqpos_stack)))])
-  names(seqpos_stack2)[2] <- "pattern2"
-  algnmt_df <- dplyr::left_join(algnmt_df, seqpos_stack2, by = "position_genome")
+  seqpos_df <-
+    dplyr::bind_rows(seqpos_stack) %>%
+    tidyr::nest(.key = "pattern", .by = position_genome)
+  subject_df <- dplyr::left_join(subject_df, seqpos_df, by = "position_genome")
+  subject_df_unnest <-
+    subject_df %>%
+    tidyr::unnest(cols = pattern)
+
+
+
+  ### transcript
+  seq_transcript <- seqlist[["transcript"]]
+
+
+
+  #seqpos_stack2 <- dplyr::bind_rows(seqpos_stack[which(!grepl("exon|intron", names(seqpos_stack)))])
+  #names(seqpos_stack2)[2] <- "pattern2"
+  #algnmt_df <- dplyr::left_join(algnmt_df, seqpos_stack2, by = "position_genome")
 
   #sort(table(seqpos_stack2$position_genome), decreasing = T)
   #mpa <- MultiplePairwiseAlignmentsToOneSubject(subject = seqlist["transcript"], patterns = seqlist[which(names(seqlist) != "transcript")])
+
+
+
+
+
 
   if ("CDS" %in% gtf_df$feature) {
     seqlist_CDS <- seqlist[which(grepl("CDS", names(seqlist)))]
