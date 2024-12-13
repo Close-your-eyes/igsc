@@ -374,14 +374,6 @@ match_reads <- function(reads,
   return(tt)'
 }
 
-revcompDNA <- function(x) {
-  if (!is.character(x)) {
-    stop("x has to be a character to compute the reverse complement.")
-  }
-  as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(x)))
-}
-
-
 
 plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
                                min_reads_to_plot = 3,

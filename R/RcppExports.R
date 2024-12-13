@@ -2,10 +2,18 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 process_attr_col_rcpp <- function(x) {
-    .Call('_igsc_process_attr_col_rcpp', PACKAGE = 'igsc', x)
+    .Call(`_igsc_process_attr_col_rcpp`, x)
 }
 
 processStrings <- function(x) {
-    .Call('_igsc_processStrings', PACKAGE = 'igsc', x)
+    .Call(`_igsc_processStrings`, x)
+}
+
+revcomp_rcpp <- function(dna_strings) {
+    .Call(`_igsc_revcomp_rcpp`, dna_strings)
+}
+
+revcomp_rcpp2 <- function(dna_strings, mode = "both") {
+    .Call(`_igsc_revcomp_rcpp2`, dna_strings, mode)
 }
 

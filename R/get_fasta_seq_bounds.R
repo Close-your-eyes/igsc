@@ -12,7 +12,8 @@ get_fasta_seq_bounds <- function(file_path) {
   line_width <- nchar(trimws(vroom::vroom_lines(file = file_path,
                                                 skip_empty_rows = T,
                                                 skip = 1,
-                                                n_max = 1)))
+                                                n_max = 1,
+                                                progress = F)))
   total_lines <- tryCatch(
     {
       cmd <- paste0("rg --count '^' ", file_path)
@@ -24,24 +25,8 @@ get_fasta_seq_bounds <- function(file_path) {
     }
   )
 
-  name_lines <- tryCatch(
-    {
-      cmd <- paste0("rg -n '^>' ", file_path)
-      system(cmd, intern = T)
-    },
-    error = function(err) {
-      cmd <- paste0("grep -n '^>' ", file_path)
-      system(cmd, intern = T)
-    }
-  )
-
-  #name_lines <- sapply(strsplit(name_lines, " "), "[", 1)
-  name_lines <- stats::setNames(sapply(strsplit(name_lines, "\\:>"), "[", 1), sapply(strsplit(name_lines, "\\:>"), "[", 2))
-  name_lines <- utils::stack(name_lines)
-  name_lines$values <- as.numeric(name_lines$values)
-  name_lines$end_line <- c(name_lines$values[-1]-1, total_lines)
-  names(name_lines)[1:2] <- c("start_line", "name")
-  name_lines$name <- as.character(name_lines$name)
+  name_lines <- get_fasta_names(file_path)
+  name_lines$end_line <- c(name_lines$start_line[-1]-1, total_lines)
   name_lines$n_seq_lines <- name_lines$end_line - name_lines$start_line # exclude name line
   name_lines$bp_approx <- line_width*name_lines$n_seq_lines
   name_lines <- name_lines[,c(2,1,3,4,5)]

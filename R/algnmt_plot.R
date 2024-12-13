@@ -79,11 +79,13 @@ algnmt_plot <- function(algnmt,
                         theme_args = list(panel.grid = ggplot2::element_blank()),
                         pattern_lim_size = 0,
                         pattern_lim_pos = c("inner", "outer"),
-                        pattern_names = F,
+                        pattern_names = 0, # make numeric, zero = disabled
                         pattern_names_fun = ggrepel::geom_text_repel,
+                        pattern_names_fun_args = list(),
                         pairwiseAlignment = NULL,
                         subject_lim_lines = F,
                         subject_name = NULL,
+                        subject_name_infer = T,
                         pos_col = "position",
                         seq_col = "seq",
                         name_col = "seq.name",
@@ -99,13 +101,18 @@ algnmt_plot <- function(algnmt,
                         pos_shift = NULL,
                         pos_shift_adjust_axis = T,
                         verbose = T,
-                        focus = NULL) {
+                        focus = NULL,
+                        y_order = c("as_is", "increasing", "decreasing")) {
 
   # document and clean up
 
   ## check duplicate names
   ## y_group_col actually makes only sense when a algnmt is a dataframe, e.g. from multi pairwisealignment
   ## otherwise y_group_col is set to NULL
+
+  ## 2024-11-30: ordering of sequences wit/wo ref and/or subject_name; ref or subject should come first??
+
+  # yaxis vs y_group_col ??
 
   if (!requireNamespace("Peptides", quietly = T)){
     utils::install.packages("Peptides")
@@ -119,6 +126,7 @@ algnmt_plot <- function(algnmt,
 
   pattern_lim_pos <- match.arg(pattern_lim_pos, c("inner", "outer"))
   pattern_names_fun <- match.fun(pattern_names_fun)
+  y_order <- match.arg(y_order, c("as_is", "increasing", "decreasing"))
 
   if (!is.null(pairwiseAlignment) && is.null(subject_name)) {
     if (!is.null(pairwiseAlignment@subject@unaligned@ranges@NAMES)) {
@@ -136,9 +144,9 @@ algnmt_plot <- function(algnmt,
       algnmt_type <- "AA"
     }
     algnmt <- XStringSet_to_df(xstringset = algnmt,
-                               name_col = "seq.name",
-                               seq_col = "seq",
-                               pos_col = "position")
+                               name_col = name_col,
+                               seq_col = seq_col,
+                               pos_col = pos_col)
     if (!is.null(y_group_col)) {
       if (verbose) {
         message("y_group_col is set to NULL.")
@@ -172,6 +180,13 @@ algnmt_plot <- function(algnmt,
   if (subject_lim_lines && !is.null(subject_name) && !subject_name %in% algnmt[,name_col,drop=T]) {
     stop("subject_name not found in ", name_col, " of algnmt. Can't draw subject_lim_lines.")
   }
+
+  infer_subject_name(algnmt = algnmt,
+                     seq_col = seq_col,
+                     name_col = name_col,
+                     pos_col = pos_col,
+                     subject_name = subject_name,
+                     subject_name_infer = subject_name_infer)
 
   if (!is.null(focus) && !is.null(subject_name)) {
     if (!is.numeric(focus)) {
@@ -225,59 +240,78 @@ algnmt_plot <- function(algnmt,
       }
       subject.ranges <- subject.ranges[which(names(subject.ranges) != subject_name)]
     }'
-    # here the subject has to be separated from patterns
-    subject.ranges <- algnmt %>% tidyr::drop_na(!!rlang::sym(seq_col)) %>% dplyr::group_by(!!rlang::sym(name_col))
-    subject.ranges <- stats::setNames(seq2(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col)),
-                                           subject.ranges %>% dplyr::slice_max(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col))),
-                                      nm = as.character(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(name_col))))
+
     if (is.null(subject_name)) {
-      max_len <- max(lengths(subject.ranges))
-      if (length(which(lengths(subject.ranges) == max_len)) > 1) {
-        if (verbose) {
-          message("Subject could not be identified as there are min. 2 sequences which have the max length. Cannot order patterns on y-axis. Provide is as argument 'subject_name'.")
-        }
-        ## TODO: set variable for ordering pattern on y-axis to FALSE here
-      } else {
-        subject_name <- names(which(lengths(subject.ranges) == max_len))
-      }
-    }
-    subject.ranges <- subject.ranges[which(names(subject.ranges) != subject_name)]
-    subject.ranges <- subject.ranges[order(sapply(subject.ranges, min))]
-    rows <- numeric(length(subject.ranges))
-    rows[1] <- 1
-    # priority to row 1, or lowest row in general
-    for (i in seq_along(subject.ranges)[-1]) {
-      row_set <- 1
-      j <- which(rows == row_set) # consider gapped patterns; j are the indices of subject.ranges to consider
-      overlap <- T
-      while (overlap) {
-        # loop through all pattern of that row and check if there a larger overlap than allowed (or gap smaller than allowed)
-        # what if min_gap are negative values? and what if min_gap is larger than the current range - select the larger of range or min_gap
-        # as subject.ranges are ordered: check for every pattern or just the most recent one? - max(j) does that
-        # how to account for gapped alignment - one pattern being within a gap of another pattern - like below.
-        if (any(sapply(j, function(x) length(intersect(subject.ranges[[x]], subject.ranges[[i]])) > min_gap))) {
-          row_set <- row_set + 1
-          j <- which(rows == row_set) # which patterns are in next row to consider
-          if (length(j) == 0) {
-            # first pattern in that row - no further checking needed
+      message("Cannot group on y-axis without subject name.")
+    } else {
+      subject.ranges <- subject.ranges[which(names(subject.ranges) != subject_name)]
+      subject.ranges <- subject.ranges[order(sapply(subject.ranges, min))]
+      rows <- numeric(length(subject.ranges))
+      rows[1] <- 1
+      # priority to row 1, or lowest row in general
+      for (i in seq_along(subject.ranges)[-1]) {
+        row_set <- 1
+        j <- which(rows == row_set) # consider gapped patterns; j are the indices of subject.ranges to consider
+        overlap <- T
+        while (overlap) {
+          # loop through all pattern of that row and check if there a larger overlap than allowed (or gap smaller than allowed)
+          # what if min_gap are negative values? and what if min_gap is larger than the current range - select the larger of range or min_gap
+          # as subject.ranges are ordered: check for every pattern or just the most recent one? - max(j) does that
+          # how to account for gapped alignment - one pattern being within a gap of another pattern - like below.
+          if (any(sapply(j, function(x) length(intersect(subject.ranges[[x]], subject.ranges[[i]])) > min_gap))) {
+            row_set <- row_set + 1
+            j <- which(rows == row_set) # which patterns are in next row to consider
+            if (length(j) == 0) {
+              # first pattern in that row - no further checking needed
+              overlap <- F
+            }
+          } else {
             overlap <- F
           }
-        } else {
-          overlap <- F
         }
+        rows[i] <- row_set
       }
-      rows[i] <- row_set
+
+      rows <- paste0("Group_", rows)
+      names(rows) <- names(subject.ranges)
+      rows <- c(stats::setNames(subject_name, subject_name), rows)
+      y_group_col <- "group"
+      algnmt[,y_group_col] <- rows[as.character(unname(algnmt[,name_col,drop=T]))]
+      algnmt[,y_group_col] <- factor(algnmt[,y_group_col,drop=T], levels = c(subject_name, unique(rows[-1])))
     }
-    rows <- paste0("Group_", rows)
-    names(rows) <- names(subject.ranges)
-    rows <- c(stats::setNames(subject_name, subject_name), rows)
-    y_group_col <- "group"
-    algnmt[,y_group_col] <- rows[as.character(unname(algnmt[,name_col,drop=T]))]
-    algnmt[,y_group_col] <- factor(algnmt[,y_group_col], levels = c(subject_name, unique(rows[-1])))
 
   } else if (group_on_yaxis && !is.null(y_group_col)) {
     if (verbose) {
       message("y_group_col is not NULL. Using this one. Ignoring group_on_yaxis.")
+    }
+  }
+
+  if (y_order != "as_is") {
+    # if (is.null(y_group_col) && is.factor(algnmt[[name_col]])) {
+    #   message("name_col is a factor. Will stick to this order.")
+    #   order <- F
+    # } else if (!is.null(y_group_col) && is.factor(algnmt[[y_group_col]])) {
+    #   message("y_group_col is a factor. Will stick to this order.")
+    #   order <- F
+    # }
+    if (is.null(y_group_col)) {
+      if (!is.null(subject_name)) {
+        yorder <- unique(c(subject_name, names(sort(sapply(subject.ranges,"[", 1), decreasing = y_order == "decreasing"))))
+      } else {
+        yorder <- sort(sapply(subject.ranges,"[", 1), decreasing = y_order == "decreasing")
+      }
+      algnmt[[name_col]] <- factor(algnmt[[name_col]], levels = yorder)
+    } else {
+      yorder <-
+        algnmt %>%
+        dplyr::group_by(!!rlang::sym(y_group_col)) %>%
+        dplyr::summarise(min = min(!!rlang::sym(pos_col)))
+      if (!is.null(subject_name)) {
+        yorder <- unique(c(subject_name, names(sort(stats::setNames(yorder$min, yorder[,1,drop=T]), decreasing = y_order == "decreasing"))))
+      } else {
+        yorder <- names(sort(stats::setNames(yorder$min, yorder[,1,drop=T]), decreasing = y_order == "decreasing"))
+      }
+      algnmt[[y_group_col]] <- factor(algnmt[[y_group_col]], levels = yorder)
     }
   }
 
@@ -286,6 +320,7 @@ algnmt_plot <- function(algnmt,
       stop("ref not found in names of algnmt.")
     }
     seq_original <- "seq_original"
+#maintain factor of y_grop_col and othrs!
     algnmt <- compare_seq_df_long(df = algnmt,
                                   ref = ref,
                                   pos_col = pos_col,
@@ -320,11 +355,9 @@ algnmt_plot <- function(algnmt,
     algnmt_type <- guess_type(seq_vector = algnmt[,seq_col,drop=T][inds])
   }
 
-
   # use preset colors
   if (is.null(tile_fill)) {
     if (algnmt_type == "NT") {
-      #tile_color <- colnames(igsc:::scheme_NT)[1]
       tile_fill <- colnames(igsc:::scheme_NT)[1]
     }
     if (algnmt_type == "AA") {
@@ -338,8 +371,8 @@ algnmt_plot <- function(algnmt,
   col_col <- seq_col
 
   if (length(tile_fill) == 1 && tile_fill %in% c(colnames(igsc:::scheme_AA),
-                                                       colnames(igsc:::scheme_NT),
-                                                       names(purrr::flatten(Peptides:::AAdata)))) {
+                                                 colnames(igsc:::scheme_NT),
+                                                 names(purrr::flatten(Peptides:::AAdata)))) {
     if (algnmt_type == "NT") {
       tile_fill_internal <- igsc:::scheme_NT[,match.arg(tile_fill, choices = colnames(igsc:::scheme_NT)),drop=T]
     } else if (algnmt_type == "AA") {
@@ -414,6 +447,7 @@ algnmt_plot <- function(algnmt,
 
 
   ## algnmt summary prep
+  ## exclude subject ??
   algnmt_summary <-
     algnmt %>%
     dplyr::filter(!is.na(!!rlang::sym(seq_col))) %>%
@@ -422,18 +456,10 @@ algnmt_plot <- function(algnmt,
     dplyr::mutate(mid_pos = max_pos - (max_pos-min_pos)/2)
 
   if (subject_lim_lines && is.null(subject_name)) {
-    subject_guess <- algnmt_summary %>% dplyr::slice_max(n_not_NA, n = 1, with_ties = T)
-    if (nrow(subject_guess) > 1) {
-      if (verbose) {
-        message("subject_name is NULL or could not be guessed. subject_lim_lines set to FALSE.")
-      }
-      subject_lim_lines <- F
-    } else {
-      subject_name <- as.character(subject_guess[,name_col,drop=T])
-      if (verbose) {
-        message("subject guessed: ", subject_name)
-      }
+    if (verbose) {
+      message("subject_name is NULL or could not be inferred subject_lim_lines set to FALSE.")
     }
+    subject_lim_lines <- F
   }
 
   if (start_end_col %in% names(algnmt)) {
@@ -448,10 +474,27 @@ algnmt_plot <- function(algnmt,
   }
 
   if (!is.null(y_group_col)) {
-    y_group_conv <- dplyr::distinct(algnmt, !!rlang::sym(y_group_col), !!rlang::sym(name_col))
+    test_dups <-
+      algnmt %>%
+      tidyr::drop_na(!!rlang::sym(seq_col)) %>% # y_group_col
+      dplyr::group_by(!!rlang::sym(y_group_col), !!rlang::sym(pos_col)) %>%
+      dplyr::summarise(n = dplyr::n(), .groups = "drop")
+
+    if (any(test_dups$n > 1)) {
+      message("Your y_group_col causes multiple sequnces (subject/patterns) to occupy the same position in the plot. You may want to check on that.")
+      message("algnmt %>%
+  tidyr::drop_na(!!rlang::sym(y_group_col)) %>%
+  dplyr::group_by(!!rlang::sym(y_group_col), !!rlang::sym(pos_col)) %>%
+  dplyr::summarise(n = dplyr::n())")
+    }
+    y_group_conv <- dplyr::distinct(tidyr::drop_na(algnmt, !!rlang::sym(seq_col)), !!rlang::sym(y_group_col), !!rlang::sym(name_col))
     y_group_conv <- stats::setNames(as.character(y_group_conv[,y_group_col,drop=T]), y_group_conv[,name_col,drop=T])
     algnmt_summary[[yaxis]] <- y_group_conv[as.character(algnmt_summary[,name_col,drop=T])]
-    algnmt_summary[,y_group_col] <- factor(algnmt_summary[,y_group_col,drop=T], levels = levels(algnmt[,y_group_col,drop=T]))
+    if (is.factor(algnmt[,y_group_col,drop=T])) {
+      algnmt_summary[,y_group_col] <- factor(algnmt_summary[,y_group_col,drop=T], levels = levels(algnmt[,y_group_col,drop=T]))
+    } else {
+      algnmt_summary[,y_group_col] <- factor(algnmt_summary[,y_group_col,drop=T], levels = unique(algnmt_summary[,y_group_col,drop=T]))
+    }
   }
 
   if (add_length_suffix) {
@@ -565,7 +608,7 @@ algnmt_plot <- function(algnmt,
   if (!is.null(pos_shift) && pos_shift_adjust_axis) {
     plot_x_breaks <- ggplot2::ggplot_build(plot)[["layout"]][["panel_params"]][[1]][["x"]][["breaks"]]
     plot_x_breaks <- plot_x_breaks[which(plot_x_breaks <= pos_shift)]
-    plot <- suppressMessages(plot + ggplot2::scale_x_continuous(breaks = max(algnmt$position) - pos_shift + 1 + c(1, plot_x_breaks),
+    plot <- suppressMessages(plot + ggplot2::scale_x_continuous(breaks = max(algnmt[[pos_col]]) - pos_shift + 1 + c(1, plot_x_breaks),
                                                                 labels = c(1, plot_x_breaks)))
   }
 
@@ -594,12 +637,18 @@ algnmt_plot <- function(algnmt,
     }
   }
 
-  if (pattern_names) {
+
+  if (pattern_names > 0) {
     ## ggrepel considers the pattern.lim labels - great.
-    plot <- plot + pattern_names_fun(data = algnmt_summary,
-                                     ggplot2::aes(x = mid_pos, y = !!rlang::sym(yaxis), label = label),
-                                     size = pattern_lim_size,
-                                     inherit.aes = F)
+    plot <- plot + Gmisc::fastDoCall(pattern_names_fun, args = c(list(data = if(is.null(subject_name)) {algnmt_summary} else {algnmt_summary %>% dplyr::filter(!!rlang::sym(name_col) != subject_name)},
+                                                                      mapping = ggplot2::aes(x = mid_pos, y = !!rlang::sym(yaxis), label = label),
+                                                                      size = pattern_names,
+                                                                      inherit.aes = F),
+                                                                 pattern_names_fun_args))
+    # plot <- plot + pattern_names_fun(data = if(is.null(subject_name)) {algnmt_summary} else {algnmt_summary %>% dplyr::filter(!!rlang::sym(name_col) != subject_name)},
+    #                                  mapping = ggplot2::aes(x = mid_pos, y = !!rlang::sym(yaxis), label = label),
+    #                                  size = pattern_names,
+    #                                  inherit.aes = F)
   }
 
   if (subject_lim_lines) {
@@ -680,7 +729,7 @@ pa_to_df <- function(pa, verbose) {
   # how to obtain complete patterns - answer in multiple seq align fun?
   #Biostrings::pattern(pa)
   #xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)), nm = c(pattern_name, subject_name)))
- # xstringfun(stats::setNames(c("AAAA--", "CCCCCC"), nm = c(pattern_name, subject_name)))
+  # xstringfun(stats::setNames(c("AAAA--", "CCCCCC"), nm = c(pattern_name, subject_name)))
 
 
   return(XStringSet_to_df(xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)),
@@ -762,4 +811,33 @@ shifted_pos <- function(x,
   }
   x2 <- c(x[(length(x)-n+1):length(x)], dplyr::lag(x,n)[(n+1):length(x)])
   return(x2)
+}
+
+infer_subject_name <- function(algnmt,
+                               seq_col,
+                               name_col,
+                               pos_col,
+                               subject_name,
+                               subject_name_infer) {
+
+  subject.ranges <- algnmt %>% tidyr::drop_na(!!rlang::sym(seq_col)) %>% dplyr::group_by(!!rlang::sym(name_col))
+  subject.ranges <- stats::setNames(igsc:::seq2(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col)),
+                                                subject.ranges %>% dplyr::slice_max(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col))),
+                                    nm = as.character(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(name_col))))
+  assign("subject.ranges", subject.ranges, envir = parent.frame())
+
+  if (is.null(subject_name) && subject_name_infer) {
+    max_len <- max(lengths(subject.ranges))
+    if (length(which(lengths(subject.ranges) == max_len)) > 1) {
+      if (verbose) {
+        message("Subject could not be identified.")
+      }
+      ## TODO: set variable for ordering pattern on y-axis to FALSE here
+    } else {
+      subject_name <- names(which(lengths(subject.ranges) == max_len))
+    }
+    # assigns in parent environment (https://stackoverflow.com/questions/10904124/global-and-local-variables-in-r?rq=1)
+    assign("subject_name", subject_name, envir = parent.frame())
+    message("subject sequence inferred: ", subject_name)
+  }
 }

@@ -57,13 +57,24 @@
 #'
 #' # you may want to use the fst package to write the data frames to disk
 #' # this allows quick reading and random access
-#' fst::write_fst(x = gtf,
-#' path = "your_path/your_filename_gtf.fst",
-#' compress = 10)
-#' fst::write_fst(x = attr_col,
-#' path = "your_path/your_filename_attr.fst",
-#' compress = 10)
-#' }
+#' path <- "your_path"
+#' seqnames <- read_gtf(file_path = file.path(path, "genes.gtf"),
+#'                      process_attr_col = F)[["gtf"]] %>%
+#'  dplyr::distinct(seqname)
+#'purrr::map(seqnames$seqname, function(x) {
+#'  y <- igsc::read_gtf(file_path = file.path(path, "genes.gtf"),
+#'                seqnames = x)[["gtf"]]
+#'  fst::write_fst(y, path = file.path(path, paste0("genes_gft_", x, ".fst")), compress = 10)
+#'  return(NULL)
+#'}, .progress = T)
+#'
+#'# make a data frame of genes and their chromosome
+#'fst_files <- list.files(file.path(path, "genes_gtf_fst"), full.names = T)
+#'genes_chr <- purrr::map_dfr(fst_files, function(x) {
+#'  dplyr::distinct(fst::read_fst(path = x, columns = c("seqname", "gene_name")))
+#'})
+#'fst::write_fst(genes_chr, path = file.path(path, paste0("genes_chr.fst")), compress = 10)
+
 read_gtf <- function(file_path,
                      gtf,
                      attr_col_as_list = F,
@@ -191,7 +202,7 @@ get_bounds <- function(x, file_path) {
 }
 
 vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
-  bounds <- igsc:::get_bounds(x, file_path)
+  bounds <- get_bounds(x, file_path)
   y <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
                     col_names = col_names,
                     skip = bounds[1] - 1,
@@ -202,8 +213,4 @@ vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
 }
 
 
-## too slow
-#gtf_attr <- purrr::map(tt3, stringi::stri_split_fixed, pattern = " ", omit_empty = T, .progress = T)
-#out <- purrr::map(gtf_attr, function(x) data.frame(attribute = sapply(x, "[", 2), value = sapply(x, "[", 1)), .progress = T)
-#library(data.table)
-#out2 <- rbindlist(lapply(out, as.data.frame.list), fill=TRUE)
+

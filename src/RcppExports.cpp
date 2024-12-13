@@ -32,10 +32,35 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// revcomp_rcpp
+std::vector<std::string> revcomp_rcpp(std::vector<std::string> dna_strings);
+RcppExport SEXP _igsc_revcomp_rcpp(SEXP dna_stringsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type dna_strings(dna_stringsSEXP);
+    rcpp_result_gen = Rcpp::wrap(revcomp_rcpp(dna_strings));
+    return rcpp_result_gen;
+END_RCPP
+}
+// revcomp_rcpp2
+std::vector<std::string> revcomp_rcpp2(std::vector<std::string> dna_strings, std::string mode);
+RcppExport SEXP _igsc_revcomp_rcpp2(SEXP dna_stringsSEXP, SEXP modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type dna_strings(dna_stringsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type mode(modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(revcomp_rcpp2(dna_strings, mode));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_igsc_process_attr_col_rcpp", (DL_FUNC) &_igsc_process_attr_col_rcpp, 1},
     {"_igsc_processStrings", (DL_FUNC) &_igsc_processStrings, 1},
+    {"_igsc_revcomp_rcpp", (DL_FUNC) &_igsc_revcomp_rcpp, 1},
+    {"_igsc_revcomp_rcpp2", (DL_FUNC) &_igsc_revcomp_rcpp2, 2},
     {NULL, NULL, 0}
 };
 

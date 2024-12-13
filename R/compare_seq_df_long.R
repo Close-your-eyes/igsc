@@ -69,10 +69,22 @@ compare_seq_df_long <- function(df_long,
     name_order <- unique(df_long[,name_col,drop=T])
   }
   non_ref <- name_order[which(name_order != ref)]
+
+  check_dups <-
+    df_long %>%
+    dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
+    dplyr::summarise(n = dplyr::n(), .by = c(!!rlang::sym(pos_col), !!rlang::sym(name_col))) %>%
+    dplyr::filter(n > 1L)
+  if (nrow(check_dups) > 1) {
+    message("Found duplicate rows in df_long. Will use dplyr::distict to fix this but you should check your data frame.")
+    df_long <- dplyr::distinct(df_long)
+  }
+
   df2 <-
     df_long %>%
     dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
     tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col))
+
   # matches to pattern
   if (change_pattern) {
     df2 <- df2 %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% c(ref, pos_col))]))
@@ -111,13 +123,44 @@ compare_seq_df_long <- function(df_long,
   }
   df2 <- dplyr::mutate(df2, {{name_col}} := factor(!!rlang::sym(name_col), levels = name_order))
   # join other columns from initial data frame
+  df2 <-
+    df2 %>%
+    scexpr:::coalesce_join(coalesce_other_cols_with_unique_vals(df_long = df_long,
+                                                                name_col = name_col,
+                                                                pos_col = pos_col,
+                                                                seq_col = seq_col), by = "pattern")
+
   if (any(!names(df_long)[-which(names(df_long) == seq_col)] %in% names(df2))) {
+    names(df_long)[!names(df_long) %in% names(df2)]
     df2 <- dplyr::left_join(df2, dplyr::select(df_long, -!!rlang::sym(seq_col)), by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
   }
 
   return(df2)
 }
 
+coalesce_other_cols_with_unique_vals <- function(df_long,
+                                                 name_col,
+                                                 pos_col,
+                                                 seq_col) {
+  unique_add_cols <-
+    df_long %>%
+    dplyr::group_by(!!rlang::sym(name_col)) %>%
+    dplyr::summarise(dplyr::across(-c(!!rlang::sym(pos_col), !!rlang::sym(seq_col)), dplyr::n_distinct)) %>%
+    tidyr::pivot_longer(cols = -pattern) %>%
+    dplyr::filter(value == 1)
+  add_cols_vals <-
+    df_long %>%
+    dplyr::select(pattern, unique(unique_add_cols$name)) %>%
+    dplyr::distinct() %>%
+    tidyr::pivot_longer(cols = - pattern)
+  add_cols_vals_unique_wide <-
+    unique_add_cols %>%
+    dplyr::select(-value) %>%
+    left_join(add_cols_vals, by = dplyr::join_by(pattern, name)) %>%
+    dplyr::distinct() %>%
+    tidyr::pivot_wider(names_from = name, values_from = value)
+  return(add_cols_vals_unique_wide)
+}
 
 ## other procedure:
 ## assign matches and mismatches

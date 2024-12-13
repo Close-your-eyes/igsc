@@ -26,7 +26,7 @@ read_fasta <- function(file,
                        rm_comments = F,
                        comment_indicator = c(";", "#"),
                        rm_leading_arrow = T,
-                       make.names = F,
+                       make.names = F, # option for make.names fun e.g. from janitor
                        start_line = 1,
                        end_line = Inf) {
 
@@ -59,7 +59,8 @@ read_fasta <- function(file,
   lines <- vroom::vroom_lines(file = do.call(unpack_fun, args = list(description = file)),
                               skip = start_line - 1,
                               n_max = end_line - start_line + 1,
-                              skip_empty_rows = T)
+                              skip_empty_rows = T,
+                              progress = F)
   if (trimws) {
     lines <- stringi::stri_trim_both(lines)
   }
@@ -88,11 +89,17 @@ read_fasta <- function(file,
   start <- ind + 1
   end <- ind - 1
   end <- c(end[-1], length(lines))
-  seqs <- purrr::map_chr(igsc:::seq2(start, end), function(x) paste(lines[x], collapse = ""), .progress = T)
+  seqnames <- lines[ind]
+  lines <- purrr::map_chr(igsc:::seq2(start, end), function(x) stringi::stri_paste(lines[x], collapse = ""), .progress = T)
 
-  names(seqs) <- gsub("^>", "", lines[ind])
+  # mulicore option? split seqs for parallel paste?
+  #d <- igsc:::seq2(start, end)[[1]]
+  #d <- split(d, ceiling(seq_along(d)/(length(d)/4)))
+  #lines2 <- stringi::stri_paste(parallel::mclapply(d, function(x) stringi::stri_paste(lines[x], collapse = ""), mc.cores = 2), collapse = "")
+
+  names(lines) <- gsub("^>", "", seqnames)
   if (make.names) {
-    names(seqs) <- make.names(names(seqs))
+    names(lines) <- make.names(names(lines))
   }
-  return(seqs)
+  return(lines)
 }

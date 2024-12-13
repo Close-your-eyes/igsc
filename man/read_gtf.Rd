@@ -15,7 +15,7 @@ read_gtf(
     "frame", "attribute"),
   attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name",
     "exon_number"),
-  use_fun = c("rcpp", "rust", "r")
+  use_fun = c("r", "rust", "rcpp")
 )
 }
 \arguments{
@@ -60,36 +60,4 @@ See https://www.ensembl.org/info/website/upload/gff.html?redirect=no for
 explanation of GTF file format.
 GTF files and genomic fasta files may be downloaded here https://www.ncbi.nlm.nih.gov/datasets/genome/
 or here https://www.ensembl.org/index.html
-}
-\examples{
-\dontrun{
-
-gtf <- read_gtf(your_path, attr_col_as_list = F)
-# when attr_col_as_list = F attributes are split into names and values columns
-# this is how to expand the attributes names and values columns
-# tidyr unnest over two columns matches the list indices
-gtf2 <-
-gtf[["gtf"]] \%>\%
-dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
-               attribute_values = I(strsplit(attribute_values, ","))) \%>\%
-               tidyr::unnest(cols = c(attribute_names, attribute_values))
-
-# this is how to make a named list from separate names and values columns
-# this is returned when attr_col_as_list = T
-gtf2 <-
-gtf[["gtf"]] \%>\%
-dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
-attribute_values = I(strsplit(attribute_values, ","))) \%>\%
-dplyr::rowwise() \%>\%
-dplyr::mutate(attr = I(list(setNames(attribute_names, attribute_values))))
-
-# you may want to use the fst package to write the data frames to disk
-# this allows quick reading and random access
-fst::write_fst(x = gtf,
-path = "your_path/your_filename_gtf.fst",
-compress = 10)
-fst::write_fst(x = attr_col,
-path = "your_path/your_filename_attr.fst",
-compress = 10)
-}
 }

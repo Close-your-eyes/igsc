@@ -44,7 +44,7 @@ it is attempted to guess the type}
 \item{return_max_mismatch_info_only}{only return information on mismatches of patterns with the subject;
 in this case no alignment is calculated}
 
-\item{order_subject_ranges}{}
+\item{verbose}{}
 }
 \value{
 a list
