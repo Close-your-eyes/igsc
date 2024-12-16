@@ -8,13 +8,23 @@ concat_transcript(
   gtf_df,
   refseq,
   refseq_strand = c("+", "-"),
-  stop_codon_to_CDS = F
+  stop_codon_to_CDS = F,
+  run_test = F,
+  ...
 )
 }
 \arguments{
 \item{gtf_df}{subsetted gtf data frame}
 
-\item{refseq}{reference sequence to pull from}
+\item{refseq}{reference sequence in 5' to 3' direction, genomic sequence: plus or minus strand}
+
+\item{refseq_strand}{which strand does refseq represent?}
+
+\item{stop_codon_to_CDS}{include stop codon in CDS?}
+
+\item{run_test}{compare returned sequences to references?}
+
+\item{...}{arguments to get_genome_seq}
 }
 \description{
 Based on gtf_df which should only contain lines of exon definitions for

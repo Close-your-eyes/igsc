@@ -16,11 +16,13 @@ algnmt_plot(
   theme_args = list(panel.grid = ggplot2::element_blank()),
   pattern_lim_size = 0,
   pattern_lim_pos = c("inner", "outer"),
-  pattern_names = F,
+  pattern_names = 0,
   pattern_names_fun = ggrepel::geom_text_repel,
+  pattern_names_fun_args = list(),
   pairwiseAlignment = NULL,
   subject_lim_lines = F,
   subject_name = NULL,
+  subject_name_infer = T,
   pos_col = "position",
   seq_col = "seq",
   name_col = "seq.name",
@@ -36,7 +38,8 @@ algnmt_plot(
   pos_shift = NULL,
   pos_shift_adjust_axis = T,
   verbose = T,
-  focus = NULL
+  focus = NULL,
+  y_order = c("as_is", "increasing", "decreasing")
 )
 }
 \arguments{

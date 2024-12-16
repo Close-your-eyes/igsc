@@ -4,10 +4,12 @@
 \alias{get_fasta_seq_bounds}
 \title{From a genome fasta file, get chromosome sequence boundaries}
 \usage{
-get_fasta_seq_bounds(file_path)
+get_fasta_seq_bounds(file_path, save_fst = T, check_fst = T)
 }
 \arguments{
-\item{file_path}{path to fasta file}
+\item{file_path}{path to fasta file or fst file}
+
+\item{check_fst}{}
 }
 \description{
 From a genome fasta file, get chromosome sequence boundaries

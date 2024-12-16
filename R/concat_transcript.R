@@ -10,7 +10,9 @@
 #' @param gtf_df subsetted gtf data frame
 #' @param refseq reference sequence in 5' to 3' direction, genomic sequence: plus or minus strand
 #' @param refseq_strand which strand does refseq represent?
-#' @param stop_codon_to_CDS
+#' @param stop_codon_to_CDS include stop codon in CDS?
+#' @param run_test compare returned sequences to references?
+#' @param ... arguments to get_genome_seq
 #'
 #' @return
 #' @export
@@ -19,10 +21,10 @@
 concat_transcript <- function(gtf_df,
                               refseq,
                               refseq_strand = c("+", "-"),
-                              stop_codon_to_CDS = F) {
+                              stop_codon_to_CDS = F,
+                              run_test = F,
+                              ...) {
 
-
-  ## check gene on + and - strand with refseq on + or - strand
 
   # # CD8A - strand
   # gtf_df <- readRDS("/Users/vonskopnik/Documents/2024_igsc_testing/cd8a_gtf.rds")
@@ -48,22 +50,28 @@ concat_transcript <- function(gtf_df,
   if (length(unique(gtf_df[["strand"]])) > 1) {
     stop("Strand column has more than one level in gtf_df.")
   }
-  # check equality of seqname in gtf_df and name of refseq
+
+  feat1 <- sapply(c("transcript", "exon", "CDS", "start_codon", "stop_codon", "UTR"), grepl, x = unique(gtf_df[["feature"]]), simplify = F)
+  if (any(!sapply(feat1, any))) {
+    stop("feature columns needs to have at least one of each of these: transcript exon CDS start_codon stop_codon UTR")
+  }
+
+  # check equality of seqname in gtf_df and name of refseq (from fasta file)
   if (!is.null(names(refseq))) {
     if (names(refseq) != unique(gtf_df[["seqname"]])) {
       message("name of refseq and seqname in gtf_df are unequal: ", names(refseq), " vs. ", unique(gtf_df[["seqname"]]), ".")
     }
   }
 
-  # what are antisense genes
   refseq_strand <- match.arg(refseq_strand, c("+", "-"))
+  # always pull sequences from the plus strand, as start and end refer to that strand
+  # if one applies revcomp to the plus strand to have the minus strand, positions do no longer match
+  if (refseq_strand == "-") {
+    refseq <- revcompDNA(refseq, fun = "rcpp")
+  }
+
   gtf_df$exon_number <- as.numeric(gtf_df$exon_number)
   strand <- unique(gtf_df$strand)
-  # if (refseq_strand != strand) {
-  #   # safer, easier and only slightly slower
-  #   # only reverse here and complement derived sequences below
-  #   refseq <- revcompDNA(refseq)
-  # }
   gtf_df <- add_introns(gtf_df = gtf_df, strand = strand, n_exon = max(gtf_df$exon_number, na.rm = T))
   # add alternative feature names
   minpos <- min(gtf_df$start, gtf_df$end)
@@ -94,39 +102,31 @@ concat_transcript <- function(gtf_df,
   #seqlist <- mapply(substr, start = stats::setNames(gtf_df$start, gtf_df$feature2), stop = gtf_df$end, x = refseq)
   seqlist <- purrr::map2_chr(.x = stats::setNames(gtf_df$start, gtf_df$feature2), .y = gtf_df$end, substr, x = refseq)
   pos_gen <- stats::setNames(igsc:::seq2(gtf_df$start, gtf_df$end), gtf_df$feature2)
-  pos_gen_rel <- stats::setNames(igsc:::seq2(gtf_df$start_transcript, gtf_df$end_transcript), gtf_df$feature2)
+  #pos_gen_rel <- stats::setNames(igsc:::seq2(gtf_df$start_transcript, gtf_df$end_transcript), gtf_df$feature2)
 
-  ## this did not work, but why? instead the whole refseq
-  ## genomic position needs adjustment??
-
-  # do complement on derived sequences
-  if (refseq_strand != strand) {
+  # sequences are always derived from plus strand (see above)
+  # so if the gene is on minus strand, revcomp or rev is required for sequences and positions, respectively
+  if (strand == "-") {
     seqlist <- revcompDNA(seqlist, fun = "rcpp")
     pos_gen <- lapply(pos_gen, rev)
-    pos_gen_rel <- lapply(pos_gen_rel, rev)
-    decr_pos_gen <- F #T
-  } else {
-    decr_pos_gen <- F
+    #pos_gen_rel <- lapply(pos_gen_rel, rev)
   }
 
   direction_5to3 <- "5' --> 3'"
   attributes(seqlist) <- list(names = names(seqlist), strand = strand, direction = direction_5to3)
-  #gtf_df$start > gtf_df$end
-  # seqlist[["start_codon"]]
-  # revcompDNA(x = seqlist[["start_codon"]], fun = "Biostrings")
-  # revcompDNA(seqlist[["start_codon"]], fun = "rcpp")
-  # revcompDNA(seqlist[["start_codon"]], fun = "r")
 
   ## add seq for plus and minus strand
   transcript_df <- data.frame(seq1 = strsplit(seqlist[["transcript"]], "")[[1]],
-                              seq2 = strsplit(revcompDNA(seqlist[["transcript"]], rev = F), "")[[1]],
+                              #seq2 = strsplit(revcompDNA(seqlist[["transcript"]], rev = F), "")[[1]],
                               position_genome = pos_gen[["transcript"]],
                               position = sort(pos_gen[["transcript"]] - min(pos_gen[["transcript"]]) + 1)) # , decreasing = decr_pos_gen
-  names(transcript_df)[c(1,2)] <-
+  names(transcript_df)[1] <-
     if (strand == "+") {
-      c("seq_plus_5to3", "seq_minus_3to5")
+      c("seq_plus_5to3")
+      #c("seq_plus_5to3", "seq_minus_3to5")
     } else {
-      c("seq_minus_5to3", "seq_plus_3to5")
+      c("seq_minus_5to3")
+      #c("seq_minus_5to3", "seq_plus_3to5")
     }
   strand_coding <- names(transcript_df)[1]
   gtf_df[[names(transcript_df)[1]]] <- seqlist
@@ -219,7 +219,7 @@ concat_transcript <- function(gtf_df,
   #   tidyr::drop_na()
   # tidyr::pivot_wider(df_transcript_meta_long) # reverse
 
-  # in df_transcript_meta: leave UTRs with trialing exon number as UTR may spread over more than one exon
+  # in df_transcript_meta: leave UTRs with trailing exon number as UTR may spread over more than one exon
   # in df_exon_meta the trailing number can be removed, as without introns the UTR from multiple exons becomes adjacent
   # in CDS, UTR are irrelevant
 
@@ -333,6 +333,46 @@ concat_transcript <- function(gtf_df,
          seqlist = seqlist,
          gtf2 = gtf_df[,-which(names(gtf_df) %in% c(cols_reduce, "score"))]),
     as.list(redundant_info))
+
+  # check transcript seq with get_genome_seq
+
+  if (run_test) {
+    trans_range <- range(return_list[["pre_mRNA"]][["seq_df"]] %>%
+                           dplyr::filter(pattern == "transcript") %>%
+                           #dplyr::arrange(position_genome) %>%
+                           dplyr::pull(position_genome))
+    df_seq <- paste(return_list[["pre_mRNA"]][["seq_df"]] %>%
+                      dplyr::filter(pattern == "transcript") %>%
+                      #dplyr::arrange(position_genome) %>%
+                      dplyr::pull(!!rlang::sym(strand_coding)), collapse = "")
+    test_seq <- get_genome_seq(chromosome = gtf_df$seqname[1],
+                               start = trans_range[1],
+                               end = trans_range[2],
+                               ...)
+    if (strand == "-") {
+      test_seq <- revcompDNA(test_seq)
+    }
+
+    out <-
+      return_list[["pre_mRNA"]][["seq_df"]] %>%
+      dplyr::filter(grepl("codon", pattern))
+
+    if (paste(out[which(out$pattern == "start_codon"), 1, drop = T], collapse = "") != "ATG") {
+      message("start codon on coding strand is not ATG.")
+    }
+    if (!paste(out[which(out$pattern == "stop_codon"), 1, drop = T], collapse = "") %in% c("TGA", "TAG", "TAA")) {
+      message("stop codon on coding strand is neither of TGA, TAG, TAA.")
+    }
+    if (!identical(seqlist[["transcript"]], test_seq)) {
+      message("seqlist and test unequal.")
+    }
+    if (!identical(df_seq, test_seq)) {
+      message("df_seq and test unequal.")
+    }
+  }
+
+
+
   return(return_list)
 
 }

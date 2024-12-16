@@ -25,5 +25,6 @@ get_fasta_names <- function(file_path) {
   names(name_lines)[1:2] <- c("start_line", "name")
   name_lines$start_line <- as.numeric(name_lines$start_line)
   name_lines$name <- as.character(name_lines$name)
+  name_lines$name2 <- sapply(strsplit(name_lines$name, " "), "[", 1)
   return(name_lines)
 }

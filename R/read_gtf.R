@@ -57,23 +57,7 @@
 #'
 #' # you may want to use the fst package to write the data frames to disk
 #' # this allows quick reading and random access
-#' path <- "your_path"
-#' seqnames <- read_gtf(file_path = file.path(path, "genes.gtf"),
-#'                      process_attr_col = F)[["gtf"]] %>%
-#'  dplyr::distinct(seqname)
-#'purrr::map(seqnames$seqname, function(x) {
-#'  y <- igsc::read_gtf(file_path = file.path(path, "genes.gtf"),
-#'                seqnames = x)[["gtf"]]
-#'  fst::write_fst(y, path = file.path(path, paste0("genes_gft_", x, ".fst")), compress = 10)
-#'  return(NULL)
-#'}, .progress = T)
-#'
-#'# make a data frame of genes and their chromosome
-#'fst_files <- list.files(file.path(path, "genes_gtf_fst"), full.names = T)
-#'genes_chr <- purrr::map_dfr(fst_files, function(x) {
-#'  dplyr::distinct(fst::read_fst(path = x, columns = c("seqname", "gene_name")))
-#'})
-#'fst::write_fst(genes_chr, path = file.path(path, paste0("genes_chr.fst")), compress = 10)
+#' # see function: genes_gtf_to_fst
 
 read_gtf <- function(file_path,
                      gtf,
@@ -84,6 +68,9 @@ read_gtf <- function(file_path,
                      col_names = c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"),
                      attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name", "exon_number"),
                      use_fun = c("r","rust", "rcpp")) {
+
+  ## add fst folder option
+
 
   if (missing(file_path) && missing(gtf)) {
     stop("Provide file_path or gtf data frame.")
