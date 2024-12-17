@@ -9,10 +9,11 @@ algnmt_plot(
   tile_fill = NULL,
   tile_color = NA,
   tile_color_NA = F,
-  text = F,
-  line = F,
+  tile_text = F,
+  tile_line = F,
   line_args = list(linewidth = 0.1, color = "black"),
-  theme = ggplot2::theme_bw(),
+  base_theme = ggplot2::theme_bw,
+  base_theme_args = list(),
   theme_args = list(panel.grid = ggplot2::element_blank()),
   pattern_lim_size = 0,
   pattern_lim_pos = c("inner", "outer"),
@@ -56,15 +57,12 @@ rather suited for short detailed alignments}
 
 \item{tile_color_NA}{logical whether to draw borders on NA positions}
 
-\item{text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
+\item{tile_text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
 advisable only for short alignments}
-
-\item{line}{draw a line from start to end of each pattern; this will draw a
-connection between exons separated by introns}
 
 \item{line_args}{arguments for line drawing; passed to geom_segment}
 
-\item{theme}{ggplot theme to use as basis}
+\item{base_theme}{ggplot theme to use as basis}
 
 \item{theme_args}{theme arguments for ggplot}
 
@@ -81,9 +79,11 @@ e.g., ggrepel::geom_text_repel or ggplot2::geom_text}
 \item{pairwiseAlignment}{provide the pairwiseAlignment that algnmt is based on;
 this will enable the use of other function arguments}
 
-\item{subject_lim_lines}{logical whether to plot vertical lines of subject alignment limits}
+\item{subject_lim_lines}{logical whether to plot vertical lines of subject alignment limits;
+requires subject_name}
 
-\item{subject_name}{name of the subject sequence in algnmt; only needed if subject_lim_lines = TRUE}
+\item{subject_name}{name of the subject sequence in algnmt; subject will be plotted
+first (at bottom of plot)}
 
 \item{pos_col}{name of position column in algnmt (applicable if algnmt is a data.frame)}
 
@@ -106,15 +106,18 @@ group_on_yaxis (applicable if algnmt is a data.frame)}
 \item{x_breaks}{numeric vector; manually provide breaks (ticks) on x-axis; set NULL to have breaks
 picked automatically}
 
-\item{algnmt_type}{'NT' or 'AA'; only required if algnmt is a data.frame and only if
+\item{algnmt_type}{typically 'NT' or 'AA' to influence the tile_fill automatically,
+or any other string like "other" to have other colors;
+only required if algnmt is a data.frame and only if
 NT or AA cannot be guessed; leave NULL to have it guessed based on data}
 
 \item{add_length_suffix}{whether to add the pattern length as suffix to
 pattern_names}
 
-\item{group_on_yaxis}{have an algorithm deciced which patterns to plot in one
-row without overlap; this will use the plot area most efficiently;
-this argument competes with y_group_col}
+\item{group_on_yaxis}{have an algorithm decide which patterns to plot in one
+row without overlaps; this will use the plot area most efficiently;
+this argument competes with y_group_col; use min_gap to define the minimal
+gap size to other patterns}
 
 \item{min_gap}{minimal gap size between patterns to trigger plotting in
 separate rows; only applies if group_on_yaxis is TRUE}
@@ -135,6 +138,8 @@ of +100 or +2500 or so}
 \item{focus}{focus on aligned patterns by cutting the subject range;
 a positive integer limiting the range to n positions before the first pattern
 position and n positions after the last pattern position}
+
+\item{y_order}{}
 }
 \value{
 ggplot2 object of alignment

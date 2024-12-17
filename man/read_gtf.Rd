@@ -53,7 +53,9 @@ column as list and some attributes as separate columns and
 Since GTF files come in an unhandy format, this function may help
 to easily read them into memory. As a whole or partly by providing
 seqnames and/or features. Processing the attribute column is computationally
-costly.
+costly. Start/end: In both cases, gene on plus or minus strand, end is larger
+then start. This makes immediate sense for the plus strand but for the minus
+strand, genes actually go from a larger to a smaller position (5'->3').
 }
 \details{
 See https://www.ensembl.org/info/website/upload/gff.html?redirect=no for

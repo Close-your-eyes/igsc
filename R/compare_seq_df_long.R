@@ -123,12 +123,13 @@ compare_seq_df_long <- function(df_long,
   }
   df2 <- dplyr::mutate(df2, {{name_col}} := factor(!!rlang::sym(name_col), levels = name_order))
   # join other columns from initial data frame
+
   df2 <-
     df2 %>%
-    scexpr:::coalesce_join(coalesce_other_cols_with_unique_vals(df_long = df_long,
-                                                                name_col = name_col,
-                                                                pos_col = pos_col,
-                                                                seq_col = seq_col), by = "pattern")
+    coalesce_join(coalesce_other_cols_with_unique_vals(df_long = df_long,
+                                                       name_col = name_col,
+                                                       pos_col = pos_col,
+                                                       seq_col = seq_col), by = "pattern")
 
   if (any(!names(df_long)[-which(names(df_long) == seq_col)] %in% names(df2))) {
     names(df_long)[!names(df_long) %in% names(df2)]
@@ -156,10 +157,56 @@ coalesce_other_cols_with_unique_vals <- function(df_long,
   add_cols_vals_unique_wide <-
     unique_add_cols %>%
     dplyr::select(-value) %>%
-    left_join(add_cols_vals, by = dplyr::join_by(pattern, name)) %>%
+    dplyr::left_join(add_cols_vals, by = dplyr::join_by(pattern, name)) %>%
     dplyr::distinct() %>%
     tidyr::pivot_wider(names_from = name, values_from = value)
   return(add_cols_vals_unique_wide)
+}
+
+coalesce_join <- function(x, y,
+                          by = NULL, suffix = c(".x", ".y"),
+                          join = dplyr::left_join, ...) {
+
+  # copied originally from: https://alistaire.rbind.io/blog/coalescing-joins/
+  # ideas:
+  # https://stackoverflow.com/questions/33954292/merge-two-data-frame-and-replace-the-na-value-in-r#33954334
+  # https://community.rstudio.com/t/merging-2-dataframes-and-replacing-na-values/32123/2
+  # https://github.com/WinVector/rqdatatable
+
+  joined <- join(x, y, by = by, suffix = suffix, ...)
+  # names of desired output
+  cols <- union(names(x), names(y))
+
+  to_coalesce <- names(joined)[!names(joined) %in% cols]
+  if (length(to_coalesce) > 0) {
+    suffix_used <- suffix[ifelse(endsWith(to_coalesce, suffix[1]), 1, 2)]
+    # remove suffixes and deduplicate
+    to_coalesce <- unique(substr(to_coalesce, 1, nchar(to_coalesce) - nchar(suffix_used)))
+
+    coalesced <- purrr::map(to_coalesce, ~dplyr::coalesce(joined[[paste0(.x, suffix[1])]], joined[[paste0(.x, suffix[2])]]))
+    names(coalesced) <- to_coalesce
+    coalesced <- dplyr::bind_cols(coalesced)
+
+    # restore factors of data frame x
+    # only possible if no additional factor level was added
+    for (i in to_coalesce) {
+      if (is.factor(x[[i]]) && length(intersect(levels(x[[i]]), unique(coalesced[[i]]))) == length(levels(x[[i]]))) {
+        coalesced[[i]] <- factor(coalesced[[i]], levels = levels(x[[i]]))
+      }
+    }
+    # only remove cols when they have different names in x and y; because then the col name from y disappears; this is irrespective of left_join and right_join
+    # what about other way of specifying join columns?
+    cols2 <- if(is.null(names(by))) {
+      cols
+    } else {
+      by2 <- by[which(names(by) != by)]
+      cols[which(!cols %in% by2)]
+    }
+    return(dplyr::bind_cols(joined, coalesced)[cols2]) # modified from dplyr::bind_cols(joined, coalesced)[cols]; needed if by = c("xyz" = "abc") and "abc" becomes "xyz" in joined df
+  } else {
+    return(joined)
+  }
+
 }
 
 ## other procedure:

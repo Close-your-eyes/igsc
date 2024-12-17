@@ -63,6 +63,10 @@ concat_transcript <- function(gtf_df,
     }
   }
 
+  # Start/end: In both cases, gene on plus or minus strand, end is larger
+  # then start. This makes immediate sense for the plus strand but for the minus
+  # strand, genes actually go from a larger to a smaller position (5'->3').
+
   refseq_strand <- match.arg(refseq_strand, c("+", "-"))
   # always pull sequences from the plus strand, as start and end refer to that strand
   # if one applies revcomp to the plus strand to have the minus strand, positions do no longer match

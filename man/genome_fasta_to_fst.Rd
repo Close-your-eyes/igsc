@@ -6,7 +6,7 @@
 \usage{
 genome_fasta_to_fst(
   genome_file,
-  out_folder = dirname(genome_file),
+  out_folder = file.path(dirname(genome_file), "genome_fa_fst"),
   overwrite = F,
   fst_compression = 100,
   verbose = T,

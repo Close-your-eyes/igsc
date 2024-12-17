@@ -9,24 +9,28 @@
 #' leave NA to have no borders (quicker plotting and advised for long alignments);
 #' rather suited for short detailed alignments
 #' @param tile_color_NA logical whether to draw borders on NA positions
-#' @param text logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
+#' @param tile_text logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
 #' advisable only for short alignments
-#' @param theme ggplot theme to use as basis
+#' @param base_theme ggplot theme to use as basis
 #' @param pattern_lim_size numeric; plot annotation of pattern alignment limits; value indicates size;
 #' set to 0 to omit plotting; only applicable if pa is provided
-#' @param subject_lim_lines logical whether to plot vertical lines of subject alignment limits
+#' @param subject_lim_lines logical whether to plot vertical lines of subject alignment limits;
+#' requires subject_name
 #' @param pos_col name of position column in algnmt (applicable if algnmt is a data.frame)
 #' @param seq_col name of sequence column in algnmt (applicable if algnmt is a data.frame)
 #' @param name_col name of column which holds sequence names in algnmt (applicable if algnmt is a data.frame)
 #' @param coord_fixed_ratio numeric; fixed aspect ratio of plot; leave NULL to not force a ratio
 #' @param x_breaks numeric vector; manually provide breaks (ticks) on x-axis; set NULL to have breaks
 #' picked automatically
-#' @param algnmt_type 'NT' or 'AA'; only required if algnmt is a data.frame and only if
+#' @param algnmt_type typically 'NT' or 'AA' to influence the tile_fill automatically,
+#' or any other string like "other" to have other colors;
+#' only required if algnmt is a data.frame and only if
 #' NT or AA cannot be guessed; leave NULL to have it guessed based on data
 #' @param ref a reference sequence to compare all other sequences to;
 #' e.g. a consensus sequence or a gene sequence to align reads to;
 #' should be a name that appears in name_col; passed to compare_seq_df_long
-#' @param subject_name name of the subject sequence in algnmt; only needed if subject_lim_lines = TRUE
+#' @param subject_name name of the subject sequence in algnmt; subject will be plotted
+#' first (at bottom of plot)
 #' @param pattern_lim_pos where to plot the pattern_lims; only if pattern_lim_size > 0
 #' @param pattern_names whether to plot pattern names within the plot
 #' @param pairwiseAlignment provide the pairwiseAlignment that algnmt is based on;
@@ -38,13 +42,12 @@
 #' e.g., ggrepel::geom_text_repel or ggplot2::geom_text
 #' @param add_length_suffix whether to add the pattern length as suffix to
 #' pattern_names
-#' @param group_on_yaxis have an algorithm deciced which patterns to plot in one
-#' row without overlap; this will use the plot area most efficiently;
-#' this argument competes with y_group_col
+#' @param group_on_yaxis have an algorithm decide which patterns to plot in one
+#' row without overlaps; this will use the plot area most efficiently;
+#' this argument competes with y_group_col; use min_gap to define the minimal
+#' gap size to other patterns
 #' @param min_gap minimal gap size between patterns to trigger plotting in
 #' separate rows; only applies if group_on_yaxis is TRUE
-#' @param line draw a line from start to end of each pattern; this will draw a
-#' connection between exons separated by introns
 #' @param line_args arguments for line drawing; passed to geom_segment
 #' @param theme_args theme arguments for ggplot
 #' @param start_end_col name of column with start and end position of patterns;
@@ -61,6 +64,11 @@
 #' @param focus focus on aligned patterns by cutting the subject range;
 #' a positive integer limiting the range to n positions before the first pattern
 #' position and n positions after the last pattern position
+#' @param tile_line
+#' @param base_theme_args
+#' @param pattern_names_fun_args
+#' @param subject_name_infer
+#' @param y_order
 #'
 #' @return ggplot2 object of alignment
 #' @export
@@ -72,10 +80,11 @@ algnmt_plot <- function(algnmt,
                         tile_fill = NULL,
                         tile_color = NA,
                         tile_color_NA = F,
-                        text = F,
-                        line = F,
+                        tile_text = F,
+                        tile_line = F,
                         line_args = list(linewidth = 0.1, color = "black"),
-                        theme = ggplot2::theme_bw(),
+                        base_theme = ggplot2::theme_bw,
+                        base_theme_args = list(),
                         theme_args = list(panel.grid = ggplot2::element_blank()),
                         pattern_lim_size = 0,
                         pattern_lim_pos = c("inner", "outer"),
@@ -107,12 +116,6 @@ algnmt_plot <- function(algnmt,
   # document and clean up
 
   ## check duplicate names
-  ## y_group_col actually makes only sense when a algnmt is a dataframe, e.g. from multi pairwisealignment
-  ## otherwise y_group_col is set to NULL
-
-  ## 2024-11-30: ordering of sequences wit/wo ref and/or subject_name; ref or subject should come first??
-
-  # yaxis vs y_group_col ??
 
   if (!requireNamespace("Peptides", quietly = T)){
     utils::install.packages("Peptides")
@@ -127,12 +130,7 @@ algnmt_plot <- function(algnmt,
   pattern_lim_pos <- match.arg(pattern_lim_pos, c("inner", "outer"))
   pattern_names_fun <- match.fun(pattern_names_fun)
   y_order <- match.arg(y_order, c("as_is", "increasing", "decreasing"))
-
-  if (!is.null(pairwiseAlignment) && is.null(subject_name)) {
-    if (!is.null(pairwiseAlignment@subject@unaligned@ranges@NAMES)) {
-      subject_name <- pairwiseAlignment@subject@unaligned@ranges@NAMES
-    }
-  }
+  base_theme <- match.fun(base_theme)
 
   ## checks
   if (methods::is(algnmt, "DNAStringSet") || methods::is(algnmt, "RNAStringSet") || methods::is(algnmt, "AAStringSet")) {
@@ -148,6 +146,7 @@ algnmt_plot <- function(algnmt,
                                seq_col = seq_col,
                                pos_col = pos_col)
     if (!is.null(y_group_col)) {
+      ## y_group_col makes only sense when a algnmt is a dataframe, e.g. from multi pairwisealignment
       if (verbose) {
         message("y_group_col is set to NULL.")
       }
@@ -177,8 +176,23 @@ algnmt_plot <- function(algnmt,
   }
   # else: data frame from igsc::MultiplePairwiseAlignmentsToOneSubject
 
-  if (subject_lim_lines && !is.null(subject_name) && !subject_name %in% algnmt[,name_col,drop=T]) {
-    stop("subject_name not found in ", name_col, " of algnmt. Can't draw subject_lim_lines.")
+  if (!name_col %in% names(algnmt)) {
+    stop("name_col not found in algnmt.")
+  }
+  if (!seq_col %in% names(algnmt)) {
+    stop("seq_col not found in algnmt.")
+  }
+  if (!pos_col %in% names(algnmt)) {
+    stop("pos_col not found in algnmt.")
+  }
+  if (!is.null(y_group_col) && !y_group_col %in% names(algnmt)) {
+    stop("y_group_col not found in algnmt.")
+  }
+
+  if (!is.null(pairwiseAlignment) && is.null(subject_name)) {
+    if (!is.null(pairwiseAlignment@subject@unaligned@ranges@NAMES)) {
+      subject_name <- pairwiseAlignment@subject@unaligned@ranges@NAMES
+    }
   }
 
   infer_subject_name(algnmt = algnmt,
@@ -187,6 +201,10 @@ algnmt_plot <- function(algnmt,
                      pos_col = pos_col,
                      subject_name = subject_name,
                      subject_name_infer = subject_name_infer)
+
+  if (subject_lim_lines && !is.null(subject_name) && !subject_name %in% algnmt[,name_col,drop=T]) {
+    stop("subject_name not found in ", name_col, " of algnmt. Can't draw subject_lim_lines.")
+  }
 
   if (!is.null(focus) && !is.null(subject_name)) {
     if (!is.numeric(focus)) {
@@ -207,7 +225,7 @@ algnmt_plot <- function(algnmt,
       stop("pos_shift has to be numeric giving and absolute position as start or start with a '+' giving a relative shift.")
     }
     if (grepl("^\\+", pos_shift)) {
-      pos_shift <- max(algnmt[,pos_col,drop=T])-as.numeric(gsub("\\+", "", pos_shift)) + 2
+      pos_shift <- max(algnmt[,pos_col,drop=T]) - as.numeric(gsub("\\+", "", pos_shift)) + 2
       if (pos_shift < 0) {
         stop("pos_shift cannot be larger than the largest alignment position.")
       }
@@ -218,29 +236,6 @@ algnmt_plot <- function(algnmt,
 
   if (group_on_yaxis && is.null(y_group_col)) {
     # if pairwise alignment is provided, use this one to derived ranges - but this may not be compatible with shifting?!
-    # remove this procedure - too complicated
-    ' if (!is.null(pairwiseAlignment)) {
-      subject.ranges <- seq2(pairwiseAlignment@subject@range@start, pairwiseAlignment@subject@range@start+pairwiseAlignment@subject@range@width-1)
-      names(subject.ranges) <- pairwiseAlignment@pattern@unaligned@ranges@NAMES
-      subject_name <- setdiff(unique(algnmt[,name_col,drop=T]), names(subject.ranges))
-    } else {
-      # here the subject has to be separated from patterns
-      subject.ranges <- algnmt %>% tidyr::drop_na(!!rlang::sym(seq_col)) %>% dplyr::group_by(!!rlang::sym(name_col))
-      subject.ranges <- stats::setNames(seq2(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col)),
-                                             subject.ranges %>% dplyr::slice_max(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col))),
-                                        nm = as.character(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(name_col))))
-      if (is.null(subject_name)) {
-        max_len <- max(lengths(subject.ranges))
-        if (length(which(lengths(subject.ranges) == max_len)) > 1) {
-          message("Subject could not be identified as there are min. 2 sequences which have the max length. Cannot order patterns on y-axis.")
-          ## TODO: set variable for ordering pattern on y-axis to FALSE here
-        } else {
-          subject_name <- names(which(lengths(subject.ranges) == max_len))
-        }
-      }
-      subject.ranges <- subject.ranges[which(names(subject.ranges) != subject_name)]
-    }'
-
     if (is.null(subject_name)) {
       message("Cannot group on y-axis without subject name.")
     } else {
@@ -307,7 +302,13 @@ algnmt_plot <- function(algnmt,
         dplyr::group_by(!!rlang::sym(y_group_col)) %>%
         dplyr::summarise(min = min(!!rlang::sym(pos_col)))
       if (!is.null(subject_name)) {
-        yorder <- unique(c(subject_name, names(sort(stats::setNames(yorder$min, yorder[,1,drop=T]), decreasing = y_order == "decreasing"))))
+        subject_name2 <-
+          algnmt %>%
+          dplyr::filter(!!rlang::sym(name_col) == subject_name) %>%
+          dplyr::distinct(!!rlang::sym(y_group_col)) %>%
+          dplyr::pull(!!rlang::sym(y_group_col))
+        # yorder <- dplyr::filter(yorder, !!rlang::sym(y_group_col) != subject_name2) # unique does the job
+        yorder <- unique(c(subject_name2, names(sort(stats::setNames(yorder$min, yorder[,1,drop=T]), decreasing = y_order == "decreasing"))))
       } else {
         yorder <- names(sort(stats::setNames(yorder$min, yorder[,1,drop=T]), decreasing = y_order == "decreasing"))
       }
@@ -320,7 +321,6 @@ algnmt_plot <- function(algnmt,
       stop("ref not found in names of algnmt.")
     }
     seq_original <- "seq_original"
-#maintain factor of y_grop_col and othrs!
     algnmt <- compare_seq_df_long(df = algnmt,
                                   ref = ref,
                                   pos_col = pos_col,
@@ -339,8 +339,8 @@ algnmt_plot <- function(algnmt,
     seq_original <- seq_col
   }
 
-  if (!all(c(pos_col, seq_col, name_col, y_group_col) %in% names(algnmt))) {
-    stop("algnmt at least has to contain columns named: ", pos_col, ", ", seq_col, ", ", name_col, ", ", y_group_col, ". Alternatively change function arguments.")
+  if (!all(c(pos_col, seq_col, name_col) %in% names(algnmt))) {
+    stop("algnmt at least has to contain columns named: ", pos_col, ", ", seq_col, ", ", name_col, ". Alternatively change function arguments.")
   }
 
   # if seq names are numeric; order them increasingly
@@ -351,7 +351,7 @@ algnmt_plot <- function(algnmt,
   }
 
   if (is.null(algnmt_type)) {
-    inds <- intersect(which(!is.na(algnmt[,seq_col,drop=T])), which(!algnmt[,seq_col,drop=T] %in% c("match", "mismatch", "gap", "insertion", "ambiguous")))
+    inds <- intersect(which(!is.na(algnmt[,seq_col,drop=T])), which(!algnmt[,seq_col,drop=T] %in% c(".", "x", "match", "mismatch", "gap", "insertion", "ambiguous")))
     algnmt_type <- guess_type(seq_vector = algnmt[,seq_col,drop=T][inds])
   }
 
@@ -369,7 +369,6 @@ algnmt_plot <- function(algnmt,
 
   #default; may change when algnmt_type == "AA" && tile_fill == "Chemistry_AA"
   col_col <- seq_col
-
   if (length(tile_fill) == 1 && tile_fill %in% c(colnames(igsc:::scheme_AA),
                                                  colnames(igsc:::scheme_NT),
                                                  names(purrr::flatten(Peptides:::AAdata)))) {
@@ -408,13 +407,19 @@ algnmt_plot <- function(algnmt,
     }
   } else {
     # provide own colors
-    if (is.null(names(tile_fill))) {
-      if (length(tile_fill) < length(unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))) {
-        warning("Less colors provided than entities in the alignment.")
-      }
+    if (is.null(tile_fill)) {
+      # happens when algmnt_type is not NT or AA
+      # redundant to above when NT or AA cannot be guessed
+      tile_fill <- scales::hue_pal()(length(unique(as.character(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))))
     } else {
-      if (any(!unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]) %in% names(tile_fill))) {
-        warning("Not all values in algnmt[,seq_col] found in names(tile_fill).")
+      if (is.null(names(tile_fill))) {
+        if (length(tile_fill) < length(unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]))) {
+          warning("Less colors provided than entities in the alignment.")
+        }
+      } else {
+        if (any(!unique(algnmt[,seq_col,drop=T][which(!is.na(algnmt[,seq_col,drop=T]))]) %in% names(tile_fill))) {
+          warning("Not all values in algnmt[,seq_col] found in names(tile_fill).")
+        }
       }
     }
     tile_fill_internal <- tile_fill
@@ -490,10 +495,10 @@ algnmt_plot <- function(algnmt,
     y_group_conv <- dplyr::distinct(tidyr::drop_na(algnmt, !!rlang::sym(seq_col)), !!rlang::sym(y_group_col), !!rlang::sym(name_col))
     y_group_conv <- stats::setNames(as.character(y_group_conv[,y_group_col,drop=T]), y_group_conv[,name_col,drop=T])
     algnmt_summary[[yaxis]] <- y_group_conv[as.character(algnmt_summary[,name_col,drop=T])]
-    if (is.factor(algnmt[,y_group_col,drop=T])) {
-      algnmt_summary[,y_group_col] <- factor(algnmt_summary[,y_group_col,drop=T], levels = levels(algnmt[,y_group_col,drop=T]))
+    if (is.factor(algnmt[,yaxis,drop=T])) {
+      algnmt_summary[,yaxis] <- factor(algnmt_summary[,yaxis,drop=T], levels = levels(algnmt[,yaxis,drop=T]))
     } else {
-      algnmt_summary[,y_group_col] <- factor(algnmt_summary[,y_group_col,drop=T], levels = unique(algnmt_summary[,y_group_col,drop=T]))
+      algnmt_summary[,yaxis] <- factor(algnmt_summary[,yaxis,drop=T], levels = unique(algnmt_summary[,yaxis,drop=T]))
     }
   }
 
@@ -521,15 +526,16 @@ algnmt_plot <- function(algnmt,
 
   plot <-
     ggplot2::ggplot(algnmt, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(yaxis))) + # name_col
-    theme +
+    Gmisc::fastDoCall(base_theme, args = base_theme_args) +
     Gmisc::fastDoCall(ggplot2::theme, args = theme_args) +
     ggplot2::scale_x_continuous(breaks = x_breaks)
 
   if (add_length_suffix && is.null(y_group_col)) {
     # nt can only be added to y-axis text when sequences are not grouped
     plot <- plot + ggplot2::scale_y_discrete(labels = algnmt_summary[,"label",drop=T][levels(algnmt[,name_col,drop=T])])
+  } else if (add_length_suffix && !is.null(y_group_col)) {
+    message("length suffices not plotable when y-axis is grouped.")
   }
-
 
   if (is.numeric(algnmt[,col_col,drop=T])) {
     plot <- plot + ggplot2::scale_fill_viridis_c(na.value = "white")
@@ -537,7 +543,7 @@ algnmt_plot <- function(algnmt,
     plot <- plot + ggplot2::scale_fill_manual(values = tile_fill_internal, breaks = col_breaks, na.value = "white", na.translate = F)
   }
 
-  if (line) {
+  if (tile_line) {
     if (!start_end_col %in% names(algnmt)) {
       if (verbose) {
         message("start_end_col not found in algnmt data frame. Using min and max position to draw line. But this could be wrong if, e.g. the first exon is at later position as the first one.")
@@ -585,11 +591,11 @@ algnmt_plot <- function(algnmt,
     # geom_raster # geom_tile
   }
 
-  if ((is.logical(text) && text) || (is.numeric(text) && text > 0)) {
-    if (is.logical(text)) {
+  if ((is.logical(tile_text) && tile_text) || (is.numeric(tile_text) && tile_text > 0)) {
+    if (is.logical(tile_text)) {
       text_size <- 4
     } else {
-      text_size <- text
+      text_size <- tile_text
     }
 
     bckgr_colors <- farver::decode_colour(tile_fill_internal[as.character(algnmt[,col_col,drop=T])], to = "hcl")
@@ -645,10 +651,6 @@ algnmt_plot <- function(algnmt,
                                                                       size = pattern_names,
                                                                       inherit.aes = F),
                                                                  pattern_names_fun_args))
-    # plot <- plot + pattern_names_fun(data = if(is.null(subject_name)) {algnmt_summary} else {algnmt_summary %>% dplyr::filter(!!rlang::sym(name_col) != subject_name)},
-    #                                  mapping = ggplot2::aes(x = mid_pos, y = !!rlang::sym(yaxis), label = label),
-    #                                  size = pattern_names,
-    #                                  inherit.aes = F)
   }
 
   if (subject_lim_lines) {
@@ -687,6 +689,12 @@ df_to_XStringSet <- function(df,
                              sym_terminal_gap = "-") {
 
   type <- match.arg(type, choices = c("DNA", "RNA", "AA"))
+  if (!name_col %in% names(df)) {
+    stop("name_col not found in df.")
+  }
+  if (!seq_col %in% names(df)) {
+    stop("seq_col not found in df.")
+  }
   df <-
     df %>%
     dplyr::mutate({{seq_col}} := ifelse(is.na(!!rlang::sym(seq_col)), sym_internal_gap, !!rlang::sym(seq_col))) %>%

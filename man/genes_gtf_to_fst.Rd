@@ -4,7 +4,7 @@
 \alias{genes_gtf_to_fst}
 \title{Title}
 \usage{
-genes_gtf_to_fst(gtf_file)
+genes_gtf_to_fst(gtf_file, subfolder = "genes_gtf_fst")
 }
 \arguments{
 \item{gtf_file}{}
