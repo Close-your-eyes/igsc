@@ -4,10 +4,10 @@
 \alias{genes_gtf_to_fst}
 \title{Title}
 \usage{
-genes_gtf_to_fst(gtf_file, subfolder = "genes_gtf_fst")
+genes_gtf_to_fst(gtf_file, subfolder = "genes_fst", compression = 50)
 }
 \arguments{
-\item{gtf_file}{}
+\item{compression}{}
 }
 \description{
 Title

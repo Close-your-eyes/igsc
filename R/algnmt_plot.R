@@ -290,10 +290,17 @@ algnmt_plot <- function(algnmt,
     #   order <- F
     # }
     if (is.null(y_group_col)) {
+      # second level of ordering: length: shortest first
+      yorder <- data.frame(name = names(subject.ranges),
+                             minpos = sapply(subject.ranges, min, simplify = T),
+                             len = sapply(subject.ranges, length, simplify = T)) %>%
+        dplyr::arrange(minpos, len) %>%
+        dplyr::pull(name)
+      if (y_order == "decreasing") {
+        yorder <- rev(yorder)
+      }
       if (!is.null(subject_name)) {
-        yorder <- unique(c(subject_name, names(sort(sapply(subject.ranges,"[", 1), decreasing = y_order == "decreasing"))))
-      } else {
-        yorder <- sort(sapply(subject.ranges,"[", 1), decreasing = y_order == "decreasing")
+        yorder <- unique(c(subject_name, yorder))
       }
       algnmt[[name_col]] <- factor(algnmt[[name_col]], levels = yorder)
     } else {
@@ -518,7 +525,12 @@ algnmt_plot <- function(algnmt,
                                      c(pairwiseAlignment@subject@unaligned@ranges@NAMES,
                                        pairwiseAlignment@pattern@unaligned@ranges@NAMES))
     }
-    seq_lengths <- stats::setNames(paste0(names(seq_lengths), "\n", seq_lengths, " ", tolower(algnmt_type)), nm = names(seq_lengths))
+    if (algnmt_type %in% c("NT", "AA")) {
+      seq_lengths <- stats::setNames(paste0(names(seq_lengths), "\n", seq_lengths, " ", tolower(algnmt_type)), nm = names(seq_lengths))
+    } else {
+      seq_lengths <- stats::setNames(paste0(names(seq_lengths), "\n", seq_lengths), nm = names(seq_lengths))
+    }
+
     algnmt_summary$label <- seq_lengths[algnmt_summary[,name_col,drop=T]]
   } else {
     algnmt_summary$label <- stats::setNames(as.character(algnmt_summary[, name_col,drop=T]), as.character(algnmt_summary[, name_col,drop=T]))

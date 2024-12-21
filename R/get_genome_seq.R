@@ -8,6 +8,7 @@
 #' @param start
 #' @param end
 #' @param ucsc_toupper
+#' @param fagz_folder
 #'
 #' @return
 #' @export
@@ -15,6 +16,7 @@
 #' @examples
 get_genome_seq <- function(fasta_file = NULL,
                            fst_folder = NULL,
+                           fagz_folder = NULL,
                            ucsc_api = "http://api.genome.ucsc.edu/getData/sequence?genome=hg38&",
                            query_string = NULL,
                            chromosome = NULL,
@@ -22,9 +24,12 @@ get_genome_seq <- function(fasta_file = NULL,
                            end = NULL,
                            ucsc_toupper = T) {
 
+  # query_string <- "chr2:86784610-86790913"
+  # query_string <- "chr2:86,784,610-86,790,913"
+  # query_string <- "chrom=chr1;start=1000000;end=1000100"
+  # query_string <- "2,1000,30000"
+
   if (!is.null(query_string)) {
-    # query_string <- "chr2:86784610-86790913"
-    # query_string <- "chrom=chr1;start=1000000;end=1000100"
     query_string <- tolower(query_string)
     query_string <- gsub("chrom=", "", query_string)
     query_string <- gsub(" ", "", query_string)
@@ -93,4 +98,21 @@ get_genome_seq <- function(fasta_file = NULL,
     out <- paste(out[,1,drop=T], collapse = "")
     return(out)
   }
+
+  if (!is.null(fagz_folder)) {
+    fagz_files <- list.files(fst_folder, pattern = "\\.fa\\.gz$", full.names = T, ignore.case = T)
+    if (length(fagz_files) > 0) {
+      fagz_names <- gsub("\\.fa\\.gz$", "", basename(fagz_names))
+      if (!any(chromosome == fagz_names)) {
+        chr_name_before <- chromosome
+        chromosome <- fagz_names[which.min(adist(chromosome, fagz_names)[1,])]
+        message("No exact match for sequence name. Closest match: ", chr_name_before, " --> ", chromosome)
+      }
+      ind <- which(fagz_names == chromosome)
+      out <- read_fasta(fagz_files[ind])
+      out <- stringr::str_sub(out, start = as.numeric(start), end = as.numeric(end))
+      return(out)
+    }
+  }
 }
+

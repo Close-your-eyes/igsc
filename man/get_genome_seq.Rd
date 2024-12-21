@@ -7,6 +7,7 @@
 get_genome_seq(
   fasta_file = NULL,
   fst_folder = NULL,
+  fagz_folder = NULL,
   ucsc_api = "http://api.genome.ucsc.edu/getData/sequence?genome=hg38&",
   query_string = NULL,
   chromosome = NULL,
@@ -16,7 +17,7 @@ get_genome_seq(
 )
 }
 \arguments{
-\item{ucsc_toupper}{}
+\item{fagz_folder}{}
 }
 \description{
 Title

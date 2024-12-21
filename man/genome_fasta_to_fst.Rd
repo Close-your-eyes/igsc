@@ -6,15 +6,15 @@
 \usage{
 genome_fasta_to_fst(
   genome_file,
-  out_folder = file.path(dirname(genome_file), "genome_fa_fst"),
+  subfolder = c("genome_fst", "genome_fagz"),
   overwrite = F,
-  fst_compression = 100,
+  compression = 50,
   verbose = T,
   simplify_names = T
 )
 }
 \arguments{
-\item{verbose}{}
+\item{simplify_names}{}
 }
 \description{
 Title

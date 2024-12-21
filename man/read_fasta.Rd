@@ -10,9 +10,13 @@ read_fasta(
   rm_comments = F,
   comment_indicator = c(";", "#"),
   rm_leading_arrow = T,
-  make.names = F,
+  make_names = F,
+  make_names_fun = janitor::make_clean_names,
+  make_names_args = list(),
   start_line = 1,
-  end_line = Inf
+  end_line = Inf,
+  concat = T,
+  mc.cores = 1
 )
 }
 \arguments{
@@ -27,11 +31,13 @@ be gunzipped (ending with .gz)}
 
 \item{rm_leading_arrow}{remove leading arrow in fasta names?}
 
-\item{make.names}{apply make.names to fasta names?}
+\item{make_names}{apply make_names to fasta names?}
 
 \item{start_line}{passed to vroom::vroom_lines}
 
 \item{end_line}{passed to vroom::vroom_lines to determine n_max}
+
+\item{mc.cores}{}
 }
 \value{
 a named character vector of sequences

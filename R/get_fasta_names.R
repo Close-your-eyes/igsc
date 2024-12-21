@@ -22,9 +22,9 @@ get_fasta_names <- function(file_path) {
   split <- strsplit(name_lines, "\\:>")
   name_lines <- stats::setNames(sapply(split, "[", 1), sapply(split, "[", 2))
   name_lines <- utils::stack(name_lines)
-  names(name_lines)[1:2] <- c("start_line", "name")
+  names(name_lines)[1:2] <- c("start_line", "fastaname")
   name_lines$start_line <- as.numeric(name_lines$start_line)
-  name_lines$name <- as.character(name_lines$name)
-  name_lines$name2 <- sapply(strsplit(name_lines$name, " "), "[", 1)
+  name_lines$fastaname <- as.character(name_lines$fastaname)
+  name_lines$seqname <- sapply(strsplit(name_lines$fastaname, " "), "[", 1)
   return(name_lines)
 }

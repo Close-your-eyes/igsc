@@ -3,6 +3,7 @@
 #' @param file_path path to fasta file or fst file
 #' @param save_fst
 #' @param check_fst
+#' @param overwrite_fst
 #'
 #' @return
 #' @export
@@ -10,16 +11,21 @@
 #' @examples
 get_fasta_seq_bounds <- function(file_path,
                                  save_fst = T,
-                                 check_fst = T) {
+                                 check_fst = T,
+                                 overwrite_fst = F) {
 
   if (tools::file_ext(basename(file_path)) == "fst") {
-    return(fst::read_fst(file_path))
+    fst_file <- fst::read_fst(file_path)
+    attr(fst_file, "file_path") <- file_path
+    return(fst_file)
   }
+  fst_file_path <- file.path(dirname(file_path), "genome_fa_seq_bounds.fst")
   if (check_fst) {
-    fst_file <- file.path(dirname(file_path), paste0(basename(file_path), "_seq_bounds.fst"))
-    if (file.exists(fst_file)) {
+    if (file.exists(fst_file_path)) {
       message("reading fst file.")
-      return(fst::read_fst(fst_file))
+      fst_file <- fst::read_fst(fst_file_path)
+      attr(fst_file, "file_path") <- fst_file_path
+      return(fst_file)
     }
   }
 
@@ -48,7 +54,14 @@ get_fasta_seq_bounds <- function(file_path,
   name_lines <- name_lines[,c(2,3,1,4:6)]
 
   if (save_fst) {
-    fst::write_fst(name_lines, path = file.path(dirname(file_path), paste0(basename(file_path), "_seq_bounds.fst")))
+    attr(name_lines, "file_path") <- fst_file_path
+    if (file.exists(fst_file_path)) {
+      if (overwrite_fst) {
+        fst::write_fst(name_lines, path = fst_file_path)
+      }
+    } else {
+      fst::write_fst(name_lines, path = fst_file_path)
+    }
   }
   return(name_lines)
 }
