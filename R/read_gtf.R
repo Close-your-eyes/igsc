@@ -13,10 +13,6 @@
 #' or here https://www.ensembl.org/index.html
 #'
 #' @param file_path path to the file; file may be gunzipped (ending with .gz)
-#' @param gtf data frame from reading gtf file with vroom or similar.
-#' useful to pass a subset of rows only.
-#' @param attr_col_as_list have the attributes column return as named list (TRUE) or
-#' separated by names and values into two columns
 #' @param seqnames seqnames to filter the gtf file for; will decrease computation time
 #' required for processing the attribute column
 #' @param features features to filter the gtf file for; will decrease computation time
@@ -62,8 +58,6 @@
 #' # see function: genes_gtf_to_fst
 
 read_gtf <- function(file_path,
-                     gtf,
-                     attr_col_as_list = F,
                      seqnames = NULL,
                      features = NULL,
                      process_attr_col = T,
@@ -74,12 +68,8 @@ read_gtf <- function(file_path,
   ## add fst folder option
 
 
-  if (missing(file_path) && missing(gtf)) {
+  if (missing(file_path)) {
     stop("Provide file_path or gtf data frame.")
-  }
-
-  if (!missing(file_path) && !missing(gtf)) {
-    message("file_path and gtf provided. Will ignore file_path and work with the gtf data frame provided.")
   }
 
   if (grepl("\\.gz$", file_path)) {
@@ -90,19 +80,13 @@ read_gtf <- function(file_path,
 
   use_fun <- match.arg(use_fun, c("r","rust", "rcpp"))
 
-  if (missing(gtf)) {
-    if (!is.null(seqnames)) {
-      gtf <- do.call(rbind, lapply(seqnames, vroom_gtf, file_path = file_path, col_names = col_names, unpack_fun = unpack_fun))
-    } else {
-      gtf <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
-                          col_names = col_names,
-                          comment = "#",
-                          show_col_types = F)
-    }
+  if (!is.null(seqnames)) {
+    gtf <- do.call(rbind, lapply(seqnames, vroom_gtf, file_path = file_path, col_names = col_names, unpack_fun = unpack_fun))
   } else {
-    if (!"attribute" %in% names(gtf)) {
-      stop("attribute column not found in gtf data frame.")
-    }
+    gtf <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
+                        col_names = col_names,
+                        comment = "#",
+                        show_col_types = F)
   }
 
   if (!is.null(features)) {
@@ -113,10 +97,6 @@ read_gtf <- function(file_path,
   }
 
   if (process_attr_col) {
-    #out<<- gtf
-    #browser()
-    #attribue_col <<- gtf$attribute
-    #browser()
     message("processing the attribute column.")
     # use waldo::compare to compare results
     if (use_fun == "rcpp") {
@@ -138,21 +118,11 @@ read_gtf <- function(file_path,
       attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
     }
 
-    if (attr_col_as_list == T) {
-      gtf$attribute <- I(unname(split(stats::setNames(attr_col[seq(2, length(attr_col), 2)],
-                                                      attr_col[seq(1, length(attr_col), 2)]),
-                                      attr_ind)))
-    } else {
-      gtf <- gtf[,-which(names(gtf) == "attribute")]
-      #gtf$attribute_names <- unname(purrr::map_chr(split(attr_col[seq(1, length(attr_col), 2)], attr_ind), paste, collapse = ","))
-      #gtf$attribute_values <- unname(purrr::map_chr(split(attr_col[seq(2, length(attr_col), 2)], attr_ind), paste, collapse = ","))
-    }
-
     attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],
                            value = attr_col[seq(2, length(attr_col), 2)],
                            index = attr_ind)
     gtf$index <- seq(1, nrow(gtf), 1)
-    gtf <- dplyr::left_join(gtf,
+    gtf <- dplyr::left_join(gtf[,-which(names(gtf) == "attribute")],
                             attr_col %>%
                               dplyr::filter(attribute %in% attr_keep) %>%
                               tidyr::pivot_wider(names_from = attribute, values_from = value), by = "index")
@@ -197,6 +167,7 @@ vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
                     skip = bounds[1] - 1,
                     n_max = bounds[2] - bounds[1] + 1,
                     comment = "#",
+                    progress = F,
                     show_col_types = F)
   return(y)
 }

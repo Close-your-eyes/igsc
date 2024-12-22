@@ -6,8 +6,6 @@
 \usage{
 read_gtf(
   file_path,
-  gtf,
-  attr_col_as_list = F,
   seqnames = NULL,
   features = NULL,
   process_attr_col = T,
@@ -20,12 +18,6 @@ read_gtf(
 }
 \arguments{
 \item{file_path}{path to the file; file may be gunzipped (ending with .gz)}
-
-\item{gtf}{data frame from reading gtf file with vroom or similar.
-useful to pass a subset of rows only.}
-
-\item{attr_col_as_list}{have the attributes column return as named list (TRUE) or
-separated by names and values into two columns}
 
 \item{seqnames}{seqnames to filter the gtf file for; will decrease computation time
 required for processing the attribute column}
