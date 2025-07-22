@@ -6,6 +6,7 @@
 \usage{
 read_gtf(
   file_path,
+  check_fst = T,
   seqnames = NULL,
   features = NULL,
   process_attr_col = T,
@@ -18,6 +19,8 @@ read_gtf(
 }
 \arguments{
 \item{file_path}{path to the file; file may be gunzipped (ending with .gz)}
+
+\item{check_fst}{description}
 
 \item{seqnames}{seqnames to filter the gtf file for; will decrease computation time
 required for processing the attribute column}

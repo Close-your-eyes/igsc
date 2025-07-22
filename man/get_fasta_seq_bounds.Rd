@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_fasta_seq_bounds.R
 \name{get_fasta_seq_bounds}
 \alias{get_fasta_seq_bounds}
-\title{From a genome fasta file, get chromosome sequence boundaries}
+\title{From a fasta file, get sequence boundaries (lines)}
 \usage{
 get_fasta_seq_bounds(file_path, save_fst = T, check_fst = T, overwrite_fst = F)
 }
@@ -12,5 +12,5 @@ get_fasta_seq_bounds(file_path, save_fst = T, check_fst = T, overwrite_fst = F)
 \item{overwrite_fst}{}
 }
 \description{
-From a genome fasta file, get chromosome sequence boundaries
+Use forcats::fct_drop to drop unused factor levels.
 }

@@ -27,6 +27,7 @@
 #' @return a list with (i) entries of the GTF file including the attribute
 #' column as list and some attributes as separate columns and
 #' (ii) the attributes as long data frame
+#' @param check_fst description
 #' @export
 #'
 #' @importFrom magrittr "%>%"
@@ -56,8 +57,8 @@
 #' # you may want to use the fst package to write the data frames to disk
 #' # this allows quick reading and random access
 #' # see function: genes_gtf_to_fst
-
 read_gtf <- function(file_path,
+                     check_fst = T,
                      seqnames = NULL,
                      features = NULL,
                      process_attr_col = T,
@@ -72,7 +73,32 @@ read_gtf <- function(file_path,
     stop("Provide file_path or gtf data frame.")
   }
 
-  if (grepl("\\.gz$", file_path)) {
+  if (check_fst) {
+    dirs <- list.dirs(dirname(file_path))
+    dirsbase <- basename(dirs)
+    if ("genes_fst" %in% dirsbase) {
+      fst_dir <- dirs[which(dirsbase == "genes_fst")]
+      fst_files <- list.files(fst_dir, pattern = "\\.fst$", ignore.case = T, full.names = T)
+      fst_files_base <- basename(fst_files)
+      if (!is.null(seqnames)) {
+        fst_files <- fst_files[which(fst_files_base == paste0(seqnames, "_gtf.fst"))]
+      }
+      if (length(fst_files) > 0) {
+        #stop("No matching fst file found. Expected format is: seqname_gtf.fst. Maybe set check_fst to FALSE.")
+        message("reading fst file(s).")
+        gtf <- purrr::map_dfr(fst_files, fst::read_fst)
+        if (!is.null(features)) {
+          gtf <- gtf[which(gtf$feature %in% features),]
+        }
+        if (nrow(gtf) == 0) {
+          stop("No rows left in gtf, check features argument.")
+        }
+        return(gtf)
+      }
+    }
+  }
+
+  if (tools::file_ext(file_path) == "gz") {
     unpack_fun <- gzfile
   } else {
     unpack_fun <- function(description) {description}
@@ -139,7 +165,7 @@ read_gtf <- function(file_path,
 
 get_bounds <- function(x, file_path) {
   # here we get the first and last line of a seqname to read with vroom
-  # actually though, rg and grep do return the full lines allready, not only linenumbers
+  # actually though, rg and grep do return the full lines already, not only linenumbers
   # but, so what
   out <- tryCatch(
     {

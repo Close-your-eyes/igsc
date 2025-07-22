@@ -1,4 +1,6 @@
-#' From a genome fasta file, get chromosome sequence boundaries
+#' From a fasta file, get sequence boundaries (lines)
+#'
+#' Use forcats::fct_drop to drop unused factor levels.
 #'
 #' @param file_path path to fasta file or fst file
 #' @param save_fst
@@ -12,7 +14,8 @@
 get_fasta_seq_bounds <- function(file_path,
                                  save_fst = T,
                                  check_fst = T,
-                                 overwrite_fst = F) {
+                                 overwrite_fst = F,
+                                 ...) {
 
   if (tools::file_ext(basename(file_path)) == "fst") {
     fst_file <- fst::read_fst(file_path)
@@ -22,7 +25,7 @@ get_fasta_seq_bounds <- function(file_path,
   fst_file_path <- file.path(dirname(file_path), "genome_fa_seq_bounds.fst")
   if (check_fst) {
     if (file.exists(fst_file_path)) {
-      message("reading fst file.")
+      message("reading seq_bound fst file.")
       fst_file <- fst::read_fst(fst_file_path)
       attr(fst_file, "file_path") <- fst_file_path
       return(fst_file)
@@ -47,11 +50,13 @@ get_fasta_seq_bounds <- function(file_path,
     }
   )
 
-  name_lines <- get_fasta_names(file_path)
+  name_lines <- get_fasta_names(file_path, ...)
   name_lines$end_line <- c(name_lines$start_line[-1]-1, total_lines)
   name_lines$n_seq_lines <- name_lines$end_line - name_lines$start_line # exclude name line
   name_lines$bp_approx <- line_width*name_lines$n_seq_lines
-  name_lines <- name_lines[,c(2,3,1,4:6)]
+  if (all(c("seqname", "fctname") %in% names(name_lines))) {
+    name_lines <- name_lines[,c(2:4,1,5:7)]
+  }
 
   if (save_fst) {
     attr(name_lines, "file_path") <- fst_file_path

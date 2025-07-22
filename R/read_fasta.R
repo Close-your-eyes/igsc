@@ -56,7 +56,7 @@ read_fasta <- function(file,
 
   make_names_fun <- match.fun(make_names_fun)
 
-  if (grepl("\\.gz$", file)) {
+  if (tools::file_ext(file) == "gz") {
     unpack_fun <- gzfile
   } else {
     unpack_fun <- function(description) {description}
