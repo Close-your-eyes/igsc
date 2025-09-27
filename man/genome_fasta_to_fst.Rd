@@ -6,14 +6,16 @@
 \usage{
 genome_fasta_to_fst(
   genome_file,
-  subfolder = c("genome_fst", "genome_fagz"),
+  subfolder = "genome_fagz",
   overwrite = F,
-  compression = 50,
+  compression = 100,
   verbose = T,
   simplify_names = T
 )
 }
 \arguments{
+\item{subfolder}{"genome_fst"}
+
 \item{simplify_names}{}
 }
 \description{

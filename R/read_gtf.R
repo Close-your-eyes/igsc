@@ -17,6 +17,8 @@
 #' required for processing the attribute column
 #' @param features features to filter the gtf file for; will decrease computation time
 #' required for processing the attribute column
+#' c("gene", "transcript", "exon", "CDS", "start_codon", "stop_codon",
+#' "five_prime_utr", "three_prime_utr", "Selenocysteine")
 #' @param process_attr_col convert the attribute column into separate columns
 #' @param attr_keep which attributes to keep from attribute column
 #' @param col_names column names to assign to the gtf data frame;
@@ -27,7 +29,9 @@
 #' @return a list with (i) entries of the GTF file including the attribute
 #' column as list and some attributes as separate columns and
 #' (ii) the attributes as long data frame
+#' @param gene_names
 #' @param check_fst description
+#'
 #' @export
 #'
 #' @importFrom magrittr "%>%"
@@ -61,6 +65,7 @@ read_gtf <- function(file_path,
                      check_fst = T,
                      seqnames = NULL,
                      features = NULL,
+                     gene_names = NULL,
                      process_attr_col = T,
                      col_names = c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"),
                      attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name", "exon_number"),
@@ -71,6 +76,9 @@ read_gtf <- function(file_path,
 
   if (missing(file_path)) {
     stop("Provide file_path or gtf data frame.")
+  }
+  if (!file.exists(file_path)) {
+    stop(file_path, " not found.")
   }
 
   if (check_fst) {
@@ -83,12 +91,16 @@ read_gtf <- function(file_path,
       if (!is.null(seqnames)) {
         fst_files <- fst_files[which(fst_files_base == paste0(seqnames, "_gtf.fst"))]
       }
-      if (length(fst_files) > 0) {
+      if (length(fst_files)) {
         #stop("No matching fst file found. Expected format is: seqname_gtf.fst. Maybe set check_fst to FALSE.")
         message("reading fst file(s).")
         gtf <- purrr::map_dfr(fst_files, fst::read_fst)
         if (!is.null(features)) {
+          features <- rlang::arg_match(features, values = unique(gtf$feature), multiple = T)
           gtf <- gtf[which(gtf$feature %in% features),]
+        }
+        if (!is.null(gene_names)) {
+          gtf <- gtf[which(grepl(paste(gene_names, collapse = "|"), gtf$attribute, ignore.case = T)),]
         }
         if (nrow(gtf) == 0) {
           stop("No rows left in gtf, check features argument.")
@@ -104,20 +116,34 @@ read_gtf <- function(file_path,
     unpack_fun <- function(description) {description}
   }
 
-  use_fun <- match.arg(use_fun, c("r","rust", "rcpp"))
+  use_fun <- rlang::arg_match(use_fun)
 
   if (!is.null(seqnames)) {
-    gtf <- do.call(rbind, lapply(seqnames, vroom_gtf, file_path = file_path, col_names = col_names, unpack_fun = unpack_fun))
+    gtf <- do.call(rbind, lapply(
+      seqnames,
+      vroom_gtf,
+      file_path = file_path,
+      col_names = col_names,
+      unpack_fun = unpack_fun
+    ))
   } else {
-    gtf <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
-                        col_names = col_names,
-                        comment = "#",
-                        show_col_types = F)
+    gtf <- vroom::vroom(
+      file = do.call(unpack_fun, args = list(description = file_path)),
+      col_names = col_names,
+      comment = "#",
+      show_col_types = F,
+      progress = F
+    )
   }
 
   if (!is.null(features)) {
+    features <- rlang::arg_match(features, values = unique(gtf$feature), multiple = T)
     gtf <- gtf[which(gtf$feature %in% features),]
   }
+  if (!is.null(gene_names)) {
+    gtf <- gtf[which(grepl(paste(gene_names, collapse = "|"), gtf$attribute, ignore.case = T)),]
+  }
+
   if (nrow(gtf) == 0) {
     stop("No rows left in gtf, check features argument.")
   }
@@ -167,6 +193,7 @@ get_bounds <- function(x, file_path) {
   # here we get the first and last line of a seqname to read with vroom
   # actually though, rg and grep do return the full lines already, not only linenumbers
   # but, so what
+
   out <- tryCatch(
     {
       # use ripgrep if possible

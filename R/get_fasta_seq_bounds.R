@@ -11,26 +11,26 @@
 #' @export
 #'
 #' @examples
-get_fasta_seq_bounds <- function(file_path,
-                                 save_fst = T,
-                                 check_fst = T,
-                                 overwrite_fst = F,
-                                 ...) {
+get_fasta_seq_bounds <- function(file_path) {
+                                 # save_fst = T,
+                                 # check_fst = T,
+                                 # overwrite_fst = F,
 
-  if (tools::file_ext(basename(file_path)) == "fst") {
-    fst_file <- fst::read_fst(file_path)
-    attr(fst_file, "file_path") <- file_path
-    return(fst_file)
-  }
-  fst_file_path <- file.path(dirname(file_path), "genome_fa_seq_bounds.fst")
-  if (check_fst) {
-    if (file.exists(fst_file_path)) {
-      message("reading seq_bound fst file.")
-      fst_file <- fst::read_fst(fst_file_path)
-      attr(fst_file, "file_path") <- fst_file_path
-      return(fst_file)
-    }
-  }
+
+  # if (tools::file_ext(basename(file_path)) == "fst") {
+  #   fst_file <- fst::read_fst(file_path)
+  #   attr(fst_file, "file_path") <- file_path
+  #   return(fst_file)
+  # }
+  # fst_file_path <- file.path(dirname(file_path), "genome_fa_seq_bounds.fst")
+  # if (check_fst) {
+  #   if (file.exists(fst_file_path)) {
+  #     message("reading seq_bound fst file.")
+  #     fst_file <- fst::read_fst(fst_file_path)
+  #     attr(fst_file, "file_path") <- fst_file_path
+  #     return(fst_file)
+  #   }
+  # }
 
   # get width from second line, assuming this is the first line with sequence
   line_width <- nchar(trimws(vroom::vroom_lines(file = file_path,
@@ -41,16 +41,18 @@ get_fasta_seq_bounds <- function(file_path,
 
   total_lines <- tryCatch(
     {
+      # rust crate ripgrep required
       cmd <- paste0("rg --count '^' ", file_path)
       as.numeric(trimws(system(cmd, intern = T)))
     },
     error = function(err) {
+      # fallback to grep which is slower
       cmd <- paste0("grep --count '^' ", file_path)
       as.numeric(trimws(system(cmd, intern = T)))
     }
   )
 
-  name_lines <- get_fasta_names(file_path, ...)
+  name_lines <- get_fasta_names(file_path, prep_chr = T)
   name_lines$end_line <- c(name_lines$start_line[-1]-1, total_lines)
   name_lines$n_seq_lines <- name_lines$end_line - name_lines$start_line # exclude name line
   name_lines$bp_approx <- line_width*name_lines$n_seq_lines
@@ -58,16 +60,17 @@ get_fasta_seq_bounds <- function(file_path,
     name_lines <- name_lines[,c(2:4,1,5:7)]
   }
 
-  if (save_fst) {
-    attr(name_lines, "file_path") <- fst_file_path
-    if (file.exists(fst_file_path)) {
-      if (overwrite_fst) {
-        fst::write_fst(name_lines, path = fst_file_path)
-      }
-    } else {
-      fst::write_fst(name_lines, path = fst_file_path)
-    }
-  }
+  # if (save_fst) {
+  #   attr(name_lines, "file_path") <- fst_file_path
+  #   if (file.exists(fst_file_path)) {
+  #     if (overwrite_fst) {
+  #       fst::write_fst(name_lines, path = fst_file_path)
+  #     }
+  #   } else {
+  #     fst::write_fst(name_lines, path = fst_file_path)
+  #   }
+  # }
+
   return(name_lines)
 }
 # paste0(name_lines$end_line, "p")

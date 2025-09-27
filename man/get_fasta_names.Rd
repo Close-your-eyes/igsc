@@ -4,11 +4,11 @@
 \alias{get_fasta_names}
 \title{Title}
 \usage{
-get_fasta_names(file_path)
+get_fasta_names(file_path, prep_chr = T)
 }
 \arguments{
 \item{file_path}{}
 }
 \description{
-Title
+intended for
 }

@@ -35,3 +35,39 @@ Stop codon added to CDS - add option
 \details{
 https://www.biostars.org/p/3423/, https://pmc.ncbi.nlm.nih.gov/articles/PMC6099125/, https://en.wikipedia.org/wiki/Sense_(molecular_biology)
 }
+\examples{
+gtf <- read_gtf("/Volumes/CMS_SSD_2TB/reference_genomes/release_114/Homo_sapiens.GRCh38.114.gtf.gz",
+                gene_names = "CD8B")[[1]]
+gtf <- dplyr::filter(gtf, gene_id == "ENSG00000172116") # choose an ensembl id
+gtf2 <- split(gtf, gtf$transcript_name)
+chr <- unique(gtf$seqname)
+
+bounds <- get_fasta_seq_bounds("/Volumes/CMS_SSD_2TB/reference_genomes/release_114/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz")
+refseq <- read_fasta("/Volumes/CMS_SSD_2TB/reference_genomes/release_114/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz",
+                     start_line = dplyr::filter(bounds, seqname == chr) |> dplyr::pull(start_line),
+                     end_line = dplyr::filter(bounds, seqname == chr) |> dplyr::pull(end_line))
+
+conc <- concat_transcript(gtf_df = gtf2[[1]], refseq = refseq,
+                          stop_codon_to_CDS = T)
+cd8b_cds <- conc[["CDS"]][["seq"]]
+
+bm_ref_df <- biomaRt::getSequence(
+  id = "CD8B",
+  type = "hgnc_symbol",
+  seqType = "coding",   # options: "cdna", "coding", "peptide"
+  mart = biomaRt::useMart("ensembl", dataset="hsapiens_gene_ensembl")
+)
+
+# compare cds from biomart
+msa <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(bm_ref_df$coding))
+#DECIPHER::BrowseSeqs(msa)
+
+# find putative matching seq from bm by comparing nchar
+nchar(bm_ref_df$coding)
+nchar(cd8b_cds)
+bm_ref_cds <- bm_ref_df$coding[which(nchar(bm_ref_df$coding) == nchar(conc[["CDS"]][["seq"]]))]
+
+# align ref from bm and from concat_transcript
+aln <- pwalign::pairwiseAlignment(bm_ref_cds, cd8b_cds)
+igsc::printPairwiseAlignment(aln, linewidth = 100)
+}

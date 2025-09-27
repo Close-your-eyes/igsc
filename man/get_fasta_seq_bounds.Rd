@@ -4,7 +4,7 @@
 \alias{get_fasta_seq_bounds}
 \title{From a fasta file, get sequence boundaries (lines)}
 \usage{
-get_fasta_seq_bounds(file_path, save_fst = T, check_fst = T, overwrite_fst = F)
+get_fasta_seq_bounds(file_path)
 }
 \arguments{
 \item{file_path}{path to fasta file or fst file}

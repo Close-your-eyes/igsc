@@ -9,6 +9,7 @@ read_gtf(
   check_fst = T,
   seqnames = NULL,
   features = NULL,
+  gene_names = NULL,
   process_attr_col = T,
   col_names = c("seqname", "source", "feature", "start", "end", "score", "strand",
     "frame", "attribute"),
@@ -26,7 +27,9 @@ read_gtf(
 required for processing the attribute column}
 
 \item{features}{features to filter the gtf file for; will decrease computation time
-required for processing the attribute column}
+required for processing the attribute column
+c("gene", "transcript", "exon", "CDS", "start_codon", "stop_codon",
+"five_prime_utr", "three_prime_utr", "Selenocysteine")}
 
 \item{process_attr_col}{convert the attribute column into separate columns}
 

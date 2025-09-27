@@ -15,7 +15,6 @@
 #' @param make_names_fun
 #' @param make_names_args
 #' @param concat
-#' @param mc.cores
 #'
 #' @return a named character vector of sequences
 #' @export
@@ -36,7 +35,11 @@ read_fasta <- function(file,
                        start_line = 1,
                        end_line = Inf,
                        concat = T,
-                       mc.cores = 1) {
+                       progress = T) {
+
+  if(!requireNamespace("janitor", quietly = T)) {
+    install.packages("janitor")
+  }
 
   if (missing(file)) {
     stop("Please provide a path to a file in 'file'.")
@@ -49,6 +52,9 @@ read_fasta <- function(file,
   if (!file.exists(file)) {
     stop("file not found.")
   }
+  if (grepl("\\.tar.gz$", file)) {
+    stop("tar.gz files are not handled well. please untar or provide .gz file.")
+  }
 
   if (!is.numeric(start_line) || !is.numeric(end_line) || length(start_line) == 0 || length(end_line) == 0) {
     stop("start_line or end_line is either not numeric or has length zero.")
@@ -56,16 +62,30 @@ read_fasta <- function(file,
 
   make_names_fun <- match.fun(make_names_fun)
 
-  if (tools::file_ext(file) == "gz") {
-    unpack_fun <- gzfile
-  } else {
-    unpack_fun <- function(description) {description}
-  }
-  lines <- vroom::vroom_lines(file = do.call(unpack_fun, args = list(description = file)),
-                              skip = start_line - 1,
-                              n_max = end_line - start_line + 1,
-                              skip_empty_rows = T,
-                              progress = F)
+  # zip and gz files are handled well but .tar.gz not. there is a problem with connection size then
+  lines <- tryCatch(
+    expr = {
+      vroom::vroom_lines(file = file,
+                         skip = start_line - 1,
+                         n_max = end_line - start_line + 1,
+                         skip_empty_rows = T,
+                         progress = progress)
+    },
+    error = function(err) {
+      print(err)
+      out <- brathering::ungunzip(file, out_path = tempdir())
+      message("unpacking file to: ", out)
+      lines <- vroom::vroom_lines(file = out,
+                                  skip = start_line - 1,
+                                  n_max = end_line - start_line + 1,
+                                  skip_empty_rows = T,
+                                  progress = progress)
+      return(lines)
+    }
+  )
+
+
+
   if (trimws) {
     lines <- stringi::stri_trim_both(lines)
   }
@@ -83,7 +103,7 @@ read_fasta <- function(file,
   }
 
   ind <- which(stringi::stri_startswith_fixed(pattern = ">", from = 1, str = lines))
-  if (length(ind) == 0) {
+  if (!length(ind)) {
     message("fasta-formated sequences (names starting with '>') not found. Using the file name.")
     lines <- c(lines, paste0(">", gsub(paste0("\\.", tools::file_ext(file), "$"), "", basename(file))))
     ind <- c(1, ind+1)
@@ -102,20 +122,7 @@ read_fasta <- function(file,
   seqnames <- lines[ind]
 
   if (concat) {
-    if (mc.cores == 1) {
-      lines <- purrr::map_chr(igsc:::seq2(start, end), function(x) stringi::stri_paste(lines[x], collapse = ""))
-    } else {
-      chunk_sizes <- ceiling(lengths(igsc:::seq2(start, end)) / mc.cores)
-      lines <- parallel::mcmapply(x = igsc:::seq2(start, end),
-                                  y = chunk_sizes, function(x,y) split(lines[x], ceiling(seq_along(lines[x]) / y)),
-                                  SIMPLIFY = F,
-                                  mc.cores = mc.cores)
-      lines <- lapply(lines, function(x) paste(unlist(parallel::mclapply(X = x,
-                                                                         FUN = stringi::stri_paste,
-                                                                         collapse = "",
-                                                                         mc.cores = mc.cores)),
-                                               collapse = ""))
-    }
+    lines <- purrr::map_chr(brathering::seq2(start, end), ~stringi::stri_paste(lines[.x], collapse = ""))
   } else {
     lines <- split(lines, rep(seqnames, end-start+2))
   }
@@ -126,4 +133,4 @@ read_fasta <- function(file,
   return(lines)
 }
 
-#test <- read_fasta("/Users/vonskopnik/Documents/2024_igsc_testing/refdata-gex-GRCh38-2020-A/genome.fa", start_line = 1, end_line = 4149276+20)
+#test <- read_fasta("/Users/chris/Documents/2024_igsc_testing/refdata-gex-GRCh38-2020-A/genome.fa.gz")#, start_line = 1, end_line = 4149276+20)
