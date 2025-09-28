@@ -1,14 +1,14 @@
 #' Separately align multiple pattern sequences to one subject
 #'
 #' This function is useful to visualise the alignment position of multiple patterns on one subject.
-#' It uses Biostrings::pairwiseAlignment(), obtains the individual alignment boundaries and converts
+#' It uses pwalign::pairwiseAlignment(), obtains the individual alignment boundaries and converts
 #' the results to a ggplot object.
 #' The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
 #' Method = local-global avoids indels in subject. Local cuts subject and pattern to the best matching sequence of both.
 #'
 #' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
 #' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
-#' @param type the type of alignment passed to Biostrings::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
+#' @param type the type of alignment passed to pwalign::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
 #' @param order_patterns order pattern increasingly by alignment position (start)
 #' @param max_mismatch only use patterns that have a maximum number of mismatches
 #' with the subject
@@ -18,7 +18,6 @@
 #' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
 #' in this case no alignment is calculated
 #' @param rm_indel_inducing_pattern
-#' @param matches_to_subject_and_pattern
 #' @param compare_seq_df_long_args
 #' @param pairwiseAlignment_args
 #' @param algnmt_plot_args
@@ -31,33 +30,49 @@
 #' @importFrom magrittr %>%
 #'
 #' @examples
-#' \dontrun{
 #' s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
 #' s <- Biostrings::DNAStringSet(s)
 #' p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
 #' p <- Biostrings::DNAStringSet(p)
-#' als <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p)
-#' als_ordered <- igsc::MultiplePairwiseAlignmentsToOneSubject(subject = s, patterns = p, order_patterns = T)
-#' }
-MultiplePairwiseAlignmentsToOneSubject <- function(subject,
+#' als <- pwalign_multi(subject = s, patterns = p)
+#' als_ordered <- pwalign_multi(subject = s, patterns = p, order_patterns = T,
+#'                                                       compare_seq_df_long_args = list(seq_original = NULL,
+#'                                                                                       match_symbol = ".",
+#'                                                                                       change_nonref = T,
+#'                                                                                       nonref_mismatch_as = "base",
+#'                                                                                       change_ref = F,
+#'                                                                                       ref_mismatch_as = "base",
+#'                                                                                       insertion_as = "base"))
+pwalign_multi <- function(subject,
                                                    patterns,
-                                                   type = c("global-local", "global", "local", "overlap", "local-global"),
+                                                   type = c(
+                                                     "global-local",
+                                                     "global",
+                                                     "local",
+                                                     "overlap",
+                                                     "local-global"
+                                                   ),
                                                    max_mismatch = NA,
                                                    order_patterns = F,
                                                    fix_subject_indels = F,
                                                    rm_indel_inducing_pattern = F,
                                                    seq_type = NULL,
                                                    return_max_mismatch_info_only = F,
-                                                   matches_to_subject_and_pattern = list(c(T,T),c(F,T),c(F,F)),
-                                                   compare_seq_df_long_args = list(seq_original = NULL,
-                                                                                   match_symbol = ".",
-                                                                                   change_pattern = T,
-                                                                                   pattern_mismatch_as = "base",
-                                                                                   change_ref = T,
-                                                                                   ref_mismatch_as = "base",
-                                                                                   insertion_as = "base"),
+                                                   compare_seq_df_long_args = list(
+                                                     seq_original = NULL,
+                                                     match_symbol = ".",
+                                                     change_nonref = T,
+                                                     nonref_mismatch_as = "base",
+                                                     change_ref = T,
+                                                     ref_mismatch_as = "base",
+                                                     insertion_as = "base"
+                                                   ),
                                                    pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
+                                                   algnmt_plot_args = list(
+                                                     add_length_suffix = T,
+                                                     pattern_lim_size = 2,
+                                                     verbose = F
+                                                   ),
                                                    order_subject_ranges = F,
                                                    verbose = T) {
 
@@ -83,17 +98,16 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
+  if (!requireNamespace("pwalign", quietly = T)) {
+    BiocManager::install("pwalign")
+  }
 
   '  if (fix_indels) {
     message("fix_indels does not work yet. Set to F.")
     fix_indels <- F
   }'
 
-  if (!is.list(matches_to_subject_and_pattern) || any(lengths(matches_to_subject_and_pattern) < 2) || any(!sapply(matches_to_subject_and_pattern, is.logical))) {
-    stop("matches_to_subject_and_pattern has to be a list of vectors of lengths two, containing T or F only.")
-  }
-
-  type <- match.arg(type, choices = c("global-local", "global", "local", "overlap", "local-global"))
+  type <- rlang::arg_match(type)
 
   #assigns: subject, patterns, seq_type, original_names, pattern_original_order, pattern_groups
   prep_subject_and_patterns(subject = subject,
@@ -113,8 +127,8 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
 
   # calculate all alignments
   # fastDoCall does not work here, maybe due to method written in C
-  pa <- do.call(Biostrings::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
-                                                        pairwiseAlignment_args))
+  pa <- do.call(pwalign::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
+                                                     pairwiseAlignment_args))
   # make pa a list once and then iterate over list entries with purrr/furrr which is quicker!
   # use multiple threads to speed up?!
   # pal <- stats::setNames(as.list(pa), patnames(patterns)terns.names)
@@ -191,29 +205,6 @@ MultiplePairwiseAlignmentsToOneSubject <- function(subject,
               pattern_mismatching = pattern_mismatching_return))
 }
 
-'data_plot <- purrr::map(setNames(matches_to_subject_and_pattern, sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))), function(y) {
-    df2 <- prep_df_for_algnmt_plot(df = df,
-                                   subject_name = names(subject),
-                                   pattern_names = names(patterns),
-                                   original_names = original_names,
-                                   order_patterns = order_patterns,
-                                   subject.ranges = subject.ranges,
-                                   pattern_order = pattern_order,
-                                   pattern_groups = pattern_groups,
-                                   compare_seq_df_long_args)
-
-    plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
-                                                         algnmt_type = seq_type,
-                                                         pairwiseAlignment = pa),
-                                                    algnmt_plot_args))
-    return(list(data = df2, plot = plot))
-  })
-
-
-data = stats::setNames(sapply(data_plot, "[", "data"), nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
-plot = stats::setNames(sapply(data_plot, "[", "plot") , nm = sapply(matches_to_subject_and_pattern, function(x) paste(ifelse(x, "match", "base"), collapse = "_"))),
-
-'
 
 prep_df_for_algnmt_plot <- function(df,
                                     subject_name,
@@ -229,29 +220,28 @@ prep_df_for_algnmt_plot <- function(df,
   # match
   # mismatch
   # insertion
-  ' df <- compare_seq_previous(df = df,
-                             subject_name = subject_name,
-                             pattern_names = pattern_names,
-                             matches_to_subject = matches_to_subject,
-                             matches_to_pattern = matches_to_pattern)'
+  df <- Gmisc::fastDoCall(compare_seq_df_long,
+                          args = c(compare_seq_df_long_args,
+                                   list(df = tidyr::pivot_longer(df,
+                                                                 cols = dplyr::all_of(c(subject_name, pattern_names)),
+                                                                 names_to = "seq.name",
+                                                                 values_to = "seq"),
+                                        ref = subject_name,
+                                        pos_col = "position",
+                                        seq_col = "seq",
+                                        name_col = "seq.name")))
 
-  df <- Gmisc::fastDoCall(igsc::compare_seq_df_long, args = c(compare_seq_df_long_args, list(df_long =
-                                                                                               df %>%
-                                                                                               tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq"),
-                                                                                             ref = subject_name,
-                                                                                             pos_col = "position",
-                                                                                             seq_col = "seq",
-                                                                                             name_col = "seq.name")))
-  df <-
-    df %>%
-    #tidyr::pivot_longer(cols = dplyr::all_of(c(subject_name, pattern_names)), names_to = "seq.name", values_to = "seq") %>% # this is now down above
+  # pattern orders
+  if (order_patterns) {
+    pattern_lvls <- unname(original_names[pattern_names][names(sort(purrr::map_int(subject.ranges, min)))])
+  } else {
+    pattern_lvls <- unname(original_names[pattern_names])[order(pattern_order)]
+  }
+  df <- df %>%
     ## here, original names are restored
     dplyr::mutate(seq.name = original_names[seq.name]) %>%
     ## factor order with original names
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject_name, unname(original_names[pattern_names])[ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), order(pattern_order))])))
-
-
-  #unname(c(original_names[1], original_names[-1][ifelse(rep(order_patterns, length(subject.ranges)), order(purrr::map_int(subject.ranges, min)), pattern_order)]))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject_name,pattern_lvls)))
 
   if (!is.null(pattern_groups)) {
     pattern_groups <- c(stats::setNames(subject_name, subject_name), pattern_groups) # c(stats::setNames("subject", subject_name), pattern_groups)
@@ -583,8 +573,8 @@ check_for_overlapping_indels <- function(pa,
           patterns[k] <- Biostrings::subseq(patterns[k], start = 1, end = min(subject_indels[which(subject_indels$group == k), "corr_end"], na.rm = T))
         }
       }
-      pa <- do.call(Biostrings::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
-                                                            pairwiseAlignment_args))
+      pa <- do.call(pwalign::pairwiseAlignment, args = c(list(subject = subject, pattern = patterns, type = type),
+                                                         pairwiseAlignment_args))
     }
 
     assign("pa", pa, envir = parent.frame())
@@ -847,7 +837,8 @@ paste_patterns_to_subject <- function(subject_indels,
 
       # join gap_corr2_list with coalesce join
       for (i in seq_along(gap_corr2_list)) {
-        pattern_plot_pos <- coalesce_join(pattern_plot_pos, gap_corr2_list[[i]], by = c("position" = "position", "pattern" = "pattern"))
+        pattern_plot_pos <- brathering::coalesce_join(pattern_plot_pos, gap_corr2_list[[i]],
+                                                      by = c("position" = "position", "pattern" = "pattern"))
       }
       pattern_plot_pos$position <- pattern_plot_pos$position + pattern_plot_pos$corr
       pattern_plot_pos <- pattern_plot_pos[,-which(names(pattern_plot_pos) == "corr")]
@@ -1023,3 +1014,4 @@ compare_seq_previous <- function(df,
   }
   return(df)
 }
+

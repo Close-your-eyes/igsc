@@ -69,5 +69,5 @@ bm_ref_cds <- bm_ref_df$coding[which(nchar(bm_ref_df$coding) == nchar(conc[["CDS
 
 # align ref from bm and from concat_transcript
 aln <- pwalign::pairwiseAlignment(bm_ref_cds, cd8b_cds)
-igsc::printPairwiseAlignment(aln, linewidth = 100)
+igsc::pwalign_print(aln, linewidth = 100)
 }

@@ -11,7 +11,7 @@
 #' @param cl_wide clonotype data frame wide format
 #' @param C_allele optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame
 #' @param type type of alignment
-#' @param ...  arguments to MultiplePairwiseAlignmentsToOneSubject
+#' @param ...  arguments to pwalign_multi
 #'
 #' @return a list
 #' @export
@@ -158,7 +158,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
 
-    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
+    pwalign_multi(subject = Biostrings::DNAStringSet(cs[x]),
                                            patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v],imgt_j_allele_seq[j], C.allele.seq)),
                                            type = type,
                                            algnmt_plot_args = list(add_length_suffix = T, subject.lim.lines = T, subject_name = names(cs[x])))
@@ -169,7 +169,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     v <- strsplit(x, ",")[[1]][1]
     j <- strsplit(x, ",")[[1]][2]
 
-    MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(cs[x]),
+    pwalign_multi(subject = Biostrings::DNAStringSet(cs[x]),
                                            patterns = Biostrings::DNAStringSet(c(imgt_v_allele_seq[v],imgt_j_allele_seq[j])),
                                            type = type,
                                            algnmt_plot_args = list(add_length_suffix = T, subject.lim.lines = T, subject_name = names(cs[x])))

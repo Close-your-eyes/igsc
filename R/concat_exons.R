@@ -45,7 +45,7 @@ concat_exons <- function(gtf_df,
   seqnames[which(grepl("codon", seqnames))] <- stringr::str_sub(seqnames[which(grepl("codon", seqnames))],1,-3)
   seqlist <- mapply(substr, start = stats::setNames(gtf_df$start, seqnames), stop = gtf_df$end, x = refseq)
 
-  #mpa <- MultiplePairwiseAlignmentsToOneSubject(subject = seqlist["transcript"], patterns = seqlist[which(names(seqlist) != "transcript")])
+  #mpa <- pwalign_multi(subject = seqlist["transcript"], patterns = seqlist[which(names(seqlist) != "transcript")])
 
   if ("CDS" %in% gtf_df$feature) {
     seqlist_CDS <- seqlist[which(grepl("CDS", names(seqlist)))]

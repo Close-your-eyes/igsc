@@ -51,7 +51,7 @@
 #'
 #' # align ref from bm and from concat_transcript
 #' aln <- pwalign::pairwiseAlignment(bm_ref_cds, cd8b_cds)
-#' igsc::printPairwiseAlignment(aln, linewidth = 100)
+#' igsc::pwalign_print(aln, linewidth = 100)
 
 concat_transcript <- function(gtf_df,
                               refseq,
@@ -377,7 +377,7 @@ concat_transcript <- function(gtf_df,
   #   tidyr::pivot_longer(df_CDS_meta, cols = -feature) %>%
   #   tidyr::drop_na()
 
-  #mpa <- MultiplePairwiseAlignmentsToOneSubject(subject = seqlist["transcript"], patterns = seqlist[which(names(seqlist) != "transcript")])
+  #mpa <- pwalign_multi(subject = seqlist["transcript"], patterns = seqlist[which(names(seqlist) != "transcript")])
 
   # reduce redundancy in gtf_df before return
   cols_reduce <- c("seqname", "source", "gene_id", "gene_name", "transcript_id", "transcript_name")

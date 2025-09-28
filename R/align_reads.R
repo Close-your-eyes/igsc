@@ -390,7 +390,7 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
     stop("max_reads_to_plot should be greate than min_reads_to_plot")
   }
 
-  ## now use r1_r2_match_df for igsc::MultiplePairwiseAlignmentsToOneSubject
+  ## now use r1_r2_match_df for igsc::pwalign_multi
   ## loop over all ref_seq which got reads aligned
   #ref_seq_ind <- 1485
 
@@ -428,7 +428,7 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
 
       # reordering, only
       reads_groups <- c(reads_groups[which(grepl("pair", names(reads_groups)))], reads_groups[which(!grepl("pair", names(reads_groups)))])
-      plot_data <- MultiplePairwiseAlignmentsToOneSubject(subject = Biostrings::DNAStringSet(stats::setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
+      plot_data <- pwalign_multi(subject = Biostrings::DNAStringSet(stats::setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
                                                           patterns = reads_groups,
                                                           type = "local",
                                                           seq_type = "NT",

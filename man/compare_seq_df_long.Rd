@@ -2,27 +2,82 @@
 % Please edit documentation in R/compare_seq_df_long.R
 \name{compare_seq_df_long}
 \alias{compare_seq_df_long}
-\title{Title}
+\title{Compare sequences to reference in a long data frame format}
 \usage{
 compare_seq_df_long(
-  df_long,
-  ref,
+  df,
+  ref = NULL,
   pos_col = "position",
   seq_col = "seq",
   name_col = "seq.name",
   seq_original = "seq_original",
   match_symbol = ".",
   mismatch_symbol = "x",
-  change_pattern = F,
-  pattern_mismatch_as = c("base", "mismatch_symbol"),
+  change_nonref = F,
+  nonref_mismatch_as = c("base", "mismatch_symbol"),
   change_ref = F,
   ref_mismatch_as = c("base", "mismatch_symbol"),
-  insertion_as = c("base", "insertion")
+  insertion_as = "base"
 )
 }
 \arguments{
-\item{insertion_as}{}
+\item{df}{data frame in long format}
+
+\item{ref}{reference name (in name_col), e.g. the alignment subject}
+
+\item{pos_col}{name of position column}
+
+\item{seq_col}{name of sequence column}
+
+\item{name_col}{name of sequence name column}
+
+\item{seq_original}{keep original seq_col in this column to be appended}
+
+\item{match_symbol}{symbol for matching positions}
+
+\item{mismatch_symbol}{symbol for mismatching positions}
+
+\item{change_nonref}{change non reference sequences}
+
+\item{nonref_mismatch_as}{replacement for nonref mismatches}
+
+\item{change_ref}{change reference sequences}
+
+\item{ref_mismatch_as}{replacement for ref mismatches}
+
+\item{insertion_as}{replacement for insertions: base or any symbol}
+}
+\value{
+data frame
 }
 \description{
-Title
+Compare sequences to reference in a long data frame format
+}
+\examples{
+df <- data.frame(
+  stringsAsFactors = FALSE,
+  sub = rep(c("A","C","T","G","A","C","T","C"),
+            times = c(4,4,4,4,2,2,2,2)),
+  position = 1:24,
+  subject.position = 1:24,
+  pat5 = c(rep("A",4), rep(NA,20)),
+  pat2 = c(rep(NA,4), rep("C",4), rep(NA,16)),
+  pat3 = c(rep(NA,8), rep("T",4), rep(NA,12)),
+  pat4 = c(rep(NA,12), rep("G",4), rep(NA,8)),
+  pat1 = c(rep(NA,20), "T","T","C","C")
+)
+df = tidyr::pivot_longer(df,
+                         cols = c(sub, dplyr::starts_with("pat")),
+                         names_to = "seq.name",
+                         values_to = "seq")
+df2 <- compare_seq_df_long(df,
+                           change_ref = T)
+algnmt_plot(df2)
+df3 <- compare_seq_df_long(df,
+                           change_ref = T,
+                           change_nonref = T)
+algnmt_plot(df3)
+algnmt_plot(df)
+df$seq.name <- factor(df$seq.name, levels = c("sub", paste0("pat", 1:5)))
+algnmt_plot(df)
 }

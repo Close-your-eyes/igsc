@@ -30,7 +30,7 @@ align_imgt_ref_to_TCR_seq(
 
 \item{type}{type of alignment}
 
-\item{...}{arguments to MultiplePairwiseAlignmentsToOneSubject}
+\item{...}{arguments to pwalign_multi}
 
 \item{cl_wide}{clonotype data frame wide format}
 }

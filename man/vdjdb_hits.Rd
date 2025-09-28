@@ -2,15 +2,15 @@
 % Please edit documentation in R/vdjdb_hits.R
 \name{vdjdb_hits}
 \alias{vdjdb_hits}
-\title{Compare CDR3s from sequencing to known CDR3s in the vdjdb}
+\title{Compare CDR3 of TCR from sequencing to known CDR3 in the vdjdb}
 \usage{
 vdjdb_hits(
-  vdjdb,
   tcrs,
-  vdj_tr_col = "Gene",
-  tcr_tr_col = "chain",
-  vdj_cdr3_col = "CDR3",
-  tcr_cdr3_col = "CDR3_aa_cr",
+  vdjdb = NULL,
+  vdj_tr_col = NULL,
+  tcr_tr_col = NULL,
+  vdj_cdr3_col = NULL,
+  tcr_cdr3_col = NULL,
   TRAxTRB = F,
   max_lvdist = 3,
   PAM30_similarity = F,
@@ -20,67 +20,88 @@ vdjdb_hits(
 )
 }
 \arguments{
-\item{vdjdb}{data frame of TCR data from vdjdb; vdj_cdr3_col and vdj_tr_col must be present;
-if not provided system.file("extdata", "vdjdb.tsv.rds", package = "igsc") is used (table downloaded 06/12/2021)}
+\item{tcrs}{data frame with CDR3 seq data; e.g. cl_long from clonotype prep
+or see system.file("extdata", "example_TCR.tsv.gz", package = "igsc")}
 
-\item{tcrs}{data frame of TCR data from sequencing, tcr_cdr3_col and tcr_tr_col must be present; e.g. cl_long from clonotype prep}
+\item{vdjdb}{data frame of TCR data from vdjdb;
+if not provided system.file("extdata", "vdjdb.tsv.gz", package = "igsc")
+is used (downloaded 23/09/2025)}
 
-\item{vdj_tr_col}{column which codes the TCR chain in the vdjdb reference data frame (should contain TRA and/or TRB only)}
+\item{vdj_tr_col}{column with TCR chain in the vdjdb reference data frame
+(should contain TRA and/or TRB only);
+if NULL: guessed}
 
-\item{tcr_tr_col}{column which codes the TCR chain in the tcrs data frame (should contain TRA and/or TRB only)}
+\item{tcr_tr_col}{column with TCR chain in the tcrs data frame
+(should contain TRA and/or TRB only)
+if NULL: guessed}
 
-\item{vdj_cdr3_col}{column which codes the CDR3s in the vdjdb reference data frame}
+\item{vdj_cdr3_col}{column with CDR3s in the vdjdb reference data frame
+if NULL: guessed}
 
-\item{tcr_cdr3_col}{column which codes the CDR3s in the tcrs data frame}
+\item{tcr_cdr3_col}{column with CDR3s in the tcrs data frame
+if NULL: guessed}
 
-\item{TRAxTRB}{logical, apart from comparing TRA vs TRA and TRB vs TRB between tcrs and vdjdb also check for TRA vs TRB?}
+\item{TRAxTRB}{FALSE: compare TRA vs TRA and TRB vs TRB only,
+TRUE: TRA vs TRB only;
+provide T, F or c(T,F); the latter does both}
 
-\item{max_lvdist}{maximum levensthein distance between CDR3s for return data frame (also filtering before PAM30 similarity calculation)}
+\item{max_lvdist}{maximum levensthein distance between CDR3s for return
+(also filtering before PAM30 similarity calculation)}
 
-\item{PAM30_similarity}{logical whether to calculate the similarity (pairwise alignment) between CDR3s based on PAM30 substitution matrix}
+\item{PAM30_similarity}{calculate similarity (pairwise alignment) between
+CDR3s based on PAM30 substitution matrix}
 
-\item{mapply_fun}{mapply function for PAM30_similarity, suggested are mapply, pbapply::pbmapply, parallel::mcmapply}
+\item{mapply_fun}{mapply function for PAM30_similarity,
+suggested are mapply, pbapply::pbmapply, parallel::mcmapply}
 
-\item{lapply_fun}{lapply function for levensthein distance calculation, suggested are lapply, pblapply::pblapply, parallel::mclapply}
+\item{lapply_fun}{lapply function for levensthein distance calculation,
+suggested are lapply, pblapply::pblapply, parallel::mclapply}
 
-\item{...}{arguments passed to mapply_fun and lapply_fun, most relevant: mc.cores (e.g parallel::detectCores())}
+\item{...}{arguments passed to mapply_fun and lapply_fun,
+most relevant: mc.cores (e.g parallel::detectCores())}
 }
 \value{
-data frame of matched CDR3s from tcrs and vdjdb, column lv indicates the levensthein
-between CDR3 from vdjdb and tcrs
+data frame of matched CDR3 from tcrs and vdjdb
 }
 \description{
-Matching CDR3s from sequencing with CDR3s of known antigen specificity may help to narrow potential antigen specificities
-of one's sequenced TCRs. Export a tsv of all or selected entries here https://vdjdb.cdr3.net/search. Provide that tsv as
-data frame (vdjdb). From vdjdb and tcrs distinct rows of tr_cols and cdr3_col are compared by levensthein distance
-and if selected (PAM30_similarity) by amino acid similarity. Returned data frame may be used to join original columns
-from vdjdb and tcrs followed by plotting with ggplot2 (see example). Original column names (vdj_tr_col, tcr_tr_col and
-vdj_cdr3_col, tcr_cdr3_col) are kept in the returned data frame to allow easy subsequent joining of vdjdb and tcrs. It requires
-though that these columns have different names in vdjdb and tcrs.
+Matching CDR3 with references known antigen specificity may help to
+narrow potential antigen specificity. Here this is done simply by comparing
+aa sequences with levensthein distance (lv). Export a tsv of all or selected
+entries here https://vdjdb.cdr3.net/search. Provide that tsv as data frame
+(vdjdb). From vdjdb and tcrs distinct rows are compared by lv and if selected
+by amino acid similarity (PAM30_similarity). Returned data frame may be
+joined to original columns from vdjdb and tcrs followed by plotting with
+ggplot2 (see example).
 }
 \examples{
 \dontrun{
 # tcrs data frame with sequencing data from TCRs has to be created (cl_long is appropriate)
-matches <- vdjdb_hits(vdjdb, tcrs, mapply_fun = parallel::mcmapply, mc.cores = parallel::detectCores(), nthread = parallel::detectCores())
-matches_append <- matches \%>\% dplyr::left_join(tcrs) \%>\% dplyr::left_join(vdjdb)
+vdjdb_complete <- as.data.frame(vroom::vroom(system.file("extdata", "vdjdb.tsv.gz", package = "igsc"), .name_repair = make.names))
+tcr_data <- as.data.frame(vroom::vroom(system.file("extdata", "example_TCR.tsv.gz", package = "igsc")))
+vdjdb_hs <- vdjdb_complete |>
+  dplyr::filter(Species == "HomoSapiens") |>
+  dplyr::rename("chain" = Gene)
+# dont differ MHC (CD4 vs CD8 origin) here, but you may
+uni_res <- igsc::vdjdb_hits(vdjdb = vdjdb_hs,
+                            tcrs = tcr_data,
+                            TRAxTRB = c(F, T), # TRA vs TRA, TRB vs TRB and TRA vs TRB
+                            max_lvdist = 8, # max distance (max n of unequal aa in CDR3)
+                            lapply_fun = parallel::mclapply,
+                            mc.cores = 8)
+res <- uni_res |>
+  dplyr::left_join(vdjdb_hs, by = c("chain_vdjdb" = "chain", "CDR3_vdjdb" = "CDR3", "MHC.class" = "MHC.class"))
+# filter for most reliable hits
+res2 <- res |>
+  #dplyr::filter(Score>1) |> # only most confident entries from vdjdb, see: https://github.com/antigenomics/vdjdb-db
+  #dplyr::filter(lv == 0) |> # exact matches only
+  dplyr::group_by(CDR3_vdjdb, CDR3_tcr, lv, chain_tcr, chain_vdjdb, MHC.class, Epitope, Epitope.gene, Epitope.species) |>
+  dplyr::summarise(Score = paste(unique(Score), collapse = ","), count = dplyr::n(), .groups = "drop") |>
+  dplyr::add_count(CDR3_tcr) # some CDR3 may have multiple Epitope hits
 
-df <-
-df \%>\%
-dplyr::distinct(CDR3, CDR3_aa_cr, lv, Gene, chain, cl_name, patient, Epitope, Epitope.gene, Epitope.species, Score) \%>\%
-tidyr::drop_na() \%>\%
-dplyr::filter(cl_name \%in\% c("Madalyn", "Mikaylla", "Morgan")) \%>\%
-dplyr::filter(lv < 3) \%>\%
-dplyr::filter(Score > 0)
-
-# use jitter for many hits (when beeswarms become overlapping)
-ggplot(df, aes(x = Score, y = lv, color = Epitope.species)) +
- ggbeeswarm::geom_beeswarm(groupOnX = F, cex = 4, size = 2.5) +
- #geom_jitter(width = 0.15, height = 0.15, size = 3) +
- theme_bw() +
- theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank(), strip.background = element_rect(fill = "white"), text = element_text(family = "Courier")) +
- scale_x_continuous(breaks = fcexpr::int_breaks(n = 3), limits = c(0.8,3.2)) +
- scale_y_reverse(breaks = fcexpr::int_breaks(n = 3)) +
- guides(fill = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
- facet_grid(rows = vars(chain), cols = vars(patient, cl_name))
+plot <- ggplot(res2, aes(x = Epitope.gene)) +
+  geom_bar(aes(fill = Epitope.species), color = "black") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  colrr::scale_fill_custom() +
+  facet_wrap(vars(MHC.class), scales = "free")
 }
 }

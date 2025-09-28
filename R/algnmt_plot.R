@@ -1,6 +1,6 @@
 #' Plot sequence alignments as ggplot object
 #'
-#' @param algnmt an alignment object returned from (i) igsc::MultiplePairwiseAlignmentsToOneSubject, (ii) DECIPHER::AlignSeqs or (iii) Biostrings::pairwiseAlignment;
+#' @param algnmt an alignment object returned from (i) igsc::pwalign_multi, (ii) DECIPHER::AlignSeqs or (iii) pwalign::pairwiseAlignment;
 #' in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (iii) this is a PairwiseAlignmentsSingleSubject;
 #' alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)
 #' @param tile_fill a color scale for NTs or AAs (depending on type of algnmt); provide a named vector of colors where names are NTs or AAs;
@@ -76,6 +76,67 @@
 #' @importFrom magrittr "%>%"
 #'
 #' @examples
+#' granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
+#' out <- get_sequences_from_biomart(granzymes)
+#'
+#' gzma <- dplyr::filter(out, hgnc_symbol == "GZMA")
+#' gzmb <- dplyr::filter(out, hgnc_symbol == "GZMB")
+#'
+#' ### pairwise alignment
+#' # just character vectors
+#' aln1 <- pwalign::pairwiseAlignment(subject = gzma$transcript_exon_intron,
+#'                                    pattern = gzma$coding,
+#'                                    type = "local-global")
+#' algnmt_plot(aln1)
+#'
+#' # provide names via DNAStringSets
+#' GZMA_RNA <- stats::setNames(gzma$transcript_exon_intron, "GZMA_premRNA")
+#' GZMA_CDS <- stats::setNames(gzma$coding, "GZMA_CDS")
+#' aln2 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMA_RNA),
+#'                                    pattern = Biostrings::DNAStringSet(GZMA_CDS),
+#'                                    type = "local-global")
+#' algnmt_plot(aln2)
+#'
+#' ### multiple pairwise alignment
+#' # GZMA is on plus strand
+#' GZMA_exons <- gzma$gene_exon[[1]]$gene_exon
+#' GZMA_gene <- gzma$gene_exon_intron
+#' aln3 <- pwalign_multi(subject = GZMA_gene, patterns = GZMA_exons)
+#' aln3[["plot"]]
+#'
+#' # GZMB is on minus strand, but also works
+#' GZMB_exons <- gzmb$gene_exon[[1]]$gene_exon
+#' GZMB_gene <- gzmb$gene_exon_intron
+#' # no argument changed: focus on potential seq mismatches
+#' aln4 <- pwalign_multi(subject = GZMB_gene, patterns = GZMB_exons)
+#' aln4[["plot"]]
+#' # different coloring and pattern in order of alignment position
+#' aln5 <- pwalign_multi(subject = GZMB_gene, patterns = GZMB_exons,
+#'                                                order_patterns = T,
+#'                                                compare_seq_df_long_args = list(
+#'                                                  change_ref = F,
+#'                                                  change_nonref = T))
+#' aln5[["plot"]]
+#'
+#' GZMB_CDS <- stats::setNames(gzmb$coding, "GZMB_CDS")
+#' aln6 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMB_CDS),
+#'                                    pattern = Biostrings::DNAStringSet(GZMA_CDS),
+#'                                    type = "global")
+#' # no modification of plotting colors
+#' algnmt_plot(aln6)
+#'
+#' # alter matches/mismatches with compare_seq_df_long
+#' padf <- pwalign_to_df(aln6)
+#' padf2 <- compare_seq_df_long(padf,
+#'                              ref = "GZMA_CDS",
+#'                              change_nonref = T,
+#'                              change_ref = T)
+#' algnmt_plot(padf2)
+#'
+#' # change color of pwalign gaps
+#' fillcol <- igsc:::scheme_NT[,"Chemistry_NT"]
+#' fillcol[which(names(fillcol) == "-")] <- NA # or "white"
+#' algnmt_plot(padf2, tile_fill = fillcol)
 algnmt_plot <- function(algnmt,
                         tile_fill = NULL,
                         tile_color = NA,
@@ -83,7 +144,7 @@ algnmt_plot <- function(algnmt,
                         tile_text = F,
                         tile_line = F,
                         line_args = list(linewidth = 0.1, color = "black"),
-                        base_theme = ggplot2::theme_bw,
+                        base_theme = colrr::theme_material,
                         base_theme_args = list(),
                         theme_args = list(panel.grid = ggplot2::element_blank()),
                         pattern_lim_size = 0,
@@ -141,7 +202,7 @@ algnmt_plot <- function(algnmt,
     if (methods::is(algnmt, "AAStringSet")) {
       algnmt_type <- "AA"
     }
-    algnmt <- XStringSet_to_df(xstringset = algnmt,
+    algnmt <- xstringset_to_df(xstringset = algnmt,
                                name_col = name_col,
                                seq_col = seq_col,
                                pos_col = pos_col)
@@ -153,20 +214,18 @@ algnmt_plot <- function(algnmt,
       y_group_col <- NULL
     }
   } else if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject") || methods::is(algnmt, "list")) {
-    # from Biostrings::pairwiseAlignment
+    # from pwalign::pairwiseAlignment
     if (methods::is(algnmt, "PairwiseAlignmentsSingleSubject")) {
-      temp <- algnmt[1]@pattern@unaligned
+      algnmt_type <- ifelse(guess_type2(algnmt) == "AA", "AA", "NT")
     } else if (methods::is(algnmt, "list")) {
-      temp <- algnmt[[1]]@pattern@unaligned
-    }
-    if (methods::is(temp, "QualityScaledDNAStringSet") || methods::is(temp, "QualityScaledRNAStringSet")) {
-      algnmt_type <- "NT"
-    }
-    if (methods::is(temp, "QualityScaledAAStringSet")) {
-      algnmt_type <- "AA"
+      algnmt_type <- ifelse(guess_type2(algnmt[[1]]) == "AA", "AA", "NT")
     }
 
-    algnmt <- pa_to_df(pa = algnmt, verbose = verbose)
+    algnmt <- pwalign_to_df(
+      pa = algnmt,
+      verbose = verbose,
+      subject_width = "whole"
+    )
     if (!is.null(y_group_col)) {
       if (verbose) {
         message("y_group_col is set to NULL.")
@@ -174,7 +233,7 @@ algnmt_plot <- function(algnmt,
       y_group_col <- NULL
     }
   }
-  # else: data frame from igsc::MultiplePairwiseAlignmentsToOneSubject
+  # else: data frame from igsc::pwalign_multi
 
   if (!name_col %in% names(algnmt)) {
     stop("name_col not found in algnmt.")
@@ -292,8 +351,8 @@ algnmt_plot <- function(algnmt,
     if (is.null(y_group_col)) {
       # second level of ordering: length: shortest first
       yorder <- data.frame(name = names(subject.ranges),
-                             minpos = sapply(subject.ranges, min, simplify = T),
-                             len = sapply(subject.ranges, length, simplify = T)) %>%
+                           minpos = sapply(subject.ranges, min, simplify = T),
+                           len = sapply(subject.ranges, length, simplify = T)) %>%
         dplyr::arrange(minpos, len) %>%
         dplyr::pull(name)
       if (y_order == "decreasing") {
@@ -445,9 +504,12 @@ algnmt_plot <- function(algnmt,
   # https://stackoverflow.com/questions/45493163/ggplot-remove-na-factor-level-in-legend
   # --> na.translate = F
   if (is.null(x_breaks)) {
-    x_breaks <- floor(base::pretty(algnmt[,pos_col,drop=T], n = 5))
-    x_breaks <- x_breaks[which(x_breaks > 0)]
-    x_breaks <- x_breaks[which(x_breaks < max(algnmt[,pos_col,drop=T]))]
+    ## fix with expand = F in coord_cartesian
+    x_breaks <- floor(base::pretty(unique(algnmt[[pos_col]]), n = 5))
+    if (!any(x_breaks < 0)) {
+      x_breaks <- x_breaks[which(x_breaks > 0)]
+    }
+    #x_breaks <- x_breaks[which(x_breaks < max(algnmt[,pos_col,drop=T]))]
   }
 
   if (algnmt_type == "AA" && length(tile_fill) == 1 && tile_fill == "Chemistry_AA") {
@@ -540,7 +602,8 @@ algnmt_plot <- function(algnmt,
     ggplot2::ggplot(algnmt, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(yaxis))) + # name_col
     Gmisc::fastDoCall(base_theme, args = base_theme_args) +
     Gmisc::fastDoCall(ggplot2::theme, args = theme_args) +
-    ggplot2::scale_x_continuous(breaks = x_breaks)
+    ggplot2::scale_x_continuous(breaks = x_breaks) +
+    ggplot2::coord_cartesian(expand = FALSE)
 
   if (add_length_suffix && is.null(y_group_col)) {
     # nt can only be added to y-axis text when sequences are not grouped
@@ -676,85 +739,55 @@ algnmt_plot <- function(algnmt,
   return(plot)
 }
 
-XStringSet_to_df <- function(xstringset,
+
+xstringset_to_df <- function(xstringset,
                              name_col = "seq.name",
                              seq_col = "seq",
-                             pos_col = "position") {
+                             pos_col = "position",
+                             subject_name = NULL) {
+  terminal_gap_sym <- "&"
   out <- purrr::map(as.list(xstringset), as.character)
+  out <- purrr::map(out, replace_terminal_dashes, replacement = terminal_gap_sym)
   out <- purrr::flatten(purrr::map(out, strsplit, split = ""))
+  out <- purrr::map(out, ~gsub(terminal_gap_sym, NA, .x))
+
   out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = name_col)
   names(out)[c(2,3)] <- c(seq_col, pos_col)
   out[[pos_col]] <- as.numeric(as.character(out[[pos_col]]))
   # maintain the original order of sequences
   out[[name_col]] <- factor(out[[name_col]], levels = names(xstringset))
 
+  if (!is.null(subject_name)) {
+    attr(out, "subject_name") <- subject_name
+  }
+
   # do this in parent fun
   #if (!anyNA(suppressWarnings(as.numeric(out$seq.name)))) {out$seq.name <- factor(out$seq.name, levels = as.character(unique(as.numeric(as.character(out$seq.name)))))}
   return(out)
 }
 
-df_to_XStringSet <- function(df,
-                             type = c("DNA", "RNA", "AA"),
-                             name_col = "seq.name",
-                             seq_col = "seq",
-                             sym_internal_gap = "-",
-                             sym_terminal_gap = "-") {
+replace_terminal_dashes <- function(x, replacement = "*") {
+  stopifnot(is.character(x), is.character(replacement), nchar(replacement) == 1L)
 
-  type <- match.arg(type, choices = c("DNA", "RNA", "AA"))
-  if (!name_col %in% names(df)) {
-    stop("name_col not found in df.")
-  }
-  if (!seq_col %in% names(df)) {
-    stop("seq_col not found in df.")
-  }
-  df <-
-    df %>%
-    dplyr::mutate({{seq_col}} := ifelse(is.na(!!rlang::sym(seq_col)), sym_internal_gap, !!rlang::sym(seq_col))) %>%
-    tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col), values_fill = sym_terminal_gap)
-  df <- df[,-1]
-  df <- unlist(lapply(df, paste, collapse = ""))
+  # replace start-of-string runs
+  m1 <- regexpr("^-+", x, perl = TRUE)
+  repl1 <- regmatches(x, m1)
+  len1  <- attr(m1, "match.length")
+  hit1  <- which(m1 != -1L)
+  for (i in hit1) repl1[[i]] <- strrep(replacement, len1[i])
+  regmatches(x, m1) <- repl1
 
-  if (type == "DNA") {
-    return(Biostrings::DNAStringSet(x = df))
-  } else if (type == "RNA") {
-    return(Biostrings::RNAStringSet(x = df))
-  } else if (type == "AA") {
-    return(Biostrings::AAStringSet(x = df))
-  }
+  # replace end-of-string runs
+  m2 <- regexpr("-+$", x, perl = TRUE)
+  repl2 <- regmatches(x, m2)
+  len2  <- attr(m2, "match.length")
+  hit2  <- which(m2 != -1L)
+  for (i in hit2) repl2[[i]] <- strrep(replacement, len2[i])
+  regmatches(x, m2) <- repl2
+
+  return(x)
 }
 
-pa_to_df <- function(pa, verbose) {
-  if (length(pa) > 1) {
-    stop("Please provide one pairwiseAlignment only (= one pattern only). length(algnmt) should be 1.")
-  }
-  if (methods::is(pa@pattern@unaligned, "QualityScaledDNAStringSet")) {
-    xstringfun <- Biostrings::DNAStringSet
-  }
-  if (methods::is(pa@pattern@unaligned, "QualityScaledRNAStringSet")) {
-    xstringfun <- Biostrings::RNAStringSet
-  }
-  if (methods::is(pa@pattern@unaligned, "QualityScaledAAStringSet")) {
-    xstringfun <- Biostrings::AAStringSet
-  }
-
-  if (any(c(is.null(pa@pattern@unaligned@ranges@NAMES), is.null(pa@subject@unaligned@ranges@NAMES)))) {
-    if (verbose) {
-      message("No names provided for pattern and/or subject. If desired provide named XStringSets, each of length 1, to Biostrings::pairwiseAlignment.")
-    }
-  }
-  pattern_name <- ifelse(is.null(pa@pattern@unaligned@ranges@NAMES), "pattern", pa@pattern@unaligned@ranges@NAMES)
-  subject_name <- ifelse(is.null(pa@subject@unaligned@ranges@NAMES), "subject", pa@subject@unaligned@ranges@NAMES)
-
-
-  # how to obtain complete patterns - answer in multiple seq align fun?
-  #Biostrings::pattern(pa)
-  #xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)), nm = c(pattern_name, subject_name)))
-  # xstringfun(stats::setNames(c("AAAA--", "CCCCCC"), nm = c(pattern_name, subject_name)))
-
-
-  return(XStringSet_to_df(xstringfun(stats::setNames(c(as.character(pa@pattern), as.character(pa@subject)),
-                                                     nm = c(pattern_name, subject_name)))))
-}
 
 .integer_breaks <- function(n = 5, ...) {
   fxn <- function(x) {
@@ -783,7 +816,7 @@ compare_seqs <- function(subject,
                          patterns,
                          match_dots = "pattern") {
 
-  # adjusted from printPairwiseAlignment
+  # adjusted from pwalign_print
   subject_name <- names(subject)
   subject <- strsplit(subject, "")[[1]]
   algnmt_chr <- purrr::map_chr(patterns, function(x) {
@@ -838,13 +871,21 @@ infer_subject_name <- function(algnmt,
                                name_col,
                                pos_col,
                                subject_name,
-                               subject_name_infer) {
+                               subject_name_infer,
+                               verbose = T) {
 
   subject.ranges <- algnmt %>% tidyr::drop_na(!!rlang::sym(seq_col)) %>% dplyr::group_by(!!rlang::sym(name_col))
   subject.ranges <- stats::setNames(igsc:::seq2(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col)),
                                                 subject.ranges %>% dplyr::slice_max(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(pos_col))),
                                     nm = as.character(subject.ranges %>% dplyr::slice_min(!!rlang::sym(pos_col)) %>% dplyr::pull(!!rlang::sym(name_col))))
   assign("subject.ranges", subject.ranges, envir = parent.frame())
+
+
+  if (is.null(subject_name)) {
+    # just try, possible from pa_to_df
+    # remains NULL if does not exist
+    subject_name <- attr(algnmt, "subject_name")
+  }
 
   if (is.null(subject_name) && subject_name_infer) {
     max_len <- max(lengths(subject.ranges))

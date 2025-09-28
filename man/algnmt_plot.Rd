@@ -12,7 +12,7 @@ algnmt_plot(
   tile_text = F,
   tile_line = F,
   line_args = list(linewidth = 0.1, color = "black"),
-  base_theme = ggplot2::theme_bw,
+  base_theme = colrr::theme_material,
   base_theme_args = list(),
   theme_args = list(panel.grid = ggplot2::element_blank()),
   pattern_lim_size = 0,
@@ -44,7 +44,7 @@ algnmt_plot(
 )
 }
 \arguments{
-\item{algnmt}{an alignment object returned from (i) igsc::MultiplePairwiseAlignmentsToOneSubject, (ii) DECIPHER::AlignSeqs or (iii) Biostrings::pairwiseAlignment;
+\item{algnmt}{an alignment object returned from (i) igsc::pwalign_multi, (ii) DECIPHER::AlignSeqs or (iii) pwalign::pairwiseAlignment;
 in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (iii) this is a PairwiseAlignmentsSingleSubject;
 alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)}
 
@@ -146,4 +146,67 @@ ggplot2 object of alignment
 }
 \description{
 Plot sequence alignments as ggplot object
+}
+\examples{
+granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
+out <- get_sequences_from_biomart(granzymes)
+
+gzma <- dplyr::filter(out, hgnc_symbol == "GZMA")
+gzmb <- dplyr::filter(out, hgnc_symbol == "GZMB")
+
+### pairwise alignment
+# just character vectors
+aln1 <- pwalign::pairwiseAlignment(subject = gzma$transcript_exon_intron,
+                                   pattern = gzma$coding,
+                                   type = "local-global")
+algnmt_plot(aln1)
+
+# provide names via DNAStringSets
+GZMA_RNA <- stats::setNames(gzma$transcript_exon_intron, "GZMA_premRNA")
+GZMA_CDS <- stats::setNames(gzma$coding, "GZMA_CDS")
+aln2 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMA_RNA),
+                                   pattern = Biostrings::DNAStringSet(GZMA_CDS),
+                                   type = "local-global")
+algnmt_plot(aln2)
+
+### multiple pairwise alignment
+# GZMA is on plus strand
+GZMA_exons <- gzma$gene_exon[[1]]$gene_exon
+GZMA_gene <- gzma$gene_exon_intron
+aln3 <- pwalign_multi(subject = GZMA_gene, patterns = GZMA_exons)
+aln3[["plot"]]
+
+# GZMB is on minus strand, but also works
+GZMB_exons <- gzmb$gene_exon[[1]]$gene_exon
+GZMB_gene <- gzmb$gene_exon_intron
+# no argument changed: focus on potential seq mismatches
+aln4 <- pwalign_multi(subject = GZMB_gene, patterns = GZMB_exons)
+aln4[["plot"]]
+# different coloring and pattern in order of alignment position
+aln5 <- pwalign_multi(subject = GZMB_gene, patterns = GZMB_exons,
+                                               order_patterns = T,
+                                               compare_seq_df_long_args = list(
+                                                 change_ref = F,
+                                                 change_nonref = T))
+aln5[["plot"]]
+
+GZMB_CDS <- stats::setNames(gzmb$coding, "GZMB_CDS")
+aln6 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMB_CDS),
+                                   pattern = Biostrings::DNAStringSet(GZMA_CDS),
+                                   type = "global")
+# no modification of plotting colors
+algnmt_plot(aln6)
+
+# alter matches/mismatches with compare_seq_df_long
+padf <- pwalign_to_df(aln6)
+padf2 <- compare_seq_df_long(padf,
+                             ref = "GZMA_CDS",
+                             change_nonref = T,
+                             change_ref = T)
+algnmt_plot(padf2)
+
+# change color of pwalign gaps
+fillcol <- igsc:::scheme_NT[,"Chemistry_NT"]
+fillcol[which(names(fillcol) == "-")] <- NA # or "white"
+algnmt_plot(padf2, tile_fill = fillcol)
 }
