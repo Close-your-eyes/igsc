@@ -17,7 +17,8 @@ compare_seq_df_long(
   nonref_mismatch_as = c("base", "mismatch_symbol"),
   change_ref = F,
   ref_mismatch_as = c("base", "mismatch_symbol"),
-  insertion_as = "base"
+  insertion_as = "base",
+  keep_match_gaps = T
 )
 }
 \arguments{
@@ -46,6 +47,11 @@ compare_seq_df_long(
 \item{ref_mismatch_as}{replacement for ref mismatches}
 
 \item{insertion_as}{replacement for insertions: base or any symbol}
+
+\item{keep_match_gaps}{do not replace matching gaps, but keep "-"?
+may be required for when xstringset_print is used subsequently and ref is
+defined in function call (correct counting of gaps for correct position
+labels)}
 }
 \value{
 data frame

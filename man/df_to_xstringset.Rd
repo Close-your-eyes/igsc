@@ -2,20 +2,36 @@
 % Please edit documentation in R/pwalign_to_df.R
 \name{df_to_xstringset}
 \alias{df_to_xstringset}
-\title{Title}
+\title{Convert data frame to XStringSet}
 \usage{
 df_to_xstringset(
   df,
   type = c("DNA", "RNA", "AA"),
   name_col = "seq.name",
   seq_col = "seq",
+  pos_col = "position",
   sym_internal_gap = "-",
   sym_terminal_gap = "-"
 )
 }
 \arguments{
-\item{sym_terminal_gap}{}
+\item{df}{long data frame}
+
+\item{type}{sequence type}
+
+\item{name_col}{column with seq names}
+
+\item{seq_col}{column with seq data (nt or aa)}
+
+\item{pos_col}{position column}
+
+\item{sym_internal_gap}{symbol for internal gaps}
+
+\item{sym_terminal_gap}{symbol for terminal gaps}
+}
+\value{
+XStringSet
 }
 \description{
-Title
+Convert data frame to XStringSet
 }

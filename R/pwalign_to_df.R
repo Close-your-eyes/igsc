@@ -86,16 +86,17 @@ pwalign_to_df <- function(pa,
 
 
 
-#' Title
+#' Convert data frame to XStringSet
 #'
-#' @param df
-#' @param type
-#' @param name_col
-#' @param seq_col
-#' @param sym_internal_gap
-#' @param sym_terminal_gap
+#' @param df long data frame
+#' @param type sequence type
+#' @param name_col column with seq names
+#' @param seq_col column with seq data (nt or aa)
+#' @param pos_col position column
+#' @param sym_internal_gap symbol for internal gaps
+#' @param sym_terminal_gap symbol for terminal gaps
 #'
-#' @returns
+#' @returns XStringSet
 #' @export
 #'
 #' @examples
@@ -103,6 +104,7 @@ df_to_xstringset <- function(df,
                              type = c("DNA", "RNA", "AA"),
                              name_col = "seq.name",
                              seq_col = "seq",
+                             pos_col = "position",
                              sym_internal_gap = "-",
                              sym_terminal_gap = "-") {
 
@@ -113,10 +115,16 @@ df_to_xstringset <- function(df,
   if (!seq_col %in% names(df)) {
     stop("seq_col not found in df.")
   }
+  if (!pos_col %in% names(df)) {
+    stop("pos_col not found in df.")
+  }
+
   df <-
     df %>%
+    dplyr::select(!!rlang::sym(seq_col), !!rlang::sym(name_col), !!rlang::sym(pos_col)) |>
     dplyr::mutate({{seq_col}} := ifelse(is.na(!!rlang::sym(seq_col)), sym_internal_gap, !!rlang::sym(seq_col))) %>%
-    tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col), values_fill = sym_terminal_gap)
+    tidyr::pivot_wider(names_from = !!rlang::sym(name_col),
+                       values_from = !!rlang::sym(seq_col), values_fill = sym_terminal_gap)
   df <- df[,-1]
   df <- unlist(lapply(df, paste, collapse = ""))
 

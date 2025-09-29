@@ -18,8 +18,8 @@
 #' @return alignment in printed format in console or file
 #' @export
 #'
-#'  @importFrom rlang %||%
-#'  @importFrom zeallot %<-%
+#' @importFrom rlang %||%
+#' @importFrom zeallot %<-%
 #'
 #' @examples
 #' granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
@@ -142,9 +142,11 @@ pwalign_print <- function(pa,
       starts+linewidth-1
     )
 
+  # end pos after every line, only needed when print_pos_end
   p_res <- p_res + cumsum(linewidth - stringr::str_count(p_chunk, "-"))
   s_res <- s_res + cumsum(linewidth - stringr::str_count(s_chunk, "-"))
 
+  # add name spacing before sym_line on every line
   p_sym_chunk2 <- paste0(paste(rep(" ", nchar(p_name)), collapse = ""), p_sym_chunk)
   s_sym_chunk2 <- paste0(paste(rep(" ", nchar(s_name)), collapse = ""), s_sym_chunk)
 
@@ -152,14 +154,17 @@ pwalign_print <- function(pa,
     p_chunk <- purrr::map_chr(p_chunk, col_letters)
     s_chunk <- purrr::map_chr(s_chunk, col_letters)
   }
+  # add name before seq lines
   p_chunk <- paste0(p_name, p_chunk, "  ")
   s_chunk <- paste0(s_name, s_chunk, "  ")
+  # add position at end
   if (print_pos_end) {
     p_chunk <- paste0(p_chunk, p_res + p_start - 1)
     s_chunk <- paste0(s_line, s_res + s_start - 1)
   }
 
   for (i in seq_along(p_sym_chunk)) {
+    # did not know how to vectorize, so: loop
     c(p_sym_chunk[i], p_pos) %<-% .get_pos_line(name = p_name, chunk = p_sym_chunk[i], pos = p_pos)
     c(s_sym_chunk[i], s_pos) %<-% .get_pos_line(name = s_name, chunk = s_sym_chunk[i], pos = s_pos)
   }

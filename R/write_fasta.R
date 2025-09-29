@@ -20,7 +20,7 @@ write_fasta <- function(seqs,
     stop("Output file path has to be provided in file.")
   }
 
-  mode <- match.arg(mode, c("w", "a"))
+  mode <- rlang::arg_match(mode)
   if (mode == "a" && !file.exists(file)) {
     stop("file not found. set mode = 'w' or check the file path in file.")
   }

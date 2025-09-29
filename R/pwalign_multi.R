@@ -17,10 +17,11 @@
 #' it is attempted to guess the type
 #' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
 #' in this case no alignment is calculated
-#' @param rm_indel_inducing_pattern
-#' @param compare_seq_df_long_args
-#' @param pairwiseAlignment_args
-#' @param algnmt_plot_args
+#' @param rm_indel_inducing_pattern remove patterns that cause indels in subject
+#' and hence may be a problem for plotting
+#' @param compare_seq_df_long_args arguments to igsc::compare_seq_df_long
+#' @param pairwiseAlignment_args arguments to pwalign::pairwiseAlignment
+#' @param algnmt_plot_args arguments to igsc::algnmt_plot
 #' @param order_subject_ranges
 #' @param verbose
 #'

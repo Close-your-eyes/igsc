@@ -37,11 +37,20 @@ with the subject}
 
 \item{fix_subject_indels}{in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels}
 
+\item{rm_indel_inducing_pattern}{remove patterns that cause indels in subject
+and hence may be a problem for plotting}
+
 \item{seq_type}{set sequence type to AA or NT if necessary; if NULL
 it is attempted to guess the type}
 
 \item{return_max_mismatch_info_only}{only return information on mismatches of patterns with the subject;
 in this case no alignment is calculated}
+
+\item{compare_seq_df_long_args}{arguments to igsc::compare_seq_df_long}
+
+\item{pairwiseAlignment_args}{arguments to pwalign::pairwiseAlignment}
+
+\item{algnmt_plot_args}{arguments to igsc::algnmt_plot}
 
 \item{verbose}{}
 }

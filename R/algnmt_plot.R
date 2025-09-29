@@ -740,6 +740,19 @@ algnmt_plot <- function(algnmt,
 }
 
 
+#' Convert XStringSet to data frame
+#'
+#' @param xstringset
+#' @param name_col column with seq names
+#' @param seq_col column with seq data (nt or aa)
+#' @param pos_col position column
+#' @param subject_name name of sequence that is subject or reference;
+#' is passed as attribute to return df
+#'
+#' @returns long data frame
+#' @export
+#'
+#' @examples
 xstringset_to_df <- function(xstringset,
                              name_col = "seq.name",
                              seq_col = "seq",
