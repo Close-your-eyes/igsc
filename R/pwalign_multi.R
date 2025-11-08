@@ -45,37 +45,37 @@
 #'                                                                                       ref_mismatch_as = "base",
 #'                                                                                       insertion_as = "base"))
 pwalign_multi <- function(subject,
-                                                   patterns,
-                                                   type = c(
-                                                     "global-local",
-                                                     "global",
-                                                     "local",
-                                                     "overlap",
-                                                     "local-global"
-                                                   ),
-                                                   max_mismatch = NA,
-                                                   order_patterns = F,
-                                                   fix_subject_indels = F,
-                                                   rm_indel_inducing_pattern = F,
-                                                   seq_type = NULL,
-                                                   return_max_mismatch_info_only = F,
-                                                   compare_seq_df_long_args = list(
-                                                     seq_original = NULL,
-                                                     match_symbol = ".",
-                                                     change_nonref = T,
-                                                     nonref_mismatch_as = "base",
-                                                     change_ref = T,
-                                                     ref_mismatch_as = "base",
-                                                     insertion_as = "base"
-                                                   ),
-                                                   pairwiseAlignment_args = list(),
-                                                   algnmt_plot_args = list(
-                                                     add_length_suffix = T,
-                                                     pattern_lim_size = 2,
-                                                     verbose = F
-                                                   ),
-                                                   order_subject_ranges = F,
-                                                   verbose = T) {
+                          patterns,
+                          type = c(
+                            "global-local",
+                            "global",
+                            "local",
+                            "overlap",
+                            "local-global"
+                          ),
+                          max_mismatch = NA,
+                          order_patterns = F,
+                          fix_subject_indels = F,
+                          rm_indel_inducing_pattern = F,
+                          seq_type = NULL,
+                          return_max_mismatch_info_only = F,
+                          compare_seq_df_long_args = list(
+                            seq_original = NULL,
+                            match_symbol = ".",
+                            change_nonref = T,
+                            nonref_mismatch_as = "base",
+                            change_ref = T,
+                            ref_mismatch_as = "base",
+                            insertion_as = "base"
+                          ),
+                          pairwiseAlignment_args = list(),
+                          algnmt_plot_args = list(
+                            add_length_suffix = T,
+                            pattern_lim_size = 2,
+                            verbose = F
+                          ),
+                          order_subject_ranges = F,
+                          verbose = T) {
 
   ## if a pattern has no mismatches, or only a maximum number of them, then could be used to find multiple matches
   # restrict that to type = "local" or type = "global-local"

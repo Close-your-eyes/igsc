@@ -53,9 +53,15 @@ xstringset_print <- function(set,
 
   if (call_compare_seq_df_long) {
     df <- igsc:::xstringset_to_df(set)
+    if ("ref" %in% names(compare_seq_df_long_args)) {
+      ref <- compare_seq_df_long_args[["ref"]]
+      compare_seq_df_long_args[["ref"]] <- NULL
+    }
+    type <- guess_type2(df[["seq"]]) # known from igsc:::xstringset_to_df
     df <- Gmisc::fastDoCall(compare_seq_df_long,
                             args = c(list(df = df, ref = ref), compare_seq_df_long_args))
-    set <- df_to_xstringset(df)
+
+    set <- df_to_xstringset(df, type = type)
     ref <- attr(df, "ref")
   }
 
@@ -113,7 +119,8 @@ xstringset_print <- function(set,
   sym_line2 <- purrr::map_chr(sym_line, ~paste0(paste(rep(" ", nchar(pa_names[1])), collapse = ""), .x))
 
   if (col_out) {
-    set <- purrr::map(set, ~purrr::map_chr(.x, col_letters))
+    type <- igsc:::guess_type(unname(unlist(purrr::map(set, strsplit, split = ""))))
+    set <- purrr::map(set, ~purrr::map_chr(.x, col_letters, type = type, mc.cores = 1))
   }
   # add name before seq lines
   set <- purrr::map2(set, pa_names, ~paste0(.y, .x, "  "))

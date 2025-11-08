@@ -67,6 +67,10 @@ compare_seq_df_long <- function(df,
 
   # insertion_as can be base or any other character, like "x"
 
+  nonref_mismatch_as <- rlang::arg_match(nonref_mismatch_as)
+  ref_mismatch_as <- rlang::arg_match(ref_mismatch_as)
+  #insertion_as <- rlang::arg_match(insertion_as)
+
   if (!change_nonref && !change_ref) {
     if (!is.null(seq_original)) {
       if (!seq_col %in% names(df)) {
@@ -86,17 +90,9 @@ compare_seq_df_long <- function(df,
   if (!name_col %in% names(df)) {
     stop(name_col, " not found in df.")
   }
+
   if (is.null(ref)) {
-    temp <- df |>
-      dplyr::group_by(!!rlang::sym(name_col)) |>
-      dplyr::summarise(n_non_na = sum(!is.na(!!rlang::sym(seq_col)))) |>
-      dplyr::slice_max(n_non_na, n = 1)
-    if (nrow(temp) == 1) {
-      ref <- as.character(temp[[name_col]])
-      message("ref: ", ref)
-    } else {
-      stop("ref could not be guessed.")
-    }
+    ref <- get_ref_as_longest_seq(df_long = df, name_col = name_col, seq_col = seq_col)
   }
   if (!ref %in% df[[name_col]]) {
     stop(ref, " not in ",  name_col, " column of df.")
@@ -104,16 +100,15 @@ compare_seq_df_long <- function(df,
 
 
 
-  nonref_mismatch_as <- rlang::arg_match(nonref_mismatch_as)
-  ref_mismatch_as <- rlang::arg_match(ref_mismatch_as)
-  #insertion_as <- rlang::arg_match(insertion_as)
-
   name_order <- levels(df[,name_col,drop=T])
   if (is.null(name_order)) {
     name_order <- unique(df[,name_col,drop=T])
   }
   non_ref <- name_order[which(name_order != ref)]
 
+
+  # this check must be extended and making distinct must be more robust: e.g. select
+  # !!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col) for making distinct
   check_dups <-
     df %>%
     dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
@@ -263,4 +258,17 @@ coalesce_other_cols_with_unique_vals <- function(df,
     dplyr::distinct() %>%
     tidyr::pivot_wider(names_from = name, values_from = value)
   return(add_cols_vals_unique_wide)
+}
+
+get_ref_as_longest_seq <- function(df_long, name_col, seq_col) {
+  temp <- df_long |>
+    dplyr::summarise(n_non_na = sum(!is.na(!!rlang::sym(seq_col))), .by = !!rlang::sym(name_col)) |>
+    dplyr::slice_max(n_non_na, n = 1)
+  if (nrow(temp) == 1) {
+    ref <- as.character(temp[[name_col]])
+    message("ref: ", ref)
+  } else {
+    stop("ref could not be guessed based on seq length. name it explicitly.")
+  }
+  return(ref)
 }

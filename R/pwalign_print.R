@@ -392,71 +392,181 @@ sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly s
   return(x)
 }
 
-col_letters <- function(x) {
+col_letters <- function(x, type = NULL, mc.cores = 1) {
+
+  # mc.cores: probably no speedup
+
+  blacker <- crayon::make_style("black")
+  whiter <- crayon::make_style("white")
+
   x <- strsplit(x, "")[[1]]
 
-  if (all(x == "-")) {
-    whiter <- crayon::make_style("white")
-    x <- sapply(x, function(y) crayon::make_style("grey30", bg = T)(whiter(y)))
-  } else if (igsc:::guess_type(x) == "NT") {
-    x <- sapply(x, style_fun)
+  if (is.null(type)) {
+    type <- igsc:::guess_type(x)
   } else {
-    cols <- RColorBrewer::brewer.pal(7, "Set2")[-c(4:5)]
-    black <- crayon::make_style("black")
-    whiter <- crayon::make_style("white")
-
-    aa_non_polar <- c("A","V","L","I","M","W","F","Y")
-    aa_polar <- c("S","T","N","Q")
-    aa_pos_charge <- c("K","R","H")
-    aa_neg_charge <- c("D","E")
-    aa_special <- c("C", "G", "P")
-
-    x <- sapply(x, function(y) {
-      if (y %in% aa_non_polar) {
-        crayon::make_style(cols[1], bg = T)(black(y))
-      } else if (y %in% aa_polar) {
-        crayon::make_style(cols[2], bg = T)(black(y))
-      } else if (y %in% aa_pos_charge) {
-        crayon::make_style(cols[3], bg = T)(black(y))
-      } else if (y %in% aa_neg_charge) {
-        crayon::make_style(cols[4], bg = T)(black(y))
-      } else if (y %in% aa_special) {
-        crayon::make_style(cols[5], bg = T)(black(y))
-      } else if (y == "N") {
-        crayon::make_style("grey40", bg = T)(whiter("N"))
-      } else {
-        crayon::make_style("grey30", bg = T)(whiter(y))
-      }
-    })
+    type <- match.arg(type, c("AA", "NT"))
   }
+
+  if (type == "NT") {
+
+    # nucleotides
+    x <- style_fun_nt(x = x, blacker = blacker, whiter = whiter, mc.cores = mc.cores)
+
+  } else if (type == "AA") {
+
+    # amino acids
+    x <- style_fun_aa(x = x, blacker = blacker, whiter = whiter, mc.cores = mc.cores)
+
+  }
+
+  # if (all(!grepl("[A-Za-z]", x))) {
+  #
+  #   # only dash or dot, no letters, unspecified
+  #   x <- sapply(x, function(y) crayon::make_style("grey30", bg = T)(whiter(y)))
+  #
+  # }
 
   x <- paste(x,collapse = "")
   return(x)
 }
 
 
-style_fun <- function(y) {
-  black <- crayon::make_style("black")
-  whiter <- crayon::make_style("white")
-  dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B", "-")
-  cols <- RColorBrewer::brewer.pal(6, "Set2")[-c(4,5)]
+style_fun_aa <- function(x,
+                         blacker = crayon::make_style("black"),
+                         whiter = crayon::make_style("white"),
+                         # cols only assigned by order yet
+                         cols = RColorBrewer::brewer.pal(7, "Set2")[-c(4,5)],
+                         mc.cores = getOption("mc.cores", default = 1)) {
+
+  # aa_non_polar <- c("A","V","L","I","M","W","F","Y")
+  # aa_polar <- c("S","T","N","Q")
+  # aa_pos_charge <- c("K","R","H")
+  # aa_neg_charge <- c("D","E")
+  # aa_special <- c("C", "G", "P")
+  # x <- sapply(x, function(y) {
+  #   if (y %in% aa_non_polar) {
+  #     crayon::make_style(cols[1], bg = T)(blacker(y))
+  #   } else if (y %in% aa_polar) {
+  #     crayon::make_style(cols[2], bg = T)(blacker(y))
+  #   } else if (y %in% aa_pos_charge) {
+  #     crayon::make_style(cols[3], bg = T)(blacker(y))
+  #   } else if (y %in% aa_neg_charge) {
+  #     crayon::make_style(cols[4], bg = T)(blacker(y))
+  #   } else if (y %in% aa_special) {
+  #     crayon::make_style(cols[5], bg = T)(blacker(y))
+  #   } else if (y == "N") {
+  #     crayon::make_style("grey40", bg = T)(whiter(y))
+  #   } else {
+  #     crayon::make_style("grey30", bg = T)(whiter(y))
+  #   }
+  # })
+  #
+
+  dark_grey_bg_letters <- c("N")  # if you want, can add others later
   style_map <- list(
-    A = list(cols[1], black),
-    T = list(cols[2], black),
-    U = list(cols[2], black),
-    C = list(cols[3], black),
-    G = list(cols[4], black),
+    # Non-polar
+    A = list(cols[1], blacker),
+    V = list(cols[1], blacker),
+    L = list(cols[1], blacker),
+    I = list(cols[1], blacker),
+    M = list(cols[1], blacker),
+    W = list(cols[1], blacker),
+    F = list(cols[1], blacker),
+    Y = list(cols[1], blacker),
+
+    # Polar
+    S = list(cols[2], blacker),
+    T = list(cols[2], blacker),
+    N = list(cols[2], blacker),
+    Q = list(cols[2], blacker),
+
+    # Positive charge
+    K = list(cols[3], blacker),
+    R = list(cols[3], blacker),
+    H = list(cols[3], blacker),
+
+    # Negative charge
+    D = list(cols[4], blacker),
+    E = list(cols[4], blacker),
+
+    # Special
+    C = list(cols[5], blacker),
+    G = list(cols[5], blacker),
+    P = list(cols[5], blacker),
+
+    # Special case for ambiguous or unknown or stop codon
+    N = list("grey40", whiter),
+    "*" = list("grey40", whiter)
+  )
+
+  x <- parallel::mclapply(x, function(y) {
+    if (y %in% names(style_map)) {
+      col <- style_map[[y]][[1]]
+      wrapf <- style_map[[y]][[2]]
+      y <- crayon::make_style(col, bg = TRUE)(wrapf(y))
+    } else if (y %in% dark_grey_bg_letters) {
+      y <- crayon::make_style("grey30", bg = TRUE)(whiter(y))
+    } else {
+     # y <- crayon::make_style("grey30", bg = T)(whiter(y))
+    }
+    return(y)
+  }, mc.cores = mc.cores)
+
+  return(unlist(x))
+}
+
+style_fun_nt <- function(x,
+                         blacker = crayon::make_style("black"),
+                         whiter = crayon::make_style("white"),
+                         # cols only assigned by order yet
+                         cols = RColorBrewer::brewer.pal(6, "Set2")[-c(4,5)],
+                         mc.cores = getOption("mc.cores", default = 1)) {
+
+  # ambuities in DNA / nucleotide code
+  # ------------------------------------------------------------
+  # Code | Base(s) Represented | Meaning
+  # ------------------------------------------------------------
+  # M    | A or C              | aMino bases
+  # R    | A or G              | puRine bases
+  # W    | A or T              | Weak (2 H-bonds)
+  # S    | C or G              | Strong (3 H-bonds)
+  # Y    | C or T              | pYrimidine bases
+  # K    | G or T              | Keto bases
+  # V    | A or C or G         | not T (V = "not T")
+  # H    | A or C or T         | not G (H = "not G")
+  # D    | A or G or T         | not C (D = "not C")
+  # B    | C or G or T         | not A (B = "not A")
+  # ------------------------------------------------------------
+  # A    | A                   | Adenine
+  # C    | C                   | Cytosine
+  # G    | G                   | Guanine
+  # T    | T                   | Thymine
+  # U    | U                   | Uracil (in RNA)
+  # ------------------------------------------------------------
+  dark_grey_bg_letters <- c("M", "R", "W", "S", "Y", "K", "V", "H", "D", "B", "-")
+  style_map <- list(
+    A = list(cols[1], blacker),
+    T = list(cols[2], blacker),
+    U = list(cols[2], blacker),
+    C = list(cols[3], blacker),
+    G = list(cols[4], blacker),
     N = list("grey40", whiter)
   )
-  if (y %in% names(style_map)) {
-    col   <- style_map[[y]][[1]]
-    wrapf <- style_map[[y]][[2]]
-    crayon::make_style(col, bg = TRUE)(wrapf(y))
-  } else if (y %in% dark_grey_bg_letters) {
-    crayon::make_style("grey30", bg = TRUE)(whiter(y))
-  } else {
-    y
-  }
+
+  x <- parallel::mclapply(x, function(y) {
+    if (y %in% names(style_map)) {
+      col <- style_map[[y]][[1]]
+      wrapf <- style_map[[y]][[2]]
+      y <- crayon::make_style(col, bg = TRUE)(wrapf(y))
+    } else if (y %in% dark_grey_bg_letters) {
+      y <- crayon::make_style("grey30", bg = TRUE)(whiter(y))
+    } else {
+      #nothing
+    }
+    return(y)
+  }, mc.cores = mc.cores)
+
+  return(unlist(x))
 }
 
 

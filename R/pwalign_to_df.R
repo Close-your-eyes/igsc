@@ -108,7 +108,6 @@ df_to_xstringset <- function(df,
                              sym_internal_gap = "-",
                              sym_terminal_gap = "-") {
 
-  type <- rlang::arg_match(type)
   if (!name_col %in% names(df)) {
     stop("name_col not found in df.")
   }
@@ -117,6 +116,11 @@ df_to_xstringset <- function(df,
   }
   if (!pos_col %in% names(df)) {
     stop("pos_col not found in df.")
+  }
+  if (missing(type)) {
+    type <- guess_type2(df[[seq_col]])
+  } else {
+    type <- rlang::arg_match(type)
   }
 
   df <-

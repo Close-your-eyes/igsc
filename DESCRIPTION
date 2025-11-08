@@ -34,7 +34,8 @@ Imports:
     rlang,
     scales,
     vroom,
-    Rcpp
+    Rcpp,
+    tidyjson
 Suggests: 
     rmarkdown,
     knitr,
