@@ -10,7 +10,6 @@ pwalign_print(
   match_dots = NULL,
   print_pos = T,
   print_pos_end = F,
-  use_align_starts = T,
   col_out = T,
   extend_subject = c(0, 0),
   out_file = NULL
@@ -29,9 +28,6 @@ have them in the pattern}
 respectively}
 
 \item{print_pos_end}{print positions on the end of each line}
-
-\item{use_align_starts}{if TRUE, the first positions are not 1 but refer to
-position of alignment within the provided sequences}
 
 \item{col_out}{color the printed alignment?}
 

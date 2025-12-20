@@ -401,6 +401,7 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
     if (length(inds_to_plot) == 0) {
       return(NULL)
     }
+
     plots <- purrr::map(stats::setNames(inds_to_plot, inds_to_plot), function(ref_seq_ind) {
       #print(ref_seq_ind)
       temp <-
@@ -427,15 +428,19 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
       }
 
       # reordering, only
-      reads_groups <- c(reads_groups[which(grepl("pair", names(reads_groups)))], reads_groups[which(!grepl("pair", names(reads_groups)))])
-      plot_data <- pwalign_multi(subject = Biostrings::DNAStringSet(stats::setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)], "ref_seq")),
-                                                          patterns = reads_groups,
-                                                          type = "local",
-                                                          seq_type = "NT",
-                                                          verbose = F)
+      reads_groups <- c(reads_groups[which(grepl("pair", names(reads_groups)))],
+                        reads_groups[which(!grepl("pair", names(reads_groups)))])
+      plot_data <- pwalign_multi(subject = Biostrings::DNAStringSet(stats::setNames(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)],
+                                                                                    "ref_seq")),
+                                 patterns = reads_groups,
+                                 type = "local",
+                                 seq_type = "NT",
+                                 verbose = F)
       plot_data[["plot"]] <-
         plot_data[["plot"]] +
-        ggplot2::labs(title = stringr::str_wrap(names(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)]), width = 40), y = NULL, x = NULL) +
+        ggplot2::labs(title = stringr::str_wrap(names(ref_seq_list[[ref_name]][as.numeric(ref_seq_ind)]), width = 40),
+                      y = NULL,
+                      x = NULL) +
         ggplot2::theme(title = ggplot2::element_text(size = 6))
       return(plot_data)
     })

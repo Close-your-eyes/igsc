@@ -8,8 +8,6 @@
 #' @param print_pos print the positions of pattern and subject above and below
 #' respectively
 #' @param print_pos_end print positions on the end of each line
-#' @param use_align_starts if TRUE, the first positions are not 1 but refer to
-#' position of alignment within the provided sequences
 #' @param out_file path to a file where to print results to; if NULL results are
 #' printed in console
 #' @param col_out color the printed alignment?
@@ -39,13 +37,16 @@ pwalign_print <- function(pa,
                           match_dots = NULL,
                           print_pos = T,
                           print_pos_end = F,
-                          use_align_starts = T,
                           col_out = T,
                           extend_subject = c(0,0),
                           out_file = NULL) {
 
   # pa formats
   #http://emboss.sourceforge.net/docs/themes/AlignFormats.html
+
+  # @param use_align_starts if TRUE, the first positions are not 1 but refer to
+  # position of alignment within the provided sequences
+  # use_align_starts = T,
 
   if (!is.null(out_file)) {
     if (!grepl("\\.txt", out_file)) {
@@ -94,13 +95,20 @@ pwalign_print <- function(pa,
   c(p_name, s_name) %<-% pad_strings(c(p_name, s_name))
   linewidth <- min(c(linewidth, nchar(pattern)))
 
-  if (use_align_starts && methods::is(pa, "PairwiseAlignmentsSingleSubject")) {
-    p_start <- pa@pattern@range@start
-    s_start <- pa@subject@range@start - extend_subject[1]
-  } else {
-    p_start <- 1
-    s_start <- 1
-  }
+  # did not work as expected.
+  # seq <- igsc::read_fasta("/Users/chris/Documents/R_packages/igsc/inst/extdata/Mus_musculus_ENSMUST00000103740_2_sequence.fa")
+  # pwalign::pairwiseAlignment(seq[1], paste0("NN",seq[2])) # subject starts at 4 but should be 1. somehow referring to pattern position
+  # aln <- pwalign::pairwiseAlignment(seq[1], paste0("NN",seq[2]))
+  # if (use_align_starts && methods::is(pa, "PairwiseAlignmentsSingleSubject")) {
+  #   p_start <- pa@pattern@range@start
+  #   s_start <- pa@subject@range@start - extend_subject[1]
+  # } else {
+  #   p_start <- 1
+  #   s_start <- 1
+  # }
+
+  p_start <- 1
+  s_start <- 1
 
   ## split seqs to assign_dots_two_seq and get_symbols
   c(subject, pattern) %<-% strsplit(c(subject, pattern), "")
@@ -110,6 +118,7 @@ pwalign_print <- function(pa,
     subject = subject,
     pattern = pattern
   )
+
   # symbol lines above/below sequences
   p_sym <- paste(get_symbols(s = pattern, start.pos = p_start), collapse = "")
   s_sym <- paste(get_symbols(s = subject, start.pos = s_start), collapse = "")
@@ -247,6 +256,7 @@ pwalign_print <- function(pa,
 
 
 .get_pos_line <- function(name, chunk, pos) {
+
   pos_line <- paste(rep(" ", nchar(name)), collapse = "")
   skip = 0
   corr.100.per.line <- F
