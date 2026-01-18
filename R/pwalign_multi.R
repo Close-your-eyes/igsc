@@ -19,7 +19,7 @@
 #' in this case no alignment is calculated
 #' @param rm_indel_inducing_pattern remove patterns that cause indels in subject
 #' and hence may be a problem for plotting
-#' @param compare_seq_df_long_args arguments to igsc::compare_seq_df_long
+#' @param compare_seq_df_wide_args arguments to igsc::compare_seq_df_wide
 #' @param pairwiseAlignment_args arguments to pwalign::pairwiseAlignment
 #' @param algnmt_plot_args arguments to igsc::algnmt_plot
 #' @param order_subject_ranges
@@ -37,7 +37,7 @@
 #' p <- Biostrings::DNAStringSet(p)
 #' als <- pwalign_multi(subject = s, patterns = p)
 #' als_ordered <- pwalign_multi(subject = s, patterns = p, order_patterns = T,
-#'                                                       compare_seq_df_long_args = list(seq_original = NULL,
+#'                                                       compare_seq_df_wide_args = list(seq_original = NULL,
 #'                                                                                       match_symbol = ".",
 #'                                                                                       change_nonref = T,
 #'                                                                                       nonref_mismatch_as = "base",
@@ -59,14 +59,14 @@ pwalign_multi <- function(subject,
                           rm_indel_inducing_pattern = F,
                           seq_type = NULL,
                           return_max_mismatch_info_only = F,
-                          compare_seq_df_long_args = list(
-                            seq_original = NULL,
+                          compare_seq_df_wide_args = list(
                             match_symbol = ".",
                             change_nonref = T,
                             nonref_mismatch_as = "base",
                             change_ref = T,
                             ref_mismatch_as = "base",
-                            insertion_as = "base"
+                            insertion_as = "base",
+                            rm_pure_NA_non_ref = F
                           ),
                           pairwiseAlignment_args = list(),
                           algnmt_plot_args = list(
@@ -115,7 +115,7 @@ pwalign_multi <- function(subject,
                             patterns = patterns,
                             seq_type = seq_type,
                             verbose = verbose)
-
+browser()
   # check for non-DNA characters first
   #assigns: pa, patterns, pattern_indel_inducing, subject_inds_indel
   check_for_invalid_chars(subject = subject,
@@ -184,7 +184,7 @@ pwalign_multi <- function(subject,
                                  subject.ranges = subject.ranges,
                                  pattern_order = pattern_order,
                                  pattern_groups = pattern_groups,
-                                 compare_seq_df_long_args)
+                                 compare_seq_df_wide_args)
 
   plot <- Gmisc::fastDoCall(igsc::algnmt_plot, args = c(list(algnmt = df2,
                                                              algnmt_type = seq_type,
@@ -215,22 +215,20 @@ prep_df_for_algnmt_plot <- function(df,
                                     subject.ranges,
                                     pattern_order,
                                     pattern_groups,
-                                    compare_seq_df_long_args) {
+                                    compare_seq_df_wide_args) {
 
   # gap
   # match
   # mismatch
   # insertion
-  df <- Gmisc::fastDoCall(compare_seq_df_long,
-                          args = c(compare_seq_df_long_args,
-                                   list(df = tidyr::pivot_longer(df,
-                                                                 cols = dplyr::all_of(c(subject_name, pattern_names)),
-                                                                 names_to = "seq.name",
-                                                                 values_to = "seq"),
+
+  df <- Gmisc::fastDoCall(compare_seq_df_wide,
+                          args = c(compare_seq_df_wide_args,
+                                   list(df = df,
                                         ref = subject_name,
                                         pos_col = "position",
-                                        seq_col = "seq",
-                                        name_col = "seq.name")))
+                                        return_as_long = T)))
+
 
   # pattern orders
   if (order_patterns) {
@@ -242,7 +240,7 @@ prep_df_for_algnmt_plot <- function(df,
     ## here, original names are restored
     dplyr::mutate(seq.name = original_names[seq.name]) %>%
     ## factor order with original names
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject_name,pattern_lvls)))
+    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject_name, pattern_lvls)))
 
   if (!is.null(pattern_groups)) {
     pattern_groups <- c(stats::setNames(subject_name, subject_name), pattern_groups) # c(stats::setNames("subject", subject_name), pattern_groups)
@@ -330,7 +328,7 @@ prep_subject_and_patterns <- function(subject,
   ## pull seqs from subject and patterns, then run guess_type
   unique_letters <- unique(toupper(c(unlist(strsplit(as.character(subject), "")), unlist(strsplit(as.character(patterns), "")))))
   if (is.null(seq_type)) {
-    seq_type <- guess_type(unique_letters)
+    seq_type <- igsc:::guess_type(unique_letters)
   } else {
     seq_type <- match.arg(seq_type, c("NT", "AA"))
   }

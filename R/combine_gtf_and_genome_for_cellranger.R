@@ -24,7 +24,16 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' # concat files on server:
+#' # remove header from second gtf, then
+#' # cat genes_hg38_renamed.gtf genes_mm10_renamed.gtf > genes.gtf
+#' # cat genome_hg38_renamed.fa genome_mm10_renamed.fa > genome.fa
+#'
 #' # hg38 and 5 herpes virus genomes
+#' # consider adding info to gtf header:
+#' ##NOTE: CDS features converted to exon for viral genomes; original exons removed
+#' ##NOTE: only exons retained from hg38
 #' root <- "/Volumes/CMS_SSD_2TB/reference_genomes/"
 #' combine_gtf_and_genome_for_cellranger(genome_files = c(paste0(root, "release_114/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"),
 #'                                                        list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"),
@@ -36,6 +45,7 @@
 #'                                       save_names = c("genome2.fa", "gtf2.gtf"),
 #'                                       gtf_features_to_exon = c(list(c("")), rep(list(c("CDS")), 5)),
 #'                                       gtf_rm_exon = c(F, rep(T, 5)))
+#' }
 combine_gtf_and_genome_for_cellranger <- function(genome_files,
                                                   gtf_files,
                                                   gtf_exons_only = T,
@@ -47,8 +57,8 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
                                                   overwrite = F,
                                                   gtf_header = c(
                                                     "##description: made with combine_gtf_and_genome_for_cellranger function from https://github.com/Close-your-eyes/igsc",
-                                                    paste0("##source files: ", paste(basename(gtf_files), collapse = ", ")),
-                                                    "##provider: CMS",
+                                                    paste0("##sources: ", paste(basename(gtf_files), collapse = ", ")),
+                                                    "##creator: CMS",
                                                     "##conctact: vonskopnik@pm.me",
                                                     "##format: gtf",
                                                     paste0("##date: ", Sys.Date())
@@ -80,14 +90,6 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
          gtf_rm_exon = gtf_rm_exon),
     process_files,
     fasta_name_two_parts = fasta_name_two_parts
-  )
-  genome_gtf_list <- purrr::map2(
-    genome_files,
-    gtf_files,
-    process_files,
-    gtf_exons_only = gtf_exons_only,
-    fasta_name_two_parts = fasta_name_two_parts,
-    gtf_features_to_exon = gtf_features_to_exon
   )
 
   # check duplicates
@@ -136,8 +138,8 @@ process_files <- function(fasta_path,
 
   message(basename(fasta_path), " + ", basename(gtf_path))
   gtf1 <- igsc::read_gtf(gtf_path, process_attr_col = F)[["gtf"]]
-gtf_nest <- gtf1 |>
-  dplyr::distinct(feature)
+  gtf_nest <- gtf1 |>
+    dplyr::distinct(feature)
   if (gtf_rm_exon) {
     gtf1 <- dplyr::filter(gtf1, feature != "exon")
   }

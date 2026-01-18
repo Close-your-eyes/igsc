@@ -43,7 +43,16 @@ concat_exons <- function(gtf_df,
   gtf_df <- gtf_df[order(gtf_df$start, decreasing = all(gtf_df$start < gtf_df$end)),]
   seqnames <- paste0(gtf_df$feature, gsub("NA", "", sprintf("%02d", as.numeric(gtf_df$exon_number))))
   seqnames[which(grepl("codon", seqnames))] <- stringr::str_sub(seqnames[which(grepl("codon", seqnames))],1,-3)
-  seqlist <- mapply(substr, start = stats::setNames(gtf_df$start, seqnames), stop = gtf_df$end, x = refseq)
+
+  #brathering::seq2(stats::setNames(gtf_df$start, seqnames), gtf_df$end)
+  #seqlist <- mapply(substr, start = stats::setNames(gtf_df$start, seqnames), stop = gtf_df$end, x = refseq)
+  #seqlist <- stats::setNames(stringi::stri_sub_all(refseq, gtf_df$start, gtf_df$end)[[1]], seqnames)
+  seqlist <- get_seq_from_refseq(refseq = refseq,
+                                 gtf_df = gtf_df,
+                                 group_by = NULL,
+                                 names = seqnames,
+                                 what = "single")
+
 
   #mpa <- pwalign_multi(subject = seqlist["transcript"], patterns = seqlist[which(names(seqlist) != "transcript")])
 
@@ -97,7 +106,6 @@ concat_exons <- function(gtf_df,
     seq <- seqlist[["transcript"]]
   }
 
-  igsc:::revcompDNA(seqlist[["CDS01"]])
 
   seq <- paste(seqlist, collapse = "")
   exon_cum <- cumsum(nchar(seqlist))
@@ -112,7 +120,50 @@ concat_exons <- function(gtf_df,
   attributes(seq) <- list(ranges = exon_ranges, lengths = exon_lengths, codons = n_codons)
   names(seqlist) <- exon_names
 
-  return(list(seq = seq, exons = seqlist))
+  # seq_whole <- get_seq_from_refseq(refseq = refseq,
+  #                                  gtf_df = gtf_df,
+  #                                  what = "whole")
+  # seq_whole = seq_whole,
+  return(list(seq = seq,  exons = seqlist))
 }
 
 
+#' Title
+#'
+#' @param refseq
+#' @param gtf_df
+#' @param group_by
+#' @param names
+#' @param what
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+get_seq_from_refseq <- function(refseq,
+                                gtf_df,
+                                group_by = NULL,
+                                names = NULL,
+                                what = c("single", "whole")) {
+  what <- rlang::arg_match(what)
+
+  if (what == "single") {
+    seqlist <- stringi::stri_sub_all(refseq, gtf_df$start, gtf_df$end)[[1]]
+  } else if (what == "whole") {
+    seqlist <- stringi::stri_sub_all(
+      refseq,
+      min(gtf_df$start, gtf_df$end),
+      max(gtf_df$start, gtf_df$end)
+    )[[1]]
+  }
+
+  if (!is.null(names)) {
+    names(seqlist) <- names
+  }
+
+  if (!is.null(group_by)) {
+    seqlist <- split(seqlist, group_by)
+  }
+
+  return(seqlist)
+}

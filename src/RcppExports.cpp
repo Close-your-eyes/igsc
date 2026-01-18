@@ -10,6 +10,22 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// mutate_value_cpp
+CharacterVector mutate_value_cpp(CharacterVector value, CharacterVector ref_col, std::string match_symbol, std::string mismatch_symbol, bool keep_match_gaps, std::string nonref_mismatch_as);
+RcppExport SEXP _igsc_mutate_value_cpp(SEXP valueSEXP, SEXP ref_colSEXP, SEXP match_symbolSEXP, SEXP mismatch_symbolSEXP, SEXP keep_match_gapsSEXP, SEXP nonref_mismatch_asSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< CharacterVector >::type value(valueSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type ref_col(ref_colSEXP);
+    Rcpp::traits::input_parameter< std::string >::type match_symbol(match_symbolSEXP);
+    Rcpp::traits::input_parameter< std::string >::type mismatch_symbol(mismatch_symbolSEXP);
+    Rcpp::traits::input_parameter< bool >::type keep_match_gaps(keep_match_gapsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type nonref_mismatch_as(nonref_mismatch_asSEXP);
+    rcpp_result_gen = Rcpp::wrap(mutate_value_cpp(value, ref_col, match_symbol, mismatch_symbol, keep_match_gaps, nonref_mismatch_as));
+    return rcpp_result_gen;
+END_RCPP
+}
 // process_attr_col_rcpp
 List process_attr_col_rcpp(std::vector<std::string> x);
 RcppExport SEXP _igsc_process_attr_col_rcpp(SEXP xSEXP) {
@@ -57,6 +73,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_igsc_mutate_value_cpp", (DL_FUNC) &_igsc_mutate_value_cpp, 6},
     {"_igsc_process_attr_col_rcpp", (DL_FUNC) &_igsc_process_attr_col_rcpp, 1},
     {"_igsc_processStrings", (DL_FUNC) &_igsc_processStrings, 1},
     {"_igsc_revcomp_rcpp", (DL_FUNC) &_igsc_revcomp_rcpp, 1},

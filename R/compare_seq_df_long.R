@@ -92,7 +92,12 @@ compare_seq_df_long <- function(df,
   }
 
   if (is.null(ref)) {
-    ref <- get_ref_as_longest_seq(df_long = df, name_col = name_col, seq_col = seq_col)
+    ref <- get_ref_as_longest_seq(
+      df = df,
+      name_col = name_col,
+      seq_col = seq_col,
+      shape = "long"
+    )
   }
   if (!ref %in% df[[name_col]]) {
     stop(ref, " not in ",  name_col, " column of df.")
@@ -132,30 +137,55 @@ compare_seq_df_long <- function(df,
     #   df2 <- dplyr::mutate(df2, value = ifelse(value == !!rlang::sym(ref), match_symbol, mismatch_symbol))
     # }
 
-    df2 <- df2 %>%
-      dplyr::rowwise() %>% # slower but necessary
-      dplyr::mutate(
-        value = dplyr::if_else(
-          .data[["value"]] == .data[[ref]],  # compare to the ref column
-          # match branch
-          dplyr::if_else(
-            .data[["value"]] != "-",
-            match_symbol,
-            dplyr::if_else(keep_match_gaps, "-", match_symbol)
-          ),
-          # mismatch branch
-          dplyr::if_else(
-            nonref_mismatch_as == "base",
-            .data[["value"]],
-            dplyr::if_else(
-              .data[["value"]] != "-",
-              mismatch_symbol,
-              dplyr::if_else(keep_match_gaps, "-", mismatch_symbol)
-            )
-          )
-        )
-      ) |>
-      dplyr::ungroup()
+    # library(Rcpp)
+    # sourceCpp("/Users/chris/Documents/R_packages/igsc/src/compare_seq_df_long_fun.cpp")
+
+    # super quick version of rowwise pipeline below
+    df2$value <- igsc:::mutate_value_cpp(
+      value               = df2$value,
+      ref_col             = df2[[ref]],
+      match_symbol        = match_symbol,
+      mismatch_symbol     = mismatch_symbol,
+      keep_match_gaps     = keep_match_gaps,
+      nonref_mismatch_as  = nonref_mismatch_as
+    )
+    df2$value[which(df2$value == "NA")] <- NA
+
+    # value <- mutate_value_cpp(
+    #   value               = df2$value,
+    #   ref_col             = df2[[ref]],
+    #   match_symbol        = match_symbol,
+    #   mismatch_symbol     = mismatch_symbol,
+    #   keep_match_gaps     = keep_match_gaps,
+    #   nonref_mismatch_as  = nonref_mismatch_as
+    # )
+    # value[which(value == "NA")] <- NA
+    # identical(df2$value, value)
+    #
+    # df2 <- df2 %>%
+    #   dplyr::rowwise() %>% # slower but necessary
+    #   dplyr::mutate(
+    #     value = dplyr::if_else(
+    #       .data[["value"]] == .data[[ref]],  # compare to the ref column
+    #       # match branch
+    #       dplyr::if_else(
+    #         .data[["value"]] != "-",
+    #         match_symbol,
+    #         dplyr::if_else(keep_match_gaps, "-", match_symbol)
+    #       ),
+    #       # mismatch branch
+    #       dplyr::if_else(
+    #         nonref_mismatch_as == "base",
+    #         .data[["value"]],
+    #         dplyr::if_else(
+    #           .data[["value"]] != "-",
+    #           mismatch_symbol,
+    #           dplyr::if_else(keep_match_gaps, "-", mismatch_symbol)
+    #         )
+    #       )
+    #     )
+    #   ) |>
+    #   dplyr::ungroup()
 
 
     if (insertion_as != "base") {
@@ -260,15 +290,28 @@ coalesce_other_cols_with_unique_vals <- function(df,
   return(add_cols_vals_unique_wide)
 }
 
-get_ref_as_longest_seq <- function(df_long, name_col, seq_col) {
-  temp <- df_long |>
-    dplyr::summarise(n_non_na = sum(!is.na(!!rlang::sym(seq_col))), .by = !!rlang::sym(name_col)) |>
-    dplyr::slice_max(n_non_na, n = 1)
-  if (nrow(temp) == 1) {
-    ref <- as.character(temp[[name_col]])
-    message("ref: ", ref)
-  } else {
-    stop("ref could not be guessed based on seq length. name it explicitly.")
+get_ref_as_longest_seq <- function(df, name_col, seq_col, shape = c("long", "wide")) {
+  shape <- rlang::arg_match(shape)
+
+  if (shape == "long") {
+    temp <- df |>
+      dplyr::summarise(n_non_na = sum(!is.na(!!rlang::sym(seq_col))), .by = !!rlang::sym(name_col)) |>
+      dplyr::slice_max(n_non_na, n = 1)
+    if (nrow(temp) == 1) {
+      ref <- as.character(temp[[name_col]])
+      message("ref: ", ref)
+    } else {
+      stop("ref could not be guessed based on seq length. name it explicitly.")
+    }
+  } else if (shape == "wide") {
+    inds <- brathering::which.max2(dplyr::summarise(df, dplyr::across(dplyr::where(is.character), ~sum(!is.na(.)))))
+    if (length(inds) > 1) {
+      stop("ref could not be guessed based on seq length. name it explicitly.")
+    } else {
+      return(names(df)[inds])
+    }
+
   }
+
   return(ref)
 }

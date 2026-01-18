@@ -249,6 +249,15 @@ get_bounds <- function(x, file_path) {
   # actually though, rg and grep do return the full lines already, not only linenumbers
   # but, so what
 
+  if (grepl("\\.gz$", file_path)) {
+    file_path <- brathering::ungunzip(
+      file_path,
+      out_dir = tempdir(),
+      out_file = tools::file_path_sans_ext(basename(file_path))
+    )
+    message("unpacking file to: ", file_path)
+  }
+
   out <- tryCatch(
     {
       # use ripgrep if possible
@@ -265,12 +274,15 @@ get_bounds <- function(x, file_path) {
     stop("seqname not found in gtf file.")
   }
   out <- as.numeric(out[c(1, length(out))])
-  return(out)
+  return(list(bounds = out, file = file_path))
 }
 
 vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
   bounds <- get_bounds(x, file_path)
-  y <- vroom::vroom(file = do.call(unpack_fun, args = list(description = file_path)),
+  file <- bounds[["file"]]
+  bounds <- bounds[["bounds"]]
+
+  y <- vroom::vroom(file = file,
                     col_names = col_names,
                     skip = bounds[1] - 1,
                     n_max = bounds[2] - bounds[1] + 1,

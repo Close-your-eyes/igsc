@@ -73,7 +73,11 @@ read_fasta <- function(file,
     },
     error = function(err) {
       print(err)
-      out <- brathering::ungunzip(file, out_path = tempdir())
+      out <- brathering::ungunzip(
+        file,
+        out_dir = tempdir(),
+        out_file = tools::file_path_sans_ext(basename(file))
+      )
       message("unpacking file to: ", out)
       lines <- vroom::vroom_lines(file = out,
                                   skip = start_line - 1,
