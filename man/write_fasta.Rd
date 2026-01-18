@@ -4,16 +4,21 @@
 \alias{write_fasta}
 \title{Write sequences to a file in fasta format}
 \usage{
-write_fasta(seqs, file, mode = c("w", "a"), linewidth = 60)
+write_fasta(
+  seqs,
+  file,
+  linewidth = 60,
+  mc.cores = floor(parallel::detectCores()/4)
+)
 }
 \arguments{
 \item{seqs}{named character vector or list of sequences; if a list only provide one sequence per index}
 
 \item{file}{full path to the output file to be written; recommended file extension: .fa or .fasta}
 
-\item{mode}{how to write file: 'w' to initiate or overwrite; 'a' to append an existing file}
-
 \item{linewidth}{number of character per line (only valid for sequence, not names)}
+
+\item{append}{append? if F will not overwrite.}
 }
 \value{
 no return; file written to disk

@@ -4,7 +4,7 @@
 #'
 #' @param seqs named character vector or list of sequences; if a list only provide one sequence per index
 #' @param file full path to the output file to be written; recommended file extension: .fa or .fasta
-#' @param mode how to write file: 'w' to initiate or overwrite; 'a' to append an existing file
+#' @param append append? if F will not overwrite.
 #' @param linewidth number of character per line (only valid for sequence, not names)
 #'
 #' @return no return; file written to disk
@@ -13,16 +13,11 @@
 #' @examples
 write_fasta <- function(seqs,
                         file,
-                        mode = c("w", "a"),
-                        linewidth = 60) {
+                        linewidth = 60,
+                        mc.cores = floor(parallel::detectCores()/4)) {
 
   if (missing(file)) {
     stop("Output file path has to be provided in file.")
-  }
-
-  mode <- rlang::arg_match(mode)
-  if (mode == "a" && !file.exists(file)) {
-    stop("file not found. set mode = 'w' or check the file path in file.")
   }
 
   if (is.list(seqs) && any(lengths(seqs) > 1)) {
@@ -34,15 +29,25 @@ write_fasta <- function(seqs,
     names(seqs) <- paste0("seq_", seq_along(seqs))
   }
 
-  out <- file(description = file, open = mode)
-  for (i in seq_along(seqs)) {
-    writeLines(paste0(">", names(seqs[i])), out)
+  # lines <- purrr::map2(
+  #   names(seqs),
+  #   seqs,
+  #   ~ c(paste0(">", .x), split_chunks(.y, linewidth))
+  # ) |>
+  #   unlist(use.names = FALSE)
 
-    seq <- strsplit(seqs[[i]], "")[[1]]
-    seq <- split(seq, ceiling(seq_along(seq)/linewidth))
-    for (j in seq_along(seq)) {
-      writeLines(paste(seq[[j]], collapse = ""), out)
-    }
-  }
-  close(out)
+  lines <- parallel::mcmapply(FUN = function(name, seq) c(paste0(">", name), split_chunks(seq, linewidth)),
+    name = names(seqs),
+    seq  = seqs,
+    SIMPLIFY = FALSE,
+    mc.cores = mc.cores)
+  lines <- unlist(lines, use.names = FALSE)
+
+  vroom::vroom_write_lines(lines, file = file)
+}
+
+split_chunks <- function(x, n) {
+  starts <- seq(1L, stringi::stri_length(x), by = n)
+  ends   <- pmin(starts + n - 1L, stringi::stri_length(x))
+  stringi::stri_sub(x, starts, ends)
 }

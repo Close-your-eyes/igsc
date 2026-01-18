@@ -151,43 +151,98 @@ read_gtf <- function(file_path,
   if (process_attr_col) {
     message("processing the attribute column.")
     # use waldo::compare to compare results
-    if (use_fun == "rcpp") {
-      # rcpp fun is currently slower than the r procedure
-      attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
-      attr_col <- unlist(processStrings(gtf$attribute)) #igsc:::
-    } else if (use_fun == "r") {
-      attr_col <- stringi::stri_replace_last(gtf$attribute, replacement = "", fixed = ";")
-      attr_col <- stringi::stri_split_fixed(attr_col, pattern = "; ", omit_empty = T)
-      attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
-      # n = 2 --> only split at first space; tag name must not have spaces, tag content may have spaces
-      attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = " ", omit_empty = T, n = 2)) #pattern = ' \"'
-      attr_col[seq(2, length(attr_col), 2)] <- stringi::stri_replace_all(attr_col[seq(2, length(attr_col), 2)], replacement = "", fixed = '"') #stringi::stri_trim_both
-    } else if (use_fun == "rust") {
-      # rust fun was found slower; so using rcpp fun with proper registration
-      stop("rust fun is not up to date. e.g. splitting at first space only missing.")
-      rextendr::rust_source(system.file("extdata/lib.rs", package = "igsc"))
-      attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
-      attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
-    }
+    return(process_gtf_attribute_col(gtf = gtf,
+                                     attr_keep = attr_keep,
+                                     attr_rename = NULL,
+                                     use_fun = use_fun))
 
-    attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],
-                           value = attr_col[seq(2, length(attr_col), 2)],
-                           index = attr_ind)
-    gtf$index <- seq(1, nrow(gtf), 1)
-    gtf <- dplyr::left_join(gtf[,-which(names(gtf) == "attribute")],
-                            attr_col %>%
-                              dplyr::filter(attribute %in% attr_keep) %>%
-                              tidyr::pivot_wider(names_from = attribute, values_from = value), by = "index")
-    if ("exon_number" %in% names(gtf)) {
-      gtf[["exon_number"]] <- as.numeric(gtf[["exon_number"]])
-    }
 
-    return(list(gtf = gtf, attr = attr_col))
   } else {
     return(list(gtf = gtf, attr = NULL))
   }
 
 }
+
+process_gtf_attribute_col <- function(gtf,
+                                      attr_keep = NULL,
+                                      attr_rename = NULL,
+                                      attr_as = c("cols", "kv"),
+                                      use_fun = "r",
+                                      rm_index = F) {
+
+  attr_as <- rlang::arg_match(attr_as) # kv = key value pair
+
+  if (use_fun == "rcpp") {
+    # rcpp fun is currently slower than the r procedure
+    attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
+    attr_col <- unlist(processStrings(gtf$attribute)) #igsc:::
+  } else if (use_fun == "r") {
+    # optimozed for speed
+    attr_col <- stringi::stri_replace_last(gtf$attribute, replacement = "", fixed = ";")
+    #attr_col <- stringi::stri_split_fixed(attr_col, pattern = "; ", omit_empty = T) # this failed when there were ';' in note
+    attr_col <- stringi::stri_split_fixed(attr_col, pattern = "\"; ", omit_empty = T)
+    attr_ind <- rep(seq_along(attr_col), lengths(attr_col))
+    # n = 2 --> only split at first space; tag name must not have spaces, tag content may have spaces
+    attr_col <- unlist(stringi::stri_split_fixed(unlist(attr_col), pattern = " ", omit_empty = T, n = 2)) #pattern = ' \"'
+    attr_col[seq(2, length(attr_col), 2)] <- stringi::stri_replace_all(attr_col[seq(2, length(attr_col), 2)], replacement = "", fixed = '"') #stringi::stri_trim_both
+  } else if (use_fun == "rust") {
+    # rust fun was found slower; so using rcpp fun with proper registration
+    stop("rust fun is not up to date. e.g. splitting at first space only missing.")
+    rextendr::rust_source(system.file("extdata/lib.rs", package = "igsc"))
+    attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
+    attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
+  }
+  gtf$index <- seq(1, nrow(gtf), 1)
+
+  attr_col <- data.frame(attribute = attr_col[seq(1, length(attr_col), 2)],
+                         value = attr_col[seq(2, length(attr_col), 2)],
+                         index = attr_ind)
+  if (!is.null(attr_rename)) {
+    attr_col$attribute[attr_col$attribute %in% names(attr_rename)] <- attr_rename[attr_col$attribute[attr_col$attribute %in% names(attr_rename)]]
+    attr_keep <- unique(c(attr_keep, unname(attr_rename))) # append attr_keep by attr_rename
+  }
+  if (is.null(attr_keep)) {
+    attr_keep <- unique(attr_col$attribute)
+  }
+
+  attr_col2 <- attr_col |>
+    dplyr::filter(attribute %in% attr_keep) |>
+    tidyr::pivot_wider(names_from = attribute, values_from = value)
+
+  if ("gene_name" %in% names(attr_col2)) {
+    attr_col2$gene_name <- ifelse(is.na(attr_col2$gene_name), attr_col2$gene_id, attr_col2$gene_name)
+  }
+
+
+  if (attr_as == "kv") {
+    # optimozed for speed
+    attr_col2 <- attr_col2 |> tidyr::nest(data = index)
+    for (i in names(attr_col2)[-ncol(attr_col2)]) {
+      attr_col2[[i]] <- trimws(paste0(i, " \"", attr_col2[[i]], "\"; "))
+    }
+    attr_col2$attribute <- apply(attr_col2[,-ncol(attr_col2)], 1, paste, collapse = "")
+    attr_col2 <- attr_col2 |>
+      dplyr::select(data, attribute) |>
+      tidyr::unnest(cols = c(data))
+  }
+  gtf <- dplyr::left_join(gtf[,-which(names(gtf) == "attribute")],
+                          attr_col2, by = "index")
+  if (rm_index) {
+    gtf <- dplyr::select(gtf, -index)
+  }
+
+  if ("exon_number" %in% names(gtf)) {
+    gtf[["exon_number"]] <- as.numeric(gtf[["exon_number"]])
+  }
+
+  # filter for requested only
+  attr_col <- attr_col |>
+    dplyr::filter(attribute %in% attr_keep) |>
+    tidyr::pivot_wider(names_from = attribute, values_from = value)
+
+  return(list(gtf = gtf, attr = attr_col))
+}
+
 
 get_bounds <- function(x, file_path) {
   # here we get the first and last line of a seqname to read with vroom

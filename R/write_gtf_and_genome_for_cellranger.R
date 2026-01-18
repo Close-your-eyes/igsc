@@ -67,6 +67,8 @@ write_gtf_and_genome_for_cellranger <- function(data,
                                                 genome_file_linewidth = 60) {
 
 
+  ### use write_fasta below ???
+
   if (!is.list(data) || is.null(names(data))) {
     stop("data has to be a named list.")
   }
