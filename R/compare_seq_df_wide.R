@@ -1,3 +1,30 @@
+#' Compare sequences in columns of a data frame
+#'
+#' Prepare for plotting with algmnt_plot.
+#'
+#' @param df data frame
+#' @param ref reference or subject to compare non-ref or patterns to
+#' (col name); can be guessed if NULL
+#' @param non_ref non-ref or pattern col names; can be guessed if NULL
+#' @param pos_col column name of position column
+#' @param seq_col sequence column name when return_as_long
+#' @param name_col sequence name column name when return_as_long
+#' @param match_symbol symbol for matching positions
+#' @param mismatch_symbol symbol for mismatching positions
+#' @param change_nonref alter non-refs to match, mismatch or insertion
+#' @param nonref_mismatch_as what should mismatches become in non-ref
+#' @param change_ref alter ref to match, mismatch or insertion
+#' @param ref_mismatch_as what should mismatches become in ref
+#' @param insertion_as what should insertion become
+#' @param keep_match_gaps keep matching gaps as gaps (T)? of match (F)?
+#' @param return_as_long return as long data frame?
+#' @param rm_pure_NA_non_ref if all non-refs are NA at one position, remove this
+#' position? intended to make subsequent plot tighter.
+#'
+#' @returns data frame
+#' @export
+#'
+#' @examples
 compare_seq_df_wide <- function(df,
                                 ref = NULL,
                                 non_ref = NULL,
@@ -77,28 +104,26 @@ compare_seq_df_wide <- function(df,
     }
 
     if (change_nonref) {
-      df[[ref]] <- ifelse(
-        apply(
-          df[,c(ref, non_ref)],
-          MARGIN = 1,
-          function(x) length(unique(x[intersect(which(!is.na(x)), which(x != match_symbol))]))
-        ) == 1,
-        # keep "-" when gaps in all seq - keep_match_gaps decides, not tested yet
-        dplyr::if_else(keep_match_gaps, "-", match_symbol), #match_symbol;
-        mismatch_replace
-      )
+      fun1 <- function(x) length(unique(x[intersect(which(!is.na(x)), which(x != match_symbol))]))
     } else {
-      df[[ref]] <- ifelse(
+      fun1 <- function(x) length(unique(x[which(!is.na(x))]))
+    }
+    fun2 <- function(x) all(x == "-")
+    df[[ref]] <- ifelse(
+      apply(
+        df[,c(non_ref)],
+        MARGIN = 1,
+        FUN = fun1
+      ) == 0,
+      # keep "-" when gaps in all seq - keep_match_gaps decides, tested a bit
+      ifelse(
         apply(
           df[,c(ref, non_ref)],
           MARGIN = 1,
-          function(x) length(unique(x[which(!is.na(x))]))
-        ) == 1,
-        # keep "-" when gaps in all seq - keep_match_gaps decides, not tested yet
-        dplyr::if_else(keep_match_gaps, "-", match_symbol), #match_symbol;
-        mismatch_replace
-      )
-    }
+          FUN = fun2
+        ) & keep_match_gaps, "-", match_symbol),
+      mismatch_replace
+    )
     if (insertion_as != "base") {
       # any or all? any(x[-1] == "-")
       df[[ref]] <- ifelse(apply(df[,c(ref, non_ref)], 1,
@@ -115,8 +140,8 @@ compare_seq_df_wide <- function(df,
 
   if (return_as_long) {
     df <- tidyr::pivot_longer(df,cols = dplyr::all_of(c(ref, non_ref)),
-                                                      names_to = name_col,
-                                                      values_to = seq_col)
+                              names_to = name_col,
+                              values_to = seq_col)
   }
 
   # if (!is.null(seq_original)) {

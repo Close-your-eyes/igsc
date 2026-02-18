@@ -115,7 +115,7 @@ pwalign_multi <- function(subject,
                             patterns = patterns,
                             seq_type = seq_type,
                             verbose = verbose)
-browser()
+
   # check for non-DNA characters first
   #assigns: pa, patterns, pattern_indel_inducing, subject_inds_indel
   check_for_invalid_chars(subject = subject,
@@ -160,13 +160,13 @@ browser()
                           pa.unique = pa.unique)
 
   # pattern_order is defined here
-  #assigns: df, subject_indels, pattern_order
+  #assigns: df, subject_indels
   paste_patterns_to_subject(subject_indels = subject_indels,
                             subject.ranges = subject.ranges,
                             patterns = patterns,
                             pa = pa,
-                            df = df,
-                            pattern_original_order = pattern_original_order)
+                            # pattern_original_order = pattern_original_order
+                            df = df)
 
 
   if (!is.null(pattern_groups)) {
@@ -182,14 +182,14 @@ browser()
                                  original_names = original_names,
                                  order_patterns = order_patterns,
                                  subject.ranges = subject.ranges,
-                                 pattern_order = pattern_order,
+                                 pattern_order = pattern_original_order,
                                  pattern_groups = pattern_groups,
                                  compare_seq_df_wide_args)
 
-  plot <- Gmisc::fastDoCall(igsc::algnmt_plot, args = c(list(algnmt = df2,
-                                                             algnmt_type = seq_type,
-                                                             pairwiseAlignment = pa),
-                                                        algnmt_plot_args))
+  plot <- Gmisc::fastDoCall(algnmt_plot, args = c(list(algnmt = df2,
+                                                       algnmt_type = seq_type,
+                                                       pairwiseAlignment = pa),
+                                                  algnmt_plot_args))
 
 
   # c(min(sapply(names(patterns), function(x) min(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T), max(sapply(names(patterns), function(x) max(df[which(!is.na(df[,x,drop=T])),c("subject.position", x)][,"subject.position",drop=T])), na.rm = T)),
@@ -228,25 +228,37 @@ prep_df_for_algnmt_plot <- function(df,
                                         ref = subject_name,
                                         pos_col = "position",
                                         return_as_long = T)))
+  # original names restored
+  df <- dplyr::mutate(df, seq.name = original_names[seq.name])
+
+  names(subject.ranges) <- unname(original_names[pattern_names][names(subject.ranges)])
 
 
-  # pattern orders
-  if (order_patterns) {
-    pattern_lvls <- unname(original_names[pattern_names][names(sort(purrr::map_int(subject.ranges, min)))])
+  if (is.null(pattern_groups)) {
+    ## no groups - order single pattern
+    ## can always be done, with or w/o groups ??
+    if (order_patterns) {
+      pattern_lvls <- names(sort(purrr::map_int(subject.ranges, min)))
+    } else {
+      pattern_lvls <- pattern_order #unname(original_names[pattern_names])[order(pattern_order)]
+    }
+    df <- dplyr::mutate(df, seq.name = factor(seq.name, levels = c(subject_name, pattern_lvls)))
   } else {
-    pattern_lvls <- unname(original_names[pattern_names])[order(pattern_order)]
-  }
-  df <- df %>%
-    ## here, original names are restored
-    dplyr::mutate(seq.name = original_names[seq.name]) %>%
-    ## factor order with original names
-    dplyr::mutate(seq.name = factor(seq.name, levels = c(subject_name, pattern_lvls)))
+    # order groups not single pattern
+    order_df <- utils::stack(pattern_groups) |>
+      dplyr::rename("group" = values) |>
+      dplyr::mutate(ind = as.character(ind)) |>
+      dplyr::left_join(utils::stack(purrr::map_int(subject.ranges, min)) |>
+                         dplyr::rename("min" = values) |>
+                         dplyr::mutate(ind = as.character(ind)), by = "ind") |>
+      dplyr::mutate(min = brathering::pad_num_in_str(as.character(min)))
+    pattern_order <- names(sort(purrr::map_chr(split(order_df$min, order_df$group), paste, collapse = "")))
 
-  if (!is.null(pattern_groups)) {
-    pattern_groups <- c(stats::setNames(subject_name, subject_name), pattern_groups) # c(stats::setNames("subject", subject_name), pattern_groups)
-    df$pattern.group <- pattern_groups[df$seq.name]
-    df$pattern.group <- factor(df$pattern.group, levels = unique(pattern_groups))
+    pattern_groups <- c(purrr::set_names(subject_name), pattern_groups)
+    df$pattern.group <- unname(pattern_groups[df$seq.name])
+    df$pattern.group <- factor(df$pattern.group, levels = c(subject_name, pattern_order))
   }
+
   return(df)
 }
 
@@ -278,49 +290,49 @@ prep_subject_and_patterns <- function(subject,
   }
 
   # handle list of patterns
-  patterns_list <- NULL
   pattern_groups <- NULL
   # why was && length(patterns) > 1 needed? why not have one pattern group only?
   if (is.list(patterns) && !all(lengths(patterns) == 1)) { # && length(patterns) > 1
+    # renaming patterns okay as only groups are relevant
     patterns <- patterns[which(!sapply(patterns, is.null))]
     patterns <- patterns[which(!sapply(sapply(patterns, is.na, simplify = F), all))]
-
     patterns <- lapply(patterns, function(x) x[which(!is.na(x))])
-    patterns_list <- patterns
-    # will this be slow for many patterns? - is needed if list of DNAStringsSets - very hypothetical; maybe restrict what data types can be passed as patterns
-    patterns <- unlist(lapply(patterns_list, as.character))
-
-    if (is.null(names(patterns_list))) {
-      names(patterns_list) <- paste0("Group_", seq_along(patterns_list))
+    patterns <- lapply(patterns, as.character)
+    if (is.null(names(patterns))) {
+      names(patterns) <- paste0("Group_", seq_along(patterns))
     }
-    pattern_groups <- lapply(patterns_list, names)
+    for (i in names(patterns)) {
+      names(patterns[[i]]) <- paste0(i, "___", seq_along(patterns[[i]]))
+    }
+    pattern_groups <- lapply(patterns, names)
     pattern_groups <- stats::setNames(as.character(utils::stack(pattern_groups)$ind), utils::stack(pattern_groups)$values)
+    patterns <- purrr::list_c(patterns)
+
+    # patterns_list <- patterns
+    # # will this be slow for many patterns? - is needed if list of DNAStringsSets - very hypothetical; maybe restrict what data types can be passed as patterns
+    #
+    # patterns <- unlist(lapply(patterns_list, as.character))
+    # # patterns <- unlist(lapply(names(patterns_list), function(n) {
+    # #   stats::setNames(patterns_list[[n]], paste(n, names(patterns_list[[n]]), sep = "___"))
+    # # }))
+
   } else if (is.list(patterns) && all(lengths(patterns) == 1)) { # && length(patterns) > 1
+
     # each list entry if length = 1
     patterns <- unlist(patterns)
+
   } else if (is.list(patterns)) {
+
     patterns <- patterns[[1]]
     if (is.null(patterns) || all(is.na(patterns))) {
-      stop("patterns is Null or NA.")
+      stop("patterns is NULL or NA.")
     }
+
   }
 
-  # make this a separate fun somewhen?
   if (verbose) {
     if (anyDuplicated(patterns)) {
-      if (is.null(patterns_list)) {
-        message("These pattern are duplicates: ", paste((unique(sapply(which(duplicated(patterns)), function(x) which(patterns[x] == patterns)))), collapse = ", "))
-      } else {
-        message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
-        # similar fun as above but cylce through list and return list indices on top
-        '      tt<-sapply(which(duplicated(patterns)), function(x) {
-        unlist(purrr::discard(sapply(stats::setNames(seq_along(patterns_list), seq_along(patterns_list)), function(y) {
-          which(patterns[x] == patterns_list[[y]])
-        }), function(z) length(z) == 0))
-      }, simplify = F)
-      paste(tt)'
-
-      }
+      ## less informative for grouped patterns
       message("pattern at these indices are duplicates: ", paste(which(duplicated(patterns)), collapse = ", "))
     }
   }
@@ -770,8 +782,8 @@ paste_patterns_to_subject <- function(subject_indels,
                                       subject.ranges,
                                       patterns,
                                       pa,
-                                      df,
-                                      pattern_original_order) {
+                                      df) {
+  # pattern_original_order
   # gaps only account for the next sequence, respectively, hence add 0 at beginning, and delete last index
   # these lines assumed that indels are not overlapping with the subsequent pattern
   #gaps <- c(0, Biostrings::nindel(pa)@insertion[,"WidthSum"])
@@ -875,11 +887,11 @@ paste_patterns_to_subject <- function(subject_indels,
   # then left join with complete seq in index 1
   df2 <- purrr::reduce(c(list(df), dfs), dplyr::left_join, by = "position")
   ## order patterns in data.frames below by factor order
-  pattern_order <- match(names(patterns), pattern_original_order)
+  #pattern_order <- match(names(patterns), pattern_original_order)
 
   assign("df", df2, envir = parent.frame())
   assign("subject_indels", subject_indels, envir = parent.frame())
-  assign("pattern_order", pattern_order, envir = parent.frame())
+  #assign("pattern_order", pattern_order, envir = parent.frame())
 }
 
 

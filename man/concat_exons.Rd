@@ -2,7 +2,7 @@
 % Please edit documentation in R/concat_exons.R
 \name{concat_exons}
 \alias{concat_exons}
-\title{Pull and concatenate exon ranges into one sequence}
+\title{Pull and concatenate exons into one sequence}
 \usage{
 concat_exons(gtf_df, refseq)
 }
@@ -15,4 +15,7 @@ concat_exons(gtf_df, refseq)
 Based on gtf_df which should only contain lines of exon definitions for
 one gene, the respective sequences are pulled from refseq and concatenated
 into the coding sequence (CDS).
+}
+\details{
+Uses igsc::get_seq_from_refseq
 }

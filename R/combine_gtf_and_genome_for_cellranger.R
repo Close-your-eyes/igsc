@@ -5,20 +5,12 @@
 #'
 #' @param genome_files vector of paths to genome fasta files (.fa, .fna, .fasta)
 #' @param gtf_files vector of paths to matching gtf files (e.g. genes.gtf)
-#' @param gtf_exons_only remove all lines but exons from gtf files; cellranger
-#' only considers lines with Feature = exon; can be a vector to handle gtf files
-#' differently
-#' @param gtf_features_to_exon list of vectors of length(gtf_files); do not provide a
-#' list of length 1 because recycling logic; features to become exons
-#' for Prokaryotic or minimal annotations
 #' @param fasta_name_two_parts make names in genome file in 10X Genomics style:
 #' chr1 1 or chrM MT instead of chr1 and chrM only
 #' @param save_path where to save
 #' @param save_names save names
 #' @param overwrite overwrite existing target files?
 #' @param gtf_header header for gtf
-#' @param gtf_rm_exon remove original exon entries from gtf, e.g. when CDS are
-#' turned into exon
 #'
 #' @returns
 #' @export
@@ -35,22 +27,29 @@
 #' ##NOTE: CDS features converted to exon for viral genomes; original exons removed
 #' ##NOTE: only exons retained from hg38
 #' root <- "/Volumes/CMS_SSD_2TB/reference_genomes/"
-#' combine_gtf_and_genome_for_cellranger(genome_files = c(paste0(root, "release_114/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"),
+#' viral_dirs <- list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"), pattern = "gtf$", recursive = T, full.names = T)
+#' prefix <- c("", paste0("HHV_", basename(dirname(viral_dirs)), "_"))
+#' combine_gtf_and_genome_for_cellranger(genome_files = c(paste0(root, "refdata-gex-GRCh38-2024-A/fasta/genome.fa.gz"),
 #'                                                        list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"),
 #'                                                                   pattern = "fna$", recursive = T, full.names = T)),
-#'                                       gtf_files = c(paste0(root, "release_114/Homo_sapiens.GRCh38.114.gtf.gz"),
-#'                                                     list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"),
-#'                                                                pattern = "gtf$", recursive = T, full.names = T)),
+#'                                       gtf_files = c(paste0(root, "refdata-gex-GRCh38-2024-A/genes/genes.gtf.gz"),
+#'                                                     viral_dirs),
+#'                                       gtf_gene_name_prefix = prefix,
 #'                                       save_path = paste0(root, "GRCh38_2020_A_HHV1to5_appended"),
-#'                                       save_names = c("genome2.fa", "gtf2.gtf"),
+#'                                       save_names = c("genome4.fa", "genes4.gtf"),
 #'                                       gtf_features_to_exon = c(list(c("")), rep(list(c("CDS")), 5)),
 #'                                       gtf_rm_exon = c(F, rep(T, 5)))
+#'# then run cellranger mkref
+#' cellranger mkref \
+#' --genome="${GENOME_NAME}" \
+#' --fasta="${FASTA}" \
+#' --genes="${GTF}" \
+#' --nthreads="${SLURM_CPUS_PER_TASK}" \
+#' --memgb=60 \
+#' --output-dir="${OUTDIR}"
 #' }
 combine_gtf_and_genome_for_cellranger <- function(genome_files,
                                                   gtf_files,
-                                                  gtf_exons_only = T,
-                                                  gtf_features_to_exon = list(c("")),
-                                                  gtf_rm_exon  = F,
                                                   fasta_name_two_parts = T,
                                                   save_path = dirname(genome_files[1]),
                                                   save_names = c("genome1.fa", "genes1.gtf"),
@@ -73,21 +72,14 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
     stop("each entry in gtf_header has to start with two hashtags. please check.")
   }
 
-  if (!overwrite && (file.exists(file.path(save_path, save_names[1]))) || (file.exists(file.path(save_path, save_names[2])))) {
+  if (!overwrite && (file.exists(file.path(save_path, save_names[1])) || (file.exists(file.path(save_path, save_names[2]))))) {
     stop("at least one target file exists on disk. rename or delete or set overwrite = T or change save_path/save_names.")
   }
-
-  gtf_exons_only <- brathering::recycle(gtf_exons_only, gtf_files, one_or_equal = T)
-  #gtf_features_to_exon <- brathering::recycle(gtf_features_to_exon[[1]], gtf_files, one_or_equal = T)) # cannot predict argument format
-  gtf_rm_exon <- brathering::recycle(gtf_rm_exon, gtf_files, one_or_equal = T)
 
   names(genome_files) <- basename(genome_files)
   genome_gtf_list <- purrr::pmap(
     list(fasta_path = genome_files,
-         gtf_path = gtf_files,
-         gtf_exons_only = gtf_exons_only,
-         gtf_features_to_exon = gtf_features_to_exon,
-         gtf_rm_exon = gtf_rm_exon),
+         gtf_path = gtf_files),
     process_files,
     fasta_name_two_parts = fasta_name_two_parts
   )
@@ -99,31 +91,25 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
     stop("duplicate fasta names across files. check global variable genome_gtf_fasta_names.")
   }
 
-  # https://kb.10xgenomics.com/s/article/115003327112-How-can-we-add-genes-to-a-reference-package-for-Cell-Ranger
-  # A semicolon-delimited list of key-value pairs of the form key "value".
-  # The attribute keys transcript_id and gene_id are required; gene_name is optional, but
-  # if present will be preferentially displayed in reports.
-  gtfs <- purrr::map(genome_gtf_list, ~process_gtf_attribute_col(.x[["gtf"]],
-                                                                 attr_keep = c("gene_id", "transcript_id", "gene_name"),
-                                                                 attr_rename = c("gene" = "gene_name"),
-                                                                 attr_as = "kv",
-                                                                 rm_index = T))
-  # replace gtfs in list
-  genome_gtf_list <- purrr::map2(genome_gtf_list, gtfs, function(x, y) {
-    x[["gtf"]] <- y[["gtf"]]
-    return(x)
-  })
 
-  gene_ids <- purrr::map(gtfs, ~unique(.x[["attr"]][["gene_id"]]))
-  if (anyDuplicated(unlist(gene_ids))) {
-    message("duplicate gene_id across gtfs. this could be a problem for aligner.")
-  }
+  #### check and fix duplicate gene names or gene_ids
+
+  # gene_ids <- purrr::map(gtfs, ~unique(.x[["attr"]][["gene_id"]]))
+  # if (anyDuplicated(unlist(gene_ids))) {
+  #   message("duplicate gene_id across gtfs. this could be a problem for aligner.")
+  # }
 
   # write combined files
   write_fasta(seqs = purrr::reduce(sapply(genome_gtf_list, "[", 1), c),
               file = file.path(save_path, save_names[1]))
 
-  write_gtf(gtf_df_list = genome_gtf_list,
+  genome_gtf_list <- purrr::map(genome_gtf_list, function(x) {
+    x[["gtf"]] <- dplyr::mutate(x[["gtf"]], frame = as.character(frame))
+    return(x)
+  })
+  gtf_df <- purrr::reduce(sapply(genome_gtf_list, "[", 2), dplyr::bind_rows)
+
+  write_gtf(gtf_df = gtf_df,
             header = gtf_header,
             file = file.path(save_path, save_names[2]))
 
@@ -131,31 +117,12 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
 
 process_files <- function(fasta_path,
                           gtf_path,
-                          gtf_exons_only = T,
-                          fasta_name_two_parts = T,
-                          gtf_features_to_exon = c(""),
-                          gtf_rm_exon = F) {
+                          fasta_name_two_parts = T) {
 
   message(basename(fasta_path), " + ", basename(gtf_path))
-  gtf1 <- igsc::read_gtf(gtf_path, process_attr_col = F)[["gtf"]]
-  gtf_nest <- gtf1 |>
-    dplyr::distinct(feature)
-  if (gtf_rm_exon) {
-    gtf1 <- dplyr::filter(gtf1, feature != "exon")
-  }
-  gtf1$feature[which(gtf1$feature %in% gtf_features_to_exon)] <- "exon"
+  gtf1 <- read_gtf(gtf_path, process_attr_col = F)[["gtf"]]
 
-  if (gtf_exons_only) {
-    before <- nrow(gtf1)
-    gtf1 <- dplyr::filter(gtf1, feature == "exon")
-    if (nrow(gtf1) == 0) {
-      stop("no rows found with exon.")
-    } else {
-      message("all gtf rows: ", formatC(before, big.mark = ","), ". exons only: ", formatC(nrow(gtf1), big.mark = ","), ".")
-    }
-  }
-
-  genome1 <- igsc::read_fasta(fasta_path)
+  genome1 <- read_fasta(fasta_path)
 
   namedf <- tidyr::drop_na(match_gtf_fasta_names(fasta = genome1, gtf = gtf1, fasta_name_two_parts = fasta_name_two_parts))
   gtf_map <- stats::setNames(namedf$gtf, namedf$gtf_orig)

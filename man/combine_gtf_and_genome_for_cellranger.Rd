@@ -7,9 +7,6 @@
 combine_gtf_and_genome_for_cellranger(
   genome_files,
   gtf_files,
-  gtf_exons_only = T,
-  gtf_features_to_exon = list(c("")),
-  gtf_rm_exon = F,
   fasta_name_two_parts = T,
   save_path = dirname(genome_files[1]),
   save_names = c("genome1.fa", "genes1.gtf"),
@@ -24,17 +21,6 @@ combine_gtf_and_genome_for_cellranger(
 \item{genome_files}{vector of paths to genome fasta files (.fa, .fna, .fasta)}
 
 \item{gtf_files}{vector of paths to matching gtf files (e.g. genes.gtf)}
-
-\item{gtf_exons_only}{remove all lines but exons from gtf files; cellranger
-only considers lines with Feature = exon; can be a vector to handle gtf files
-differently}
-
-\item{gtf_features_to_exon}{list of vectors of length(gtf_files); do not provide a
-list of length 1 because recycling logic; features to become exons
-for Prokaryotic or minimal annotations}
-
-\item{gtf_rm_exon}{remove original exon entries from gtf, e.g. when CDS are
-turned into exon}
 
 \item{fasta_name_two_parts}{make names in genome file in 10X Genomics style:
 chr1 1 or chrM MT instead of chr1 and chrM only}
@@ -63,15 +49,25 @@ checks are run. Pairs of genome_files and gtf_files expected.
 ##NOTE: CDS features converted to exon for viral genomes; original exons removed
 ##NOTE: only exons retained from hg38
 root <- "/Volumes/CMS_SSD_2TB/reference_genomes/"
-combine_gtf_and_genome_for_cellranger(genome_files = c(paste0(root, "release_114/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"),
+viral_dirs <- list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"), pattern = "gtf$", recursive = T, full.names = T)
+prefix <- c("", paste0("HHV_", basename(dirname(viral_dirs)), "_"))
+combine_gtf_and_genome_for_cellranger(genome_files = c(paste0(root, "refdata-gex-GRCh38-2024-A/fasta/genome.fa.gz"),
                                                        list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"),
                                                                   pattern = "fna$", recursive = T, full.names = T)),
-                                      gtf_files = c(paste0(root, "release_114/Homo_sapiens.GRCh38.114.gtf.gz"),
-                                                    list.files(paste0(root, "GRCh38_2020_A_HHV1to5_appended/viral_ref_genomes"),
-                                                               pattern = "gtf$", recursive = T, full.names = T)),
+                                      gtf_files = c(paste0(root, "refdata-gex-GRCh38-2024-A/genes/genes.gtf.gz"),
+                                                    viral_dirs),
+                                      gtf_gene_name_prefix = prefix,
                                       save_path = paste0(root, "GRCh38_2020_A_HHV1to5_appended"),
-                                      save_names = c("genome2.fa", "gtf2.gtf"),
+                                      save_names = c("genome4.fa", "genes4.gtf"),
                                       gtf_features_to_exon = c(list(c("")), rep(list(c("CDS")), 5)),
                                       gtf_rm_exon = c(F, rep(T, 5)))
+# then run cellranger mkref
+cellranger mkref \
+--genome="${GENOME_NAME}" \
+--fasta="${FASTA}" \
+--genes="${GTF}" \
+--nthreads="${SLURM_CPUS_PER_TASK}" \
+--memgb=60 \
+--output-dir="${OUTDIR}"
 }
 }

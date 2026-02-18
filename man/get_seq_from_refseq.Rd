@@ -2,19 +2,65 @@
 % Please edit documentation in R/concat_exons.R
 \name{get_seq_from_refseq}
 \alias{get_seq_from_refseq}
-\title{Title}
+\title{Pull sequence(s) from refseq}
 \usage{
 get_seq_from_refseq(
   refseq,
   gtf_df,
   group_by = NULL,
   names = NULL,
-  what = c("single", "whole")
+  what = c("single", "whole"),
+  overhang_whole = c(0, 0)
 )
 }
 \arguments{
-\item{what}{}
+\item{refseq}{reference sequence}
+
+\item{gtf_df}{subsetted gtf data frame}
+
+\item{group_by}{grouping vector, optional, e.g. gtf_df$transcript_name}
+
+\item{names}{names to sequences; may be inferred from gtf_df if left NULL}
+
+\item{what}{what to return, single sequences i.e. one for every row
+or one whole sequence spanning min(start, end) to max(start, end)}
+
+\item{overhang_whole}{how much overhang in refseq}
 }
 \description{
-Title
+Pull sequence(s) from refseq
+}
+\examples{
+\dontrun{
+gtf_rps18 = hugtf |> dplyr::filter(gene_name == "RPS18")
+# whole range
+con1 <- get_seq_from_refseq(gtf_df = gtf_rps18, refseq = genome["chr6 6"],
+                            what = "whole")
+# single exons
+con2 <- get_seq_from_refseq(gtf_df = gtf_rps18, refseq = genome["chr6 6"],
+                            what = "single")
+# exons grouped
+con3 <- get_seq_from_refseq(gtf_df = gtf_rps18, refseq = genome["chr6 6"],
+                            what = "single", names = gtf_rps18$exon_number, group_by = gtf_rps18$transcript_name)
+
+# plot wo groups
+aln <- pwalign_multi(subject = con1, patterns = con2)
+aln$plot
+
+# plot with y axis groups
+aln2.1 <- pwalign_multi(subject = con1, patterns = con3,
+                        compare_seq_df_wide_args = list(
+                          match_symbol = ".",
+                          change_nonref = T,
+                          rm_pure_NA_non_ref = F))
+aln2.1$plot
+
+# remove gaps for plotting only
+aln2.2 <- pwalign_multi(subject = con1, patterns = con3,
+                        compare_seq_df_wide_args = list(
+                          match_symbol = ".",
+                          change_nonref = T,
+                          rm_pure_NA_non_ref = T))
+aln2.2$plot
+}
 }

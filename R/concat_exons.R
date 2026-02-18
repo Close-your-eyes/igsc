@@ -1,8 +1,10 @@
-#' Pull and concatenate exon ranges into one sequence
+#' Pull and concatenate exons into one sequence
 #'
 #' Based on gtf_df which should only contain lines of exon definitions for
 #' one gene, the respective sequences are pulled from refseq and concatenated
 #' into the coding sequence (CDS).
+#'
+#' Uses igsc::get_seq_from_refseq
 #'
 #' @param gtf_df subsetted gtf data frame
 #' @param refseq reference sequence to pull from
@@ -40,7 +42,7 @@ concat_exons <- function(gtf_df,
   # check diffs on - and + strand, name utrs by 3' and 5', label seqlist or attribute with 3' and 5' end
   # what are antisense genes
 
-  gtf_df <- gtf_df[order(gtf_df$start, decreasing = all(gtf_df$start < gtf_df$end)),]
+  gtf_df <- gtf_df[order(gtf_df$start, decreasing = all(gtf_df$start > gtf_df$end)),] ## or use exon_number?
   seqnames <- paste0(gtf_df$feature, gsub("NA", "", sprintf("%02d", as.numeric(gtf_df$exon_number))))
   seqnames[which(grepl("codon", seqnames))] <- stringr::str_sub(seqnames[which(grepl("codon", seqnames))],1,-3)
 
@@ -128,40 +130,101 @@ concat_exons <- function(gtf_df,
 }
 
 
-#' Title
+#' Pull sequence(s) from refseq
 #'
-#' @param refseq
-#' @param gtf_df
-#' @param group_by
-#' @param names
-#' @param what
+#' @param refseq reference sequence
+#' @param gtf_df subsetted gtf data frame
+#' @param group_by grouping vector, optional, e.g. gtf_df$transcript_name
+#' @param names names to sequences; may be inferred from gtf_df if left NULL
+#' @param what what to return, single sequences i.e. one for every row
+#' or one whole sequence spanning min(start, end) to max(start, end)
+#' @param overhang_whole how much overhang in refseq
 #'
 #' @returns
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' gtf_rps18 = hugtf |> dplyr::filter(gene_name == "RPS18")
+#' # whole range
+#' con1 <- get_seq_from_refseq(gtf_df = gtf_rps18, refseq = genome["chr6 6"],
+#'                             what = "whole")
+#' # single exons
+#' con2 <- get_seq_from_refseq(gtf_df = gtf_rps18, refseq = genome["chr6 6"],
+#'                             what = "single")
+#' # exons grouped
+#' con3 <- get_seq_from_refseq(gtf_df = gtf_rps18, refseq = genome["chr6 6"],
+#'                             what = "single", names = gtf_rps18$exon_number, group_by = gtf_rps18$transcript_name)
+#'
+#' # plot wo groups
+#' aln <- pwalign_multi(subject = con1, patterns = con2)
+#' aln$plot
+#'
+#' # plot with y axis groups
+#' aln2.1 <- pwalign_multi(subject = con1, patterns = con3,
+#'                         compare_seq_df_wide_args = list(
+#'                           match_symbol = ".",
+#'                           change_nonref = T,
+#'                           rm_pure_NA_non_ref = F))
+#' aln2.1$plot
+#'
+#' # remove gaps for plotting only
+#' aln2.2 <- pwalign_multi(subject = con1, patterns = con3,
+#'                         compare_seq_df_wide_args = list(
+#'                           match_symbol = ".",
+#'                           change_nonref = T,
+#'                           rm_pure_NA_non_ref = T))
+#' aln2.2$plot
+#' }
 get_seq_from_refseq <- function(refseq,
                                 gtf_df,
                                 group_by = NULL,
                                 names = NULL,
-                                what = c("single", "whole")) {
+                                what = c("single", "whole"),
+                                overhang_whole = c(0,0)) {
   what <- rlang::arg_match(what)
 
+  if (missing(refseq) || missing(gtf_df)) {
+    stop("refseq and gtf_df are needed.")
+  }
+  if ("seqname" %in% names(gtf_df) && length(unique(gtf_df[["seqname"]])) > 1) {
+    message("More than one refseq in gtf_df[['seqname']]. which may not be intended.")
+  }
+  if (length(refseq) > 1) {
+    refseq <- refseq[1]
+    message("refseq had length greater 1. using first element.")
+  }
+  if (!"start" %in% names(gtf_df) || !"end" %in% names(gtf_df)) {
+    stop("start and end columns needed in gtf_df.")
+  }
+
   if (what == "single") {
-    seqlist <- stringi::stri_sub_all(refseq, gtf_df$start, gtf_df$end)[[1]]
+    from = gtf_df$start
+    to = gtf_df$end
   } else if (what == "whole") {
-    seqlist <- stringi::stri_sub_all(
-      refseq,
-      min(gtf_df$start, gtf_df$end),
-      max(gtf_df$start, gtf_df$end)
-    )[[1]]
+    if (length(overhang_whole) == 1) {
+      overhang_whole <- c(overhang_whole, overhang_whole)
+    }
+    from = min(gtf_df$start, gtf_df$end) - overhang_whole[1]
+    to = max(gtf_df$start, gtf_df$end) + overhang_whole[1]
   }
 
-  if (!is.null(names)) {
+  seqlist <- stringi::stri_sub_all(str = refseq, from = from, to = to)[[1]]
+
+
+  if (!is.null(names) && length(names) == length(seqlist)) {
     names(seqlist) <- names
+  } else if (what == "whole" && is.null(names) && "gene_name" %in% names(gtf_df) && length(unique(gtf_df[["gene_name"]])) == 1) {
+    names(seqlist) <- unique(gtf_df[["gene_name"]])
+  } else if (what == "single" && is.null(names) && "gene_name" %in% names(gtf_df) &&
+             "transcript_name" %in% names(gtf_df) && "exon_number" %in% names(gtf_df)) {
+    names <- unique(paste(gtf_df[["gene_name"]], gtf_df[["transcript_name"]], gtf_df[["exon_number"]], sep = "_"))
+    if (length(names) == length(seqlist)) {
+      names(seqlist) <- names
+    }
   }
 
-  if (!is.null(group_by)) {
+  if (what == "single" && !is.null(group_by) && length(group_by) == length(seqlist)) {
     seqlist <- split(seqlist, group_by)
   }
 

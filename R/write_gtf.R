@@ -1,27 +1,28 @@
-#' Title
+#' Write a gtf data frames to file
 #'
-#' @param gtf_df_list
-#' @param header
-#' @param file
+#' @param gtf_df gtf data frame
+#' @param header header lines
+#' @param file file path where to save
 #'
 #' @returns
 #' @export
 #'
 #' @examples
-write_gtf <- function(gtf_df_list,
-                      header = "##gtf file",
-                      file) {
+write_gtf <- function(gtf_df,
+                      file,
+                      header = "##gtf file") {
+
   if (missing(file)) {
     stop("file missing.")
   }
-  if (is.list(gtf_df_list)) {
-    gtf_df_list <- purrr::reduce(sapply(gtf_df_list, "[", 2), dplyr::bind_rows)
-  }
-  gtf_df_list <- gtf_df_list |>
+
+  dir.create(dirname(file), recursive = T, showWarnings = F)
+
+  gtf_df <- gtf_df |>
     dplyr::mutate(start = as.character(start), end = as.character(end)) |>
     tibble::as_tibble()
 
-  vroom::vroom_write_lines(c(header,
-                             apply(gtf_df_list, 1, paste, collapse = "\t")),
-                           file = file)
+  out <- vroom::vroom_write_lines(c(header,
+                                    apply(gtf_df, 1, paste, collapse = "\t")),
+                                  file = file)
 }

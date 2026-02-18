@@ -2,13 +2,17 @@
 % Please edit documentation in R/write_gtf.R
 \name{write_gtf}
 \alias{write_gtf}
-\title{Title}
+\title{Write a gtf data frames to file}
 \usage{
-write_gtf(gtf_df_list, header = "##gtf file", file)
+write_gtf(gtf_df, file, header = "##gtf file")
 }
 \arguments{
-\item{file}{}
+\item{gtf_df}{gtf data frame}
+
+\item{file}{file path where to save}
+
+\item{header}{header lines}
 }
 \description{
-Title
+Write a gtf data frames to file
 }

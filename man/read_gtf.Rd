@@ -6,22 +6,21 @@
 \usage{
 read_gtf(
   file_path,
-  check_fst = T,
   seqnames = NULL,
   features = NULL,
   gene_names = NULL,
   process_attr_col = T,
+  process_attr_col_args = list(attr_keep = c("gene_id", "gene_name", "transcript_id",
+    "transcript_name", "exon_number"), attr_rename = NULL, gene_name_prefix = "",
+    gene_name_force = NULL, rm_index = T, use_fun = "r", rm_exon = F, exons_only = F,
+    features_to_exon = c(""), aggregate_exons = F, aggregate_overlapping_exon_ranges = F,
+    check_for_rotation = F, genome_length = NULL),
   col_names = c("seqname", "source", "feature", "start", "end", "score", "strand",
-    "frame", "attribute"),
-  attr_keep = c("gene_id", "gene_name", "transcript_id", "transcript_name",
-    "exon_number"),
-  use_fun = c("r", "rust", "rcpp")
+    "frame", "attribute")
 )
 }
 \arguments{
 \item{file_path}{path to the file; file may be gunzipped (ending with .gz)}
-
-\item{check_fst}{description}
 
 \item{seqnames}{seqnames to filter the gtf file for; will decrease computation time
 required for processing the attribute column}
@@ -31,16 +30,15 @@ required for processing the attribute column
 c("gene", "transcript", "exon", "CDS", "start_codon", "stop_codon",
 "five_prime_utr", "three_prime_utr", "Selenocysteine")}
 
+\item{gene_names}{vector of gene names to filter for before attr col processing}
+
 \item{process_attr_col}{convert the attribute column into separate columns}
+
+\item{process_attr_col_args}{arguments to process_attr_col_args}
 
 \item{col_names}{column names to assign to the gtf data frame;
 changing seqname, feature or attribute will break this function;
 better leave col_names as it is}
-
-\item{attr_keep}{which attributes to keep from attribute column}
-
-\item{use_fun}{which function to use for processing the attr_col; rcpp is
-fastest currently}
 }
 \value{
 a list with (i) entries of the GTF file including the attribute

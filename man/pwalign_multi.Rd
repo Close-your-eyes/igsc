@@ -14,9 +14,9 @@ pwalign_multi(
   rm_indel_inducing_pattern = F,
   seq_type = NULL,
   return_max_mismatch_info_only = F,
-  compare_seq_df_long_args = list(seq_original = NULL, match_symbol = ".", change_nonref
-    = T, nonref_mismatch_as = "base", change_ref = T, ref_mismatch_as = "base",
-    insertion_as = "base"),
+  compare_seq_df_wide_args = list(match_symbol = ".", change_nonref = T,
+    nonref_mismatch_as = "base", change_ref = T, ref_mismatch_as = "base", insertion_as =
+    "base", rm_pure_NA_non_ref = F),
   pairwiseAlignment_args = list(),
   algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
   order_subject_ranges = F,
@@ -46,7 +46,7 @@ it is attempted to guess the type}
 \item{return_max_mismatch_info_only}{only return information on mismatches of patterns with the subject;
 in this case no alignment is calculated}
 
-\item{compare_seq_df_long_args}{arguments to igsc::compare_seq_df_long}
+\item{compare_seq_df_wide_args}{arguments to igsc::compare_seq_df_wide}
 
 \item{pairwiseAlignment_args}{arguments to pwalign::pairwiseAlignment}
 
@@ -71,7 +71,7 @@ p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2"
 p <- Biostrings::DNAStringSet(p)
 als <- pwalign_multi(subject = s, patterns = p)
 als_ordered <- pwalign_multi(subject = s, patterns = p, order_patterns = T,
-                                                      compare_seq_df_long_args = list(seq_original = NULL,
+                                                      compare_seq_df_wide_args = list(seq_original = NULL,
                                                                                       match_symbol = ".",
                                                                                       change_nonref = T,
                                                                                       nonref_mismatch_as = "base",

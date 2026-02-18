@@ -15,6 +15,8 @@
 #' @param make_names_fun
 #' @param make_names_args
 #' @param concat
+#' @param progress
+#' @param seqname
 #'
 #' @return a named character vector of sequences
 #' @export
@@ -35,7 +37,8 @@ read_fasta <- function(file,
                        start_line = 1,
                        end_line = Inf,
                        concat = T,
-                       progress = T) {
+                       progress = T,
+                       seqname = NULL) {
 
   if(!requireNamespace("janitor", quietly = T)) {
     install.packages("janitor")
@@ -61,6 +64,30 @@ read_fasta <- function(file,
   }
 
   make_names_fun <- match.fun(make_names_fun)
+
+  if (!is.null(seqname)) {
+    if (length(seqname) > 1) {
+      stop("seqname can only be length 1.")
+    }
+    seqnames <- igsc::get_fasta_names(file)
+    if (seqname %in% as.character(unlist(seqnames[,-1]))) {
+      if (seqname %in% seqnames$fastaname) {
+        ind <- which(seqnames$fastaname == seqname)
+      } else if (seqname %in% seqnames$seqname) {
+        ind <- which(seqnames$seqname == seqname)
+      } else if (seqname %in% seqnames$fctname) {
+        ind <- which(seqnames$fctname == seqname)
+      }
+      start_line <- seqnames[ind, "start_line"]
+      if (ind < nrow(seqnames)) {
+        end_line <- seqnames[ind+1, "start_line"]-1
+      }
+      message("set start_line: ", start_line, ", end_line: ", end_line)
+    } else {
+      stop("seqname not found.")
+    }
+  }
+
 
   # zip and gz files are handled well but .tar.gz not. there is a problem with connection size then
   lines <- tryCatch(
@@ -88,8 +115,6 @@ read_fasta <- function(file,
     }
   )
 
-
-
   if (trimws) {
     lines <- stringi::stri_trim_both(lines)
   }
@@ -106,7 +131,10 @@ read_fasta <- function(file,
     }
   }
 
-  ind <- which(stringi::stri_startswith_fixed(pattern = ">", from = 1, str = lines))
+
+  #ind <- which(stringi::stri_startswith_fixed(pattern = ">", from = 1, str = lines))
+  ind <- which(startsWith(lines, ">"))
+
   if (!length(ind)) {
     message("fasta-formated sequences (names starting with '>') not found. Using the file name.")
     lines <- c(lines, paste0(">", gsub(paste0("\\.", tools::file_ext(file), "$"), "", basename(file))))
