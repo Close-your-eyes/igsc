@@ -23,7 +23,8 @@ process_gtf_attribute_col(
   aggregate_overlapping_exon_ranges = F,
   check_for_rotation = F,
   genome_length = NULL,
-  rm_entries_wo_matching_exon = F
+  rm_entries_wo_matching_exon = F,
+  make_unique = T
 )
 }
 \arguments{
@@ -76,6 +77,9 @@ start end coordinates are adjusted; genome_length needed then}
 for rotation}
 
 \item{rm_entries_wo_matching_exon}{this has to done to meet mkref requirements}
+
+\item{make_unique}{make gene_name, gene_id, transcript_id unique? required
+for mkref}
 }
 \description{
 Process attribute column of gtf file

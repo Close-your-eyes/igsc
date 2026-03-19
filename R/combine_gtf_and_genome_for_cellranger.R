@@ -91,14 +91,6 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
     stop("duplicate fasta names across files. check global variable genome_gtf_fasta_names.")
   }
 
-
-  #### check and fix duplicate gene names or gene_ids
-
-  # gene_ids <- purrr::map(gtfs, ~unique(.x[["attr"]][["gene_id"]]))
-  # if (anyDuplicated(unlist(gene_ids))) {
-  #   message("duplicate gene_id across gtfs. this could be a problem for aligner.")
-  # }
-
   # write combined files
   write_fasta(seqs = purrr::reduce(sapply(genome_gtf_list, "[", 1), c),
               file = file.path(save_path, save_names[1]))
@@ -109,9 +101,17 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
   })
   gtf_df <- purrr::reduce(sapply(genome_gtf_list, "[", 2), dplyr::bind_rows)
 
+  # fix duplicate gene_name, gene_id, transcript_id
+  gtf_df <- process_gtf_attribute_col(
+    gtf_df,
+    attr_as = "kv",
+    make_unique = T)$gtf
+
   write_gtf(gtf_df = gtf_df,
             header = gtf_header,
-            file = file.path(save_path, save_names[2]))
+            file = file.path(save_path, save_names[2]),
+            make_unique = F,
+            check_unique = F)
 
 }
 

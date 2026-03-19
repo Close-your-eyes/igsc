@@ -214,6 +214,8 @@ read_gtf <- function(
 #' @param genome_length length of associated genome or refseq; only needed
 #' for rotation
 #' @param rm_entries_wo_matching_exon this has to done to meet mkref requirements
+#' @param make_unique make gene_name, gene_id, transcript_id unique? required
+#' for mkref
 #'
 #' @returns
 #' @export
@@ -269,7 +271,8 @@ process_gtf_attribute_col <- function(gtf,
                                       aggregate_overlapping_exon_ranges = F,
                                       check_for_rotation = F,
                                       genome_length = NULL,
-                                      rm_entries_wo_matching_exon = F) {
+                                      rm_entries_wo_matching_exon = F,
+                                      make_unique = T) {
 
   attr_as <- rlang::arg_match(attr_as) # kv = key value pair
   use_fun <- rlang::arg_match(use_fun)
@@ -401,7 +404,7 @@ process_gtf_attribute_col <- function(gtf,
 
   ## highly advisable for when aggregate_overlapping_exon_ranges is done
   # if genes are not aggregated, then single exons from different genes may be joined
-  # but then th gtf becomes invalid
+  # but then the gtf becomes invalid
   if (aggregate_exons) {
     df <- dplyr::left_join(attr_col2, gtf |>
                              dplyr::select(-dplyr::any_of("attribute")), by = "index")
@@ -480,6 +483,17 @@ process_gtf_attribute_col <- function(gtf,
                              gtf |>
                                dplyr::filter(gene_name %in% transcript_id_gene_names) |>
                                dplyr::filter(feature == "gene"))
+  }
+
+  for (i in c("gene_id", "transcript_id", "gene_name")) {
+    if (i %in% names(gtf) && anyDuplicated(gtf[[i]])) {
+      n_dups <- length(which(table(gtf[[i]]) > 1))
+      message(n_dups, " duplicated ", i)
+      if (make_unique) {
+        gtf[[i]] <- make.unique(gtf[[i]])
+        message("made unique.")
+      }
+    }
   }
 
   if (attr_as == "kv") {

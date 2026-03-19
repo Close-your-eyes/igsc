@@ -16,7 +16,8 @@ read_fasta(
   start_line = 1,
   end_line = Inf,
   concat = T,
-  progress = T
+  progress = T,
+  seqname = NULL
 )
 }
 \arguments{
@@ -37,7 +38,7 @@ be gunzipped (ending with .gz)}
 
 \item{end_line}{passed to vroom::vroom_lines to determine n_max}
 
-\item{concat}{}
+\item{seqname}{}
 }
 \value{
 a named character vector of sequences
