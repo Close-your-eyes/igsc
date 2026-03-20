@@ -395,8 +395,8 @@ algnmt_plot <- function(algnmt,
                                   seq_original = seq_original,
                                   match_symbol = ".",
                                   mismatch_symbol = "x",
-                                  change_pattern = T,
-                                  pattern_mismatch_as = "mismatch_symbol",
+                                  change_nonref = T,
+                                  nonref_mismatch_as = "mismatch_symbol",
                                   change_ref = F)
 
     # seq_original will cause that tiles are filled according to chemical property even if they are replaced by a dots when

@@ -35,7 +35,18 @@ Imports:
     scales,
     vroom,
     Rcpp,
-    tidyjson
+    tidyjson,
+    zeallot,
+    Gmisc,
+    fst,
+    ggrepel,
+    igraph,
+    janitor,
+    rentrez,
+    rextendr,
+    stringi,
+    tibble,
+    viridisLite
 Suggests: 
     rmarkdown,
     knitr,
@@ -46,7 +57,13 @@ Suggests:
     Biostrings,
     farver,
     Peptides,
-    ggmsa
+    GenomicRanges,
+    IRanges,
+    Rsamtools,
+    biomaRt,
+    brathering,
+    colrr,
+    pwalign
 VignetteBuilder: knitr
 Depends: 
     R (>= 2.10)

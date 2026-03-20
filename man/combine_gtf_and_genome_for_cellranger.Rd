@@ -35,7 +35,8 @@ chr1 1 or chrM MT instead of chr1 and chrM only}
 }
 \description{
 Genome fasta files and gtf files are concatenated respectively and some
-checks are run. Pairs of genome_files and gtf_files expected.
+checks are run. Pairs of genome_files and gtf_files expected. E.g. seqnames
+are tried to be harmonized by an algorithm.
 }
 \examples{
 \dontrun{

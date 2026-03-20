@@ -17,8 +17,7 @@ get_gene_sequences <- function(gtf_path,
                                genome_path,
                                gene_name) {
   exondf <- read_gtf(file_path = gtf_path,
-                     gene_names = gene_name,
-                     use_fun = "r")[["gtf"]]
+                     gene_names = gene_name)[["gtf"]]
 
   exonlist <- split(exondf, exondf$transcript_id)
   seq_bounds <- get_fasta_seq_bounds(genome_path)

@@ -35,7 +35,6 @@
 #'
 #' @examples
 #' \dontrun{
-#'
 #' gtf <- read_gtf(your_path, attr_col_as_list = F)
 #' # when attr_col_as_list = F attributes are split into names and values columns
 #' # this is how to expand the attributes names and values columns
@@ -214,8 +213,6 @@ read_gtf <- function(
 #' @param genome_length length of associated genome or refseq; only needed
 #' for rotation
 #' @param rm_entries_wo_matching_exon this has to done to meet mkref requirements
-#' @param make_unique make gene_name, gene_id, transcript_id unique? required
-#' for mkref
 #'
 #' @returns
 #' @export
@@ -271,8 +268,7 @@ process_gtf_attribute_col <- function(gtf,
                                       aggregate_overlapping_exon_ranges = F,
                                       check_for_rotation = F,
                                       genome_length = NULL,
-                                      rm_entries_wo_matching_exon = F,
-                                      make_unique = T) {
+                                      rm_entries_wo_matching_exon = F) {
 
   attr_as <- rlang::arg_match(attr_as) # kv = key value pair
   use_fun <- rlang::arg_match(use_fun)
@@ -384,7 +380,7 @@ process_gtf_attribute_col <- function(gtf,
     }
 
     # check for duplicates of pairs of gene_id, gene_name
-    attr_col2 <- fix_duplicates(attr_col2)
+    attr_col2 <- fix_duplicates(attr_col = attr_col2)
 
   }
 
@@ -485,16 +481,6 @@ process_gtf_attribute_col <- function(gtf,
                                dplyr::filter(feature == "gene"))
   }
 
-  for (i in c("gene_id", "transcript_id", "gene_name")) {
-    if (i %in% names(gtf) && anyDuplicated(gtf[[i]])) {
-      n_dups <- length(which(table(gtf[[i]]) > 1))
-      message(n_dups, " duplicated ", i)
-      if (make_unique) {
-        gtf[[i]] <- make.unique(gtf[[i]])
-        message("made unique.")
-      }
-    }
-  }
 
   if (attr_as == "kv") {
     gtf <- make_kv_attr_col(gtf, keep_index_col = T)
@@ -717,7 +703,7 @@ pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
 
   L <- genome_length
 
-  # 1️⃣ Collapse to gene spans
+  # Collapse to gene spans
   gene_spans <- aggregate(
     cbind(start, end) ~ gene_id,
     df,
@@ -727,7 +713,7 @@ pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
   gene_spans$start <- gene_spans$start[, "min"]
   gene_spans$end   <- gene_spans$end[, "max"]
 
-  # 2️⃣ Detect wrap-around genes
+  # Detect wrap-around genes
   span_width <- gene_spans$end - gene_spans$start
 
   wrapping_genes <- gene_spans$gene_id[
@@ -742,7 +728,7 @@ pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
   message("Wrap-around gene(s) detected: ",
           paste(wrapping_genes, collapse = ", "))
 
-  # 3️⃣ Compute largest intergenic gap (same as before)
+  # Compute largest intergenic gap (same as before)
   gene_spans <- gene_spans[order(gene_spans$start), ]
   n <- nrow(gene_spans)
 
@@ -788,7 +774,7 @@ rotate_coords <- function(df, cut, genome_length = NULL) {
 
   L <- genome_length
 
-  # 1️⃣ shift coordinates
+  # shift coordinates
   shift <- function(x) {
     y <- x - cut + 1
     y[y <= 0] <- y[y <= 0] + L
@@ -798,7 +784,7 @@ rotate_coords <- function(df, cut, genome_length = NULL) {
   df$start <- shift(df$start)
   df$end   <- shift(df$end)
 
-  # 2️⃣ split features that cross new origin
+  # split features that cross new origin
   wrap <- df$start > df$end
 
   if (any(wrap)) {
@@ -832,7 +818,7 @@ rotate_genome_string <- function(genome, cut) {
   part1 <- substr(genome, cut, L)
   part2 <- substr(genome, 1, cut - 1)
 
-  paste0(part1, part2)
+  return(stats::setNames(paste0(part1, part2), names(genome)))
 }
 
 
@@ -922,18 +908,20 @@ make_kv_attr_col <- function(gtf_df, keep_index_col = F) {
   #
 }
 
-fix_duplicates <- function(attr_col2) {
-  dups <- attr_col2 |>
-    dplyr::distinct(gene_id, gene_name) |> # transcript_id?
-    dplyr::add_count(gene_name, name = "n") |>
-    dplyr::add_count(gene_id, name = "nn")
-  dups1 <- dups |> dplyr::filter(n>1) |> dplyr::arrange(gene_id)
+fix_duplicates <- function(attr_col) {
+
+  ## first gene_id vs gene_name
+  dups <- attr_col |>
+    dplyr::distinct(gene_id, gene_name) |>
+    dplyr::add_count(gene_name, name = "n_gene_name") |>
+    dplyr::add_count(gene_id, name = "n_gene_id")
+  dups1 <- dups |> dplyr::filter(n_gene_name>1) |> dplyr::arrange(gene_name)
 
   if (nrow(dups1) > 1) {
     message("duplicate gene names made unique:")
     print(dups1)
 
-    gene_name_map <- attr_col2 |>
+    gene_name_map <- attr_col |>
       dplyr::distinct(gene_id, gene_name) |>
       dplyr::group_by(gene_name) |>
       dplyr::mutate(
@@ -946,7 +934,7 @@ fix_duplicates <- function(attr_col2) {
       dplyr::ungroup() |>
       dplyr::add_count(gene_id)
 
-    attr_col2 <- attr_col2 |>
+    attr_col <- attr_col |>
       dplyr::left_join(
         gene_name_map |> dplyr::distinct(gene_id, gene_name_unique),
         by = "gene_id"
@@ -956,13 +944,13 @@ fix_duplicates <- function(attr_col2) {
     message("UWAGA when many-to-many relationship is shown.")
   }
 
-  dups2 <- dups |> dplyr::filter(nn>1) |> dplyr::arrange(gene_id)
+  dups2 <- dups |> dplyr::filter(n_gene_id>1) |> dplyr::arrange(gene_id)
 
   if (nrow(dups2) > 1) {
     message("duplicate gene ids made unique:")
     print(dups2)
 
-    gene_id_map <- attr_col2 |>
+    gene_id_map <- attr_col |>
       dplyr::distinct(gene_id, gene_name) |>
       dplyr::group_by(gene_id) |>
       dplyr::mutate(
@@ -975,7 +963,7 @@ fix_duplicates <- function(attr_col2) {
       dplyr::ungroup() |>
       dplyr::add_count(gene_name)
 
-    attr_col2 <- attr_col2 |>
+    attr_col <- attr_col |>
       dplyr::left_join(
         gene_id_map |> dplyr::distinct(gene_name, gene_id_unique),
         by = "gene_name"
@@ -986,5 +974,38 @@ fix_duplicates <- function(attr_col2) {
     message("UWAGA when many-to-many relationship is shown.")
   }
 
-  return(attr_col2)
+  ## second gene_id vs transcript_id
+  dups <- attr_col |>
+    dplyr::distinct(gene_id, transcript_id) |>
+    dplyr::add_count(transcript_id, name = "n_transcript_id") |>
+    dplyr::add_count(gene_id, name = "n_gene_id")
+
+  dups3 <- dups |> dplyr::filter(n_transcript_id>1) |> dplyr::arrange(transcript_id)
+
+  if (nrow(dups3) > 1) {
+    message("duplicate transcript ids made unique:")
+    print(dups3)
+
+    transcript_id_map <- attr_col |>
+      dplyr::distinct(gene_id, transcript_id) |>
+      dplyr::group_by(transcript_id) |>
+      dplyr::mutate(
+        transcript_id_unique = if (dplyr::n() > 1) {
+          paste0(transcript_id, "--", dplyr::row_number()) # use two dashes to separate from natural numeric extension of some genes
+        } else {
+          transcript_id
+        }
+      ) |>
+      dplyr::ungroup() |>
+      dplyr::add_count(gene_id)
+
+    attr_col <- attr_col |>
+      dplyr::left_join(
+        transcript_id_map |> dplyr::distinct(gene_id, transcript_id, transcript_id_unique),
+        dplyr::join_by(gene_id, transcript_id)
+      ) |>
+      dplyr::mutate(transcript_id = transcript_id_unique) |>
+      dplyr::select(-transcript_id_unique)
+  }
+  return(attr_col)
 }

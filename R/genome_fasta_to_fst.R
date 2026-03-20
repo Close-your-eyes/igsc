@@ -43,7 +43,7 @@ genome_fasta_to_fst <- function(genome_file,
     for (y in seq_along(subfolder)) {
       out_path <- file.path(subfolder[y], paste0(name, "_fa.", ifelse(grepl("fst$", subfolder[y]), "fst", "fa.gz")))
       if (verbose && y == 1) {
-        message(name, " ", x, "/", length(seq_bounds$seqname), " ≈", format(seq_bounds$bp_approx[x], big.mark = ","), " bp")
+        message(name, " ", x, "/", length(seq_bounds$seqname), " ~", format(seq_bounds$bp_approx[x], big.mark = ","), " bp")
       }
       skip <- file.exists(out_path)
       if (!skip && overwrite) {

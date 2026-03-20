@@ -4,13 +4,7 @@
 \alias{write_gtf}
 \title{Write a gtf data frames to file}
 \usage{
-write_gtf(
-  gtf_df,
-  file,
-  header = "##gtf file",
-  check_unique = T,
-  make_unique = F
-)
+write_gtf(gtf_df, file, header = "##gtf file", check_unique = T)
 }
 \arguments{
 \item{gtf_df}{gtf data frame}
@@ -21,9 +15,6 @@ write_gtf(
 
 \item{check_unique}{check for uniqueness of gene_name, gene_id,
 transcript_id}
-
-\item{make_unique}{make gene_name, gene_id, transcript_id unique? required
-for mkref}
 }
 \description{
 Write a gtf data frames to file

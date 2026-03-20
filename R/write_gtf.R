@@ -5,8 +5,6 @@
 #' @param file file path where to save
 #' @param check_unique check for uniqueness of gene_name, gene_id,
 #' transcript_id
-#' @param make_unique make gene_name, gene_id, transcript_id unique? required
-#' for mkref
 #'
 #' @returns
 #' @export
@@ -15,8 +13,7 @@
 write_gtf <- function(gtf_df,
                       file,
                       header = "##gtf file",
-                      check_unique = T,
-                      make_unique = F) {
+                      check_unique = T) {
 
   if (missing(file)) {
     stop("file missing.")
@@ -32,14 +29,14 @@ write_gtf <- function(gtf_df,
     tibble::as_tibble()
 
   if (check_unique) {
-    # fix duplicate gene_names, gene_id, transcript_id
+    # fix duplicate gene_name, gene_id, transcript_id
     gtf_df <- process_gtf_attribute_col(
       gtf_df,
-      attr_as = "kv",
-      make_unique = make_unique)$gtf
+      attr_as = "kv")[["gtf"]]
   }
 
   out <- vroom::vroom_write_lines(c(header,
                                     apply(gtf_df, 1, paste, collapse = "\t")),
                                   file = file)
+  message(file)
 }

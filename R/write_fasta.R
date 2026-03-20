@@ -44,10 +44,11 @@ write_fasta <- function(seqs,
   lines <- unlist(lines, use.names = FALSE)
 
   vroom::vroom_write_lines(lines, file = file)
+  message(file)
 }
 
 split_chunks <- function(x, n) {
   starts <- seq(1L, stringi::stri_length(x), by = n)
   ends   <- pmin(starts + n - 1L, stringi::stri_length(x))
-  stringi::stri_sub(x, starts, ends)
+  return(stringi::stri_sub(x, starts, ends))
 }

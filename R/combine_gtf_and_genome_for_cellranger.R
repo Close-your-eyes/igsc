@@ -1,7 +1,8 @@
 #' Make a custom/hybrid reference for read alignment
 #'
 #' Genome fasta files and gtf files are concatenated respectively and some
-#' checks are run. Pairs of genome_files and gtf_files expected.
+#' checks are run. Pairs of genome_files and gtf_files expected. E.g. seqnames
+#' are tried to be harmonized by an algorithm.
 #'
 #' @param genome_files vector of paths to genome fasta files (.fa, .fna, .fasta)
 #' @param gtf_files vector of paths to matching gtf files (e.g. genes.gtf)
@@ -61,11 +62,18 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
                                                     "##conctact: vonskopnik@pm.me",
                                                     "##format: gtf",
                                                     paste0("##date: ", Sys.Date())
-                                                  )
-) {
+                                                  )) {
 
   if (length(genome_files) != length(gtf_files)) {
     stop("genome_files and gtf_files must have same lengths.")
+  }
+
+  if (!is.null(names(genome_files)) && !is.null(names(gtf_files))) {
+    if (length(intersect(names(genome_files), names(gtf_files))) != names(gtf_files)) {
+      stop("different names of genome_files and gtf_files.")
+    }
+    # equally order by names
+    genome_files <- genome_files[names(gtf_files)]
   }
 
   if (any(!grepl("^##", gtf_header))) {
@@ -104,13 +112,11 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
   # fix duplicate gene_name, gene_id, transcript_id
   gtf_df <- process_gtf_attribute_col(
     gtf_df,
-    attr_as = "kv",
-    make_unique = T)$gtf
+    attr_as = "kv")[["gtf"]]
 
   write_gtf(gtf_df = gtf_df,
             header = gtf_header,
             file = file.path(save_path, save_names[2]),
-            make_unique = F,
             check_unique = F)
 
 }
@@ -140,7 +146,7 @@ process_files <- function(fasta_path,
 match_gtf_fasta_names <- function(fasta,
                                   gtf,
                                   fasta_name_two_parts = T) {
-  ## oriented on references as made by 10X Genomics: fasta_name_two_parts
+  ## orients on references as made by 10X Genomics: fasta_name_two_parts
 
   names_fa <- names(fasta)
   if (anyDuplicated(names_fa)) {
