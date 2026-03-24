@@ -975,37 +975,42 @@ fix_duplicates <- function(attr_col) {
   }
 
   ## second gene_id vs transcript_id
-  dups <- attr_col |>
-    dplyr::distinct(gene_id, transcript_id) |>
-    dplyr::add_count(transcript_id, name = "n_transcript_id") |>
-    dplyr::add_count(gene_id, name = "n_gene_id")
+  if ("transcript_id" %in% names(attr_col)) {
 
-  dups3 <- dups |> dplyr::filter(n_transcript_id>1) |> dplyr::arrange(transcript_id)
-
-  if (nrow(dups3) > 1) {
-    message("duplicate transcript ids made unique:")
-    print(dups3)
-
-    transcript_id_map <- attr_col |>
+    dups <- attr_col |>
       dplyr::distinct(gene_id, transcript_id) |>
-      dplyr::group_by(transcript_id) |>
-      dplyr::mutate(
-        transcript_id_unique = if (dplyr::n() > 1) {
-          paste0(transcript_id, "--", dplyr::row_number()) # use two dashes to separate from natural numeric extension of some genes
-        } else {
-          transcript_id
-        }
-      ) |>
-      dplyr::ungroup() |>
-      dplyr::add_count(gene_id)
+      dplyr::add_count(transcript_id, name = "n_transcript_id") |>
+      dplyr::add_count(gene_id, name = "n_gene_id")
 
-    attr_col <- attr_col |>
-      dplyr::left_join(
-        transcript_id_map |> dplyr::distinct(gene_id, transcript_id, transcript_id_unique),
-        dplyr::join_by(gene_id, transcript_id)
-      ) |>
-      dplyr::mutate(transcript_id = transcript_id_unique) |>
-      dplyr::select(-transcript_id_unique)
+    dups3 <- dups |> dplyr::filter(n_transcript_id>1) |> dplyr::arrange(transcript_id)
+
+    if (nrow(dups3) > 1) {
+      message("duplicate transcript ids made unique:")
+      print(dups3)
+
+      transcript_id_map <- attr_col |>
+        dplyr::distinct(gene_id, transcript_id) |>
+        dplyr::group_by(transcript_id) |>
+        dplyr::mutate(
+          transcript_id_unique = if (dplyr::n() > 1) {
+            paste0(transcript_id, "--", dplyr::row_number()) # use two dashes to separate from natural numeric extension of some genes
+          } else {
+            transcript_id
+          }
+        ) |>
+        dplyr::ungroup() |>
+        dplyr::add_count(gene_id)
+
+      attr_col <- attr_col |>
+        dplyr::left_join(
+          transcript_id_map |> dplyr::distinct(gene_id, transcript_id, transcript_id_unique),
+          dplyr::join_by(gene_id, transcript_id)
+        ) |>
+        dplyr::mutate(transcript_id = transcript_id_unique) |>
+        dplyr::select(-transcript_id_unique)
+    }
+
   }
+
   return(attr_col)
 }
