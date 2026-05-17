@@ -8,8 +8,6 @@ get_fasta_seq_bounds(file_path)
 }
 \arguments{
 \item{file_path}{path to fasta file or fst file}
-
-\item{overwrite_fst}{}
 }
 \description{
 Use forcats::fct_drop to drop unused factor levels.

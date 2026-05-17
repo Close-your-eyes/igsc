@@ -161,19 +161,24 @@ read_gtf <- function(
   }
 
   if (process_attr_col) {
-    message("processing the attribute column.")
+    # message("processing the attribute column.")
     # use waldo::compare to compare results
     ret_list <- Gmisc::fastDoCall(what = process_gtf_attribute_col,
                                   args = c(list(gtf = gtf),
                                            process_attr_col_args))
 
-    if (any(duplicated(ret_list$gtf))) {
-      message("duplicate rows in gtf.")
+    if (is.null(ret_list)) {
+      return(NULL)
+    }
+    if (anyDuplicated(ret_list$gtf)) {
+      ret_list$gtf <- ret_list$gtf |> dplyr::distinct()
+      message("duplicate rows in gtf. made unique.")
     }
     return(ret_list)
   } else {
-    if (any(duplicated(gtf))) {
-      message("duplicate rows in gtf.")
+    if (anyDuplicated(gtf)) {
+      gtf <- gtf |> dplyr::distinct()
+      message("duplicate rows in gtf. made unique.")
     }
     return(list(gtf = gtf, attr = NULL))
   }
@@ -213,6 +218,7 @@ read_gtf <- function(
 #' @param genome_length length of associated genome or refseq; only needed
 #' for rotation
 #' @param rm_entries_wo_matching_exon this has to done to meet mkref requirements
+#' @param verbose
 #'
 #' @returns
 #' @export
@@ -268,7 +274,8 @@ process_gtf_attribute_col <- function(gtf,
                                       aggregate_overlapping_exon_ranges = F,
                                       check_for_rotation = F,
                                       genome_length = NULL,
-                                      rm_entries_wo_matching_exon = F) {
+                                      rm_entries_wo_matching_exon = F,
+                                      verbose = T) {
 
   attr_as <- rlang::arg_match(attr_as) # kv = key value pair
   use_fun <- rlang::arg_match(use_fun)
@@ -291,19 +298,23 @@ process_gtf_attribute_col <- function(gtf,
     before <- nrow(gtf)
     gtf <- dplyr::filter(gtf, feature == "exon")
     if (nrow(gtf) == 0) {
-      stop("no rows found with exon.")
+      if (verbose) {
+        message("no rows found with exon.")
+      }
+      return(NULL)
     } else {
-      message("all gtf rows: ", formatC(before, big.mark = ","), ". exons only: ", formatC(nrow(gtf), big.mark = ","), ".")
+      if (verbose) {
+        message("all gtf rows: ", formatC(before, big.mark = ","), ". exons only: ", formatC(nrow(gtf), big.mark = ","), ".")
+      }
     }
   }
-
 
   if (use_fun == "rcpp") {
     # rcpp fun is currently slower than the r procedure
     attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
     attr_col <- unlist(processStrings(gtf$attribute)) #igsc:::
   } else if (use_fun == "r") {
-    # optimozed for speed
+    # optimized for speed
     attr_col <- stringi::stri_replace_last(gtf$attribute, replacement = "", fixed = ";")
     #attr_col <- stringi::stri_split_fixed(attr_col, pattern = "; ", omit_empty = T) # this failed when there were ';' in note
     attr_col <- stringi::stri_split_fixed(attr_col, pattern = "\"; ", omit_empty = T)
@@ -380,7 +391,7 @@ process_gtf_attribute_col <- function(gtf,
     }
 
     # check for duplicates of pairs of gene_id, gene_name
-    attr_col2 <- fix_duplicates(attr_col = attr_col2)
+    attr_col2 <- fix_duplicates(attr_col = attr_col2, verbose = verbose)
 
   }
 
@@ -476,14 +487,14 @@ process_gtf_attribute_col <- function(gtf,
       dplyr::distinct(gene_name) |>
       dplyr::pull(gene_name)
     gtf <- dplyr::bind_rows(dplyr::filter(gtf, transcript_id %in% exon_entry_transcript_id),
-                             gtf |>
-                               dplyr::filter(gene_name %in% transcript_id_gene_names) |>
-                               dplyr::filter(feature == "gene"))
+                            gtf |>
+                              dplyr::filter(gene_name %in% transcript_id_gene_names) |>
+                              dplyr::filter(feature == "gene"))
   }
 
 
   if (attr_as == "kv") {
-    gtf <- make_kv_attr_col(gtf, keep_index_col = T)
+    gtf <- make_kv_attr_col(gtf, keep_index_col = T, verbose = verbose)
   }
 
   if (rm_index) {
@@ -692,6 +703,149 @@ get_range_overlap_groups <- function(df, strand = c("same", "opposing")) {
   return(groups)
 }
 
+detect_wrap_and_cut <- function(df, genome_length = NULL, verbose = T) {
+
+  ## better version of pick_best_cut
+
+  df <- as.data.frame(df)
+
+  if (!"exon_number" %in% names(df)) {
+    stop("exon_number not in df.")
+  }
+  # Use only CDS with exon numbers
+  cds <- df[df$feature == "CDS" & !is.na(df$exon_number), ]
+
+  if (nrow(cds) == 0) {
+    # try exons
+    cds <- df[df$feature == "exon" & !is.na(df$exon_number), ] |>
+      dplyr::mutate(feature = "CDS")
+    if (nrow(cds) == 0) {
+      stop("No CDS entries with exon_number found.")
+    }
+  }
+
+  # Check monotonicity per gene (strand-aware)
+  wrap_flags <- tapply(seq_len(nrow(cds)), cds$gene_id, function(idx) {
+    g <- cds[idx, ]
+
+    # order by exon_number
+    g <- g[order(g$exon_number), ]
+
+    starts <- g$start
+    strand <- unique(g$strand)
+
+    # sanity check
+    if (length(strand) != 1) {
+      return(TRUE)  # inconsistent strand → treat as problematic
+    }
+
+    if (strand == "+") {
+      # should increase
+      any(diff(starts) < 0)
+    } else if (strand == "-") {
+      # should decrease
+      any(diff(starts) > 0)
+    } else {
+      TRUE  # unknown strand → treat as problematic
+    }
+  })
+
+  wrapping_genes <- names(wrap_flags)[wrap_flags]
+
+  if (length(wrapping_genes) == 0) {
+    if (verbose) {
+      message("All genes follow expected strand-specific monotonicity. No rotation needed.")
+    }
+    return(NULL)
+  }
+  if (verbose) {
+    message("Wrap-around genes detected: ", paste(wrapping_genes, collapse = ", "))
+  }
+  # Infer genome length if needed
+  if (is.null(genome_length)) {
+    genome_length <- max(df$end, na.rm = TRUE)
+  }
+
+  cut_info <- pick_best_cut_from_positions(df, genome_length = genome_length)
+
+  # overwrite wrapping genes with biologically detected ones
+  cut_info$wrapping_genes <- wrapping_genes
+
+  return(cut_info)
+}
+
+pick_best_cut_from_positions <- function(df, genome_length = NULL) {
+
+  df <- as.data.frame(df)
+
+  # Infer genome length if not provided
+  if (is.null(genome_length)) {
+    genome_length <- max(df$end, na.rm = TRUE)
+  }
+
+  L <- genome_length
+
+  # Collapse to gene spans
+  gene_spans <- stats::aggregate(
+    cbind(start, end) ~ gene_id,
+    df,
+    function(x) c(min = min(x), max = max(x))
+  )
+
+  gene_spans$start <- gene_spans$start[, "min"]
+  gene_spans$end   <- gene_spans$end[, "max"]
+
+  # Order genes by start
+  gene_spans <- gene_spans[order(gene_spans$start), ]
+  n <- nrow(gene_spans)
+
+  if (n < 2) {
+    stop("Not enough genes to compute gaps.")
+  }
+
+  # Compute gaps
+  gaps <- numeric(n)
+  gap_starts <- numeric(n)
+  gap_ends <- numeric(n)
+
+  # Linear gaps
+  for (i in seq_len(n - 1)) {
+    gaps[i] <- gene_spans$start[i + 1] - gene_spans$end[i] - 1
+    gap_starts[i] <- gene_spans$end[i] + 1
+    gap_ends[i] <- gene_spans$start[i + 1] - 1
+  }
+
+  # Circular gap (last -> first)
+  gaps[n] <- (gene_spans$start[1] + L) - gene_spans$end[n] - 1
+  gap_starts[n] <- gene_spans$end[n] + 1
+  gap_ends[n] <- gene_spans$start[1] - 1
+
+  if (gap_ends[n] <= 0) {
+    gap_ends[n] <- gap_ends[n] + L
+  }
+
+  # Find largest gap
+  best <- which.max(gaps)
+
+  if (gaps[best] <= 0) {
+    stop("No intergenic gap found — genome fully covered.")
+  }
+
+  # Midpoint of best gap
+  cut <- floor((gap_starts[best] + gap_ends[best]) / 2)
+browser()
+  # Wrap if needed
+  if (cut > L) {
+    cut <- cut - L
+  }
+
+  return(list(
+    cut_position = cut,
+    gap_size = gaps[best],
+    gap_start = gap_starts[best],
+    gap_end = gap_ends[best]
+  ))
+}
 
 pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
 
@@ -704,7 +858,7 @@ pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
   L <- genome_length
 
   # Collapse to gene spans
-  gene_spans <- aggregate(
+  gene_spans <- stats::aggregate(
     cbind(start, end) ~ gene_id,
     df,
     function(x) c(min = min(x), max = max(x))
@@ -716,17 +870,14 @@ pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
   # Detect wrap-around genes
   span_width <- gene_spans$end - gene_spans$start
 
-  wrapping_genes <- gene_spans$gene_id[
-    span_width > (wrap_threshold * L)
-  ]
+  wrapping_genes <- gene_spans$gene_id[span_width > (wrap_threshold * L)]
 
   if (length(wrapping_genes) == 0) {
     message("No wrap-around gene detected. Rotation not needed.")
     return(NULL)
   }
 
-  message("Wrap-around gene(s) detected: ",
-          paste(wrapping_genes, collapse = ", "))
+  message("Wrap-around gene(s) detected: ", paste(wrapping_genes, collapse = ", "))
 
   # Compute largest intergenic gap (same as before)
   gene_spans <- gene_spans[order(gene_spans$start), ]
@@ -799,8 +950,31 @@ rotate_coords <- function(df, cut, genome_length = NULL) {
   }
 
   rownames(df) <- NULL
+  df <- fix_duplicate_rows(df)
+  return(df)
+}
 
-  df
+fix_duplicate_rows <- function(df) {
+
+  ## see example: EBV genome, gene of HHV4tp2_gp01
+  df <- df |> dplyr::mutate(row = dplyr::row_number())
+  # same entries but multi start/end due to crossing the artificial cut
+  dfdup <- df |>
+    dplyr::group_by(dplyr::across(-c(start, end, row))) |>
+    dplyr::filter(dplyr::n() > 1) |>
+    dplyr::summarise(
+      start = min(start),
+      end = max(end),
+      row = min(row),
+      .groups = "drop")
+  dfunique <- df |>
+    dplyr::group_by(dplyr::across(-c(start, end, row))) |>
+    dplyr::filter(dplyr::n() == 1) |>
+    dplyr::ungroup()
+  df <- dplyr::bind_rows(dfunique, dfdup) |>
+    dplyr::arrange(row) |>
+    dplyr::select(-row)
+  return(df)
 }
 
 rotate_genome_string <- function(genome, cut) {
@@ -847,7 +1021,7 @@ most_frequent <- function(x) {
 #' gtf <- make_kv_attr_col(gtf)
 #' write_gtf(gtf)
 #' }
-make_kv_attr_col <- function(gtf_df, keep_index_col = F) {
+make_kv_attr_col <- function(gtf_df, keep_index_col = F, verbose = T) {
   gtf_cols <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame")
   if (keep_index_col && "index" %in% names(gtf_df)) {
     gtf_cols <- c(gtf_cols, "index")
@@ -857,10 +1031,14 @@ make_kv_attr_col <- function(gtf_df, keep_index_col = F) {
   }
   attr_cols <- names(gtf_df)[!names(gtf_df) %in% gtf_cols]
   if (!length(attr_cols)) {
-    message("no attr cols found")
+    if (verbose) {
+      message("no attr cols found")
+    }
     return(gtf_df)
   } else {
-    message("attr cols: ", paste(attr_cols, collapse = ","))
+    if (verbose) {
+      message("attr cols: ", paste(attr_cols, collapse = ","))
+    }
   }
 
   gtf <- gtf_df[gtf_cols]
@@ -908,7 +1086,7 @@ make_kv_attr_col <- function(gtf_df, keep_index_col = F) {
   #
 }
 
-fix_duplicates <- function(attr_col) {
+fix_duplicates <- function(attr_col, verbose = T) {
 
   ## first gene_id vs gene_name
   dups <- attr_col |>
@@ -918,8 +1096,10 @@ fix_duplicates <- function(attr_col) {
   dups1 <- dups |> dplyr::filter(n_gene_name>1) |> dplyr::arrange(gene_name)
 
   if (nrow(dups1) > 1) {
-    message("duplicate gene names made unique:")
-    print(dups1)
+    if (verbose) {
+      message("duplicate gene names made unique:")
+      print(dups1)
+    }
 
     gene_name_map <- attr_col |>
       dplyr::distinct(gene_id, gene_name) |>
@@ -947,9 +1127,10 @@ fix_duplicates <- function(attr_col) {
   dups2 <- dups |> dplyr::filter(n_gene_id>1) |> dplyr::arrange(gene_id)
 
   if (nrow(dups2) > 1) {
-    message("duplicate gene ids made unique:")
-    print(dups2)
-
+    if (verbose) {
+      message("duplicate gene ids made unique:")
+      print(dups2)
+    }
     gene_id_map <- attr_col |>
       dplyr::distinct(gene_id, gene_name) |>
       dplyr::group_by(gene_id) |>
@@ -985,9 +1166,10 @@ fix_duplicates <- function(attr_col) {
     dups3 <- dups |> dplyr::filter(n_transcript_id>1) |> dplyr::arrange(transcript_id)
 
     if (nrow(dups3) > 1) {
-      message("duplicate transcript ids made unique:")
-      print(dups3)
-
+      if (verbose) {
+        message("duplicate transcript ids made unique:")
+        print(dups3)
+      }
       transcript_id_map <- attr_col |>
         dplyr::distinct(gene_id, transcript_id) |>
         dplyr::group_by(transcript_id) |>

@@ -6,9 +6,6 @@
 \usage{
 revcompDNA(x, fun = c("rcpp", "Biostrings", "r"), rev = T, comp = T)
 }
-\arguments{
-\item{comp}{}
-}
 \description{
 Title
 }

@@ -4,8 +4,10 @@
 #'
 #' @param seqs named character vector or list of sequences; if a list only provide one sequence per index
 #' @param file full path to the output file to be written; recommended file extension: .fa or .fasta
-#' @param append append? if F will not overwrite.
 #' @param linewidth number of character per line (only valid for sequence, not names)
+#' @param mc.cores
+#' @param verbose
+#' @param gzip
 #'
 #' @return no return; file written to disk
 #' @export
@@ -14,7 +16,9 @@
 write_fasta <- function(seqs,
                         file,
                         linewidth = 60,
-                        mc.cores = floor(parallel::detectCores()/4)) {
+                        mc.cores = floor(parallel::detectCores()/4),
+                        gzip = F,
+                        verbose = T) {
 
   if (missing(file)) {
     stop("Output file path has to be provided in file.")
@@ -37,14 +41,19 @@ write_fasta <- function(seqs,
   #   unlist(use.names = FALSE)
 
   lines <- parallel::mcmapply(FUN = function(name, seq) c(paste0(">", name), split_chunks(seq, linewidth)),
-    name = names(seqs),
-    seq  = seqs,
-    SIMPLIFY = FALSE,
-    mc.cores = mc.cores)
+                              name = names(seqs),
+                              seq  = seqs,
+                              SIMPLIFY = FALSE,
+                              mc.cores = mc.cores)
   lines <- unlist(lines, use.names = FALSE)
 
   vroom::vroom_write_lines(lines, file = file)
-  message(file)
+  if (gzip) {
+    system(paste0("gzip ", file))
+  }
+  if (verbose) {
+    message(file)
+  }
 }
 
 split_chunks <- function(x, n) {

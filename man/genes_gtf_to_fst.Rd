@@ -6,9 +6,6 @@
 \usage{
 genes_gtf_to_fst(gtf_file, subfolder = "genes_fst", compression = 50)
 }
-\arguments{
-\item{compression}{}
-}
 \description{
 Title
 }

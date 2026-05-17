@@ -4,7 +4,14 @@
 \alias{write_gtf}
 \title{Write a gtf data frames to file}
 \usage{
-write_gtf(gtf_df, file, header = "##gtf file", check_unique = T)
+write_gtf(
+  gtf_df,
+  file,
+  header = "##gtf file",
+  check_unique = T,
+  gzip = F,
+  verbose = T
+)
 }
 \arguments{
 \item{gtf_df}{gtf data frame}

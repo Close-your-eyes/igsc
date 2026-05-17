@@ -37,8 +37,6 @@ be gunzipped (ending with .gz)}
 \item{start_line}{passed to vroom::vroom_lines}
 
 \item{end_line}{passed to vroom::vroom_lines to determine n_max}
-
-\item{seqname}{}
 }
 \value{
 a named character vector of sequences

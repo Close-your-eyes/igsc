@@ -1,6 +1,6 @@
 Package: igsc
 Title: Misc
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: 
     person(given = "Christopher Mark",
            family = "Skopnik",
@@ -11,7 +11,6 @@ Description: Working with biological sequences.
 License: AGPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Imports: 
     BiocManager,
     crayon,
@@ -46,7 +45,10 @@ Imports:
     rextendr,
     stringi,
     tibble,
-    viridisLite
+    farver,
+    Peptides,
+    viridisLite,
+    Rsamtools
 Suggests: 
     rmarkdown,
     knitr,
@@ -55,11 +57,8 @@ Suggests:
     fcexpr,
     DECIPHER,
     Biostrings,
-    farver,
-    Peptides,
     GenomicRanges,
     IRanges,
-    Rsamtools,
     biomaRt,
     brathering,
     colrr,
@@ -70,3 +69,4 @@ Depends:
 LinkingTo: 
     Rcpp
 Config/rextendr/version: 0.3.1
+Config/roxygen2/version: 8.0.0

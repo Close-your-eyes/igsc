@@ -62,7 +62,8 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
                                                     "##conctact: vonskopnik@pm.me",
                                                     "##format: gtf",
                                                     paste0("##date: ", Sys.Date())
-                                                  )) {
+                                                  ),
+                                                  verbose = T) {
 
   if (length(genome_files) != length(gtf_files)) {
     stop("genome_files and gtf_files must have same lengths.")
@@ -84,12 +85,15 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
     stop("at least one target file exists on disk. rename or delete or set overwrite = T or change save_path/save_names.")
   }
 
+
   names(genome_files) <- basename(genome_files)
   genome_gtf_list <- purrr::pmap(
     list(fasta_path = genome_files,
          gtf_path = gtf_files),
     process_files,
-    fasta_name_two_parts = fasta_name_two_parts
+    fasta_name_two_parts = fasta_name_two_parts,
+    verbose = verbose,
+    .progress = T
   )
 
   # check duplicates
@@ -98,6 +102,7 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
     genome_gtf_fasta_names <<- fasta_names
     stop("duplicate fasta names across files. check global variable genome_gtf_fasta_names.")
   }
+
 
   # write combined files
   write_fasta(seqs = purrr::reduce(sapply(genome_gtf_list, "[", 1), c),
@@ -123,14 +128,26 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
 
 process_files <- function(fasta_path,
                           gtf_path,
-                          fasta_name_two_parts = T) {
+                          fasta_name_two_parts = T,
+                          verbose = T,
+                          gtf1 = NULL,
+                          genome1 = NULL) {
 
-  message(basename(fasta_path), " + ", basename(gtf_path))
-  gtf1 <- read_gtf(gtf_path, process_attr_col = F)[["gtf"]]
+  if (is.null(gtf1) && is.null(genome1)) {
+    if (verbose) {
+      message(basename(fasta_path), " + ", basename(gtf_path))
+    }
+    gtf1 <- read_gtf(gtf_path, process_attr_col = F)[["gtf"]]
+    genome1 <- read_fasta(fasta_path)
+  }
 
-  genome1 <- read_fasta(fasta_path)
+  namedf <- tidyr::drop_na(match_gtf_fasta_names(
+    fasta = genome1,
+    gtf = gtf1,
+    fasta_name_two_parts = fasta_name_two_parts,
+    verbose = verbose
+  ))
 
-  namedf <- tidyr::drop_na(match_gtf_fasta_names(fasta = genome1, gtf = gtf1, fasta_name_two_parts = fasta_name_two_parts))
   gtf_map <- stats::setNames(namedf$gtf, namedf$gtf_orig)
   fa_map <- stats::setNames(namedf$fa, namedf$fa_orig)
 
@@ -145,7 +162,8 @@ process_files <- function(fasta_path,
 
 match_gtf_fasta_names <- function(fasta,
                                   gtf,
-                                  fasta_name_two_parts = T) {
+                                  fasta_name_two_parts = T,
+                                  verbose = T) {
   ## orients on references as made by 10X Genomics: fasta_name_two_parts
 
   names_fa <- names(fasta)
@@ -194,14 +212,18 @@ match_gtf_fasta_names <- function(fasta,
   ## what if no matches between fasta and gtf? fix it ?
 
   if (!anyNA(names_fa_gtf_10X_adj_df$fa)) {
-    message("all names from fasta appear in gtf.")
+    if (verbose) {
+      message("all names from fasta appear in gtf.")
+    }
   } else {
     miss <- names_fa_gtf_10X_adj_df$name[which(is.na(names_fa_gtf_10X_adj_df$fa))]
     message("names from fasta which do not appear in gtf (", length(miss), "): ", paste(miss, collapse = ", "))
     message("these will be removed from gtf.")
   }
   if (!anyNA(names_fa_gtf_10X_adj_df$gtf)) {
-    message("all names from gtf appear in fasta.")
+    if (verbose) {
+      message("all names from gtf appear in fasta.")
+    }
   } else {
     miss <- names_fa_gtf_10X_adj_df$name[which(is.na(names_fa_gtf_10X_adj_df$gtf))]
     message("names from gtf which do not appear in fasta (", length(miss), "): ", paste(miss, collapse = ", "))

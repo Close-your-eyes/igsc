@@ -8,7 +8,9 @@ write_fasta(
   seqs,
   file,
   linewidth = 60,
-  mc.cores = floor(parallel::detectCores()/4)
+  mc.cores = floor(parallel::detectCores()/4),
+  gzip = F,
+  verbose = T
 )
 }
 \arguments{
@@ -17,8 +19,6 @@ write_fasta(
 \item{file}{full path to the output file to be written; recommended file extension: .fa or .fasta}
 
 \item{linewidth}{number of character per line (only valid for sequence, not names)}
-
-\item{append}{append? if F will not overwrite.}
 }
 \value{
 no return; file written to disk

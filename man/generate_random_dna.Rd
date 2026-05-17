@@ -6,9 +6,6 @@
 \usage{
 generate_random_dna(n, length)
 }
-\arguments{
-\item{length}{}
-}
 \description{
 Title
 }

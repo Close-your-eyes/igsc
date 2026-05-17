@@ -6,9 +6,6 @@
 \usage{
 get_gene_sequences(gtf_path, genome_path, gene_name)
 }
-\arguments{
-\item{gene_name}{}
-}
 \description{
 Title
 }

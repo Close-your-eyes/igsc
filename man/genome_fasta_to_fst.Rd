@@ -15,8 +15,6 @@ genome_fasta_to_fst(
 }
 \arguments{
 \item{subfolder}{"genome_fst"}
-
-\item{simplify_names}{}
 }
 \description{
 Title

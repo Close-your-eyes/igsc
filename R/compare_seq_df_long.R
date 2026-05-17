@@ -13,7 +13,7 @@
 #' @param change_ref change reference sequences
 #' @param ref_mismatch_as replacement for ref mismatches
 #' @param insertion_as replacement for insertions: base or any symbol
-#' @param keep_match_gaps do not replace matching gaps, but keep "-"?
+#' @param keep_gaps do not replace matching gaps, but keep "-"?
 #' may be required for when xstringset_print is used subsequently and ref is
 #' defined in function call (correct counting of gaps for correct position
 #' labels)
@@ -63,7 +63,7 @@ compare_seq_df_long <- function(df,
                                 change_ref = F,
                                 ref_mismatch_as = c("base", "mismatch_symbol"),
                                 insertion_as = "base",
-                                keep_match_gaps = T) {
+                                keep_gaps = T) {
 
   # insertion_as can be base or any other character, like "x"
 
@@ -111,88 +111,62 @@ compare_seq_df_long <- function(df,
   }
   non_ref <- name_order[which(name_order != ref)]
 
-
   # this check must be extended and making distinct must be more robust: e.g. select
   # !!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col) for making distinct
-  check_dups <-
-    df %>%
-    dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
-    dplyr::summarise(n = dplyr::n(), .by = c(!!rlang::sym(pos_col), !!rlang::sym(name_col))) %>%
-    dplyr::filter(n > 1L)
+
+
+  idx <- which(names(df) %in% c(pos_col, name_col))
+  check_dups <- collapse::fcount(collapse::fselect(df, idx))
+  check_dups <- check_dups[check_dups$N > 1L, ]
+
+  # check_dups <- df |>
+  #   dplyr::count(
+  #     !!rlang::sym(pos_col),
+  #     !!rlang::sym(name_col),
+  #     name = "n") |>
+  #   dplyr::filter(n > 1L)
+
   if (nrow(check_dups) > 1) {
     message("Found duplicate rows in df. Will use dplyr::distict to fix this but you should check your data frame.")
     df <- dplyr::distinct(df)
   }
 
-  df2 <- df %>%
-    dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
-    tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col))
+  df <- igsc:::compare_nonref_cpp(df = df,
+                                  ref = ref,
+                                  pos_col = pos_col,
+                                  seq_col = seq_col,
+                                  name_col = name_col,
+                                  match_symbol = match_symbol,
+                                  mismatch_symbol = mismatch_symbol,
+                                  keep_gaps = keep_gaps,
+                                  nonref_mismatch_as = nonref_mismatch_as)
 
-  # matches to pattern
-  if (change_nonref) {
-    df2 <- df2 %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% c(ref, pos_col))]))
-    # if (nonref_mismatch_as == "base") {
-    #   df2 <- dplyr::mutate(df2, value = ifelse(value == !!rlang::sym(ref), match_symbol, value))
-    # } else if (nonref_mismatch_as == "mismatch_symbol") {
-    #   df2 <- dplyr::mutate(df2, value = ifelse(value == !!rlang::sym(ref), match_symbol, mismatch_symbol))
-    # }
-
-    # library(Rcpp)
-    # sourceCpp("/Users/chris/Documents/R_packages/igsc/src/compare_seq_df_long_fun.cpp")
-
-    # super quick version of rowwise pipeline below
-    df2$value <- igsc:::mutate_value_cpp(
-      value               = df2$value,
-      ref_col             = df2[[ref]],
-      match_symbol        = match_symbol,
-      mismatch_symbol     = mismatch_symbol,
-      keep_match_gaps     = keep_match_gaps,
-      nonref_mismatch_as  = nonref_mismatch_as
-    )
-    df2$value[which(df2$value == "NA")] <- NA
-
-    # value <- mutate_value_cpp(
-    #   value               = df2$value,
-    #   ref_col             = df2[[ref]],
-    #   match_symbol        = match_symbol,
-    #   mismatch_symbol     = mismatch_symbol,
-    #   keep_match_gaps     = keep_match_gaps,
-    #   nonref_mismatch_as  = nonref_mismatch_as
-    # )
-    # value[which(value == "NA")] <- NA
-    # identical(df2$value, value)
-    #
-    # df2 <- df2 %>%
-    #   dplyr::rowwise() %>% # slower but necessary
-    #   dplyr::mutate(
-    #     value = dplyr::if_else(
-    #       .data[["value"]] == .data[[ref]],  # compare to the ref column
-    #       # match branch
-    #       dplyr::if_else(
-    #         .data[["value"]] != "-",
-    #         match_symbol,
-    #         dplyr::if_else(keep_match_gaps, "-", match_symbol)
-    #       ),
-    #       # mismatch branch
-    #       dplyr::if_else(
-    #         nonref_mismatch_as == "base",
-    #         .data[["value"]],
-    #         dplyr::if_else(
-    #           .data[["value"]] != "-",
-    #           mismatch_symbol,
-    #           dplyr::if_else(keep_match_gaps, "-", mismatch_symbol)
-    #         )
-    #       )
-    #     )
-    #   ) |>
-    #   dplyr::ungroup()
-
-
-    if (insertion_as != "base") {
-      df2 <- dplyr::mutate(df2, value = ifelse(!!rlang::sym(ref) == "-" & value != "-", insertion_as, value))
-    }
-    df2 <- tidyr::pivot_wider(df2, names_from = name, values_from = value)
-  }
+  # df2 <- df |>
+  #   dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) |>
+  #   tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col))
+  #
+  # # matches to pattern
+  # if (change_nonref) {
+  #   df2 <- df2 %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% c(ref, pos_col))]))
+  #   #df2 <- df2 |> tidyr::drop_na(value)
+  #
+  #   # super quick version of rowwise pipeline below
+  #   df2$value <- igsc:::mutate_value_cpp(
+  #     value               = df2$value,
+  #     ref_col             = df2[[ref]],
+  #     match_symbol        = match_symbol,
+  #     mismatch_symbol     = mismatch_symbol,
+  #     keep_match_gaps     = keep_gaps,
+  #     nonref_mismatch_as  = nonref_mismatch_as
+  #   )
+  #   df2$value[which(df2$value == "NA")] <- NA
+  #
+  #
+  #   if (insertion_as != "base") {
+  #     df2 <- dplyr::mutate(df2, value = ifelse(!!rlang::sym(ref) == "-" & value != "-", insertion_as, value))
+  #   }
+  #   df2 <- tidyr::pivot_wider(df2, names_from = name, values_from = value)
+  # }
 
   # matches to ref
   if (change_ref) {
@@ -209,8 +183,8 @@ compare_seq_df_long <- function(df,
           MARGIN = 1,
           function(x) length(unique(x[intersect(which(!is.na(x)), which(x != match_symbol))]))
         ) == 1,
-        # keep "-" when gaps in all seq - keep_match_gaps decides, not tested yet
-        dplyr::if_else(keep_match_gaps, "-", match_symbol), #match_symbol;
+        # keep "-" when gaps in all seq - keep_gaps decides, not tested yet
+        dplyr::if_else(keep_gaps, "-", match_symbol), #match_symbol;
         mismatch_replace
       )
     } else {
@@ -220,8 +194,8 @@ compare_seq_df_long <- function(df,
           MARGIN = 1,
           function(x) length(unique(x[which(!is.na(x))]))
         ) == 1,
-        # keep "-" when gaps in all seq - keep_match_gaps decides, not tested yet
-        dplyr::if_else(keep_match_gaps, "-", match_symbol), #match_symbol;
+        # keep "-" when gaps in all seq - keep_gaps decides, not tested yet
+        dplyr::if_else(keep_gaps, "-", match_symbol), #match_symbol;
         mismatch_replace
       )
     }
@@ -231,39 +205,39 @@ compare_seq_df_long <- function(df,
                                  function(x) (!x[1] %in% c("-", match_symbol, mismatch_symbol) && any(x[-1][which(!is.na(x[-1]))] == "-"))), insertion_as, df2[[ref]])
     }
   }
-
-  df2 <- df2 %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(names(.) != pos_col)]),
-                                     names_to = name_col,
-                                     values_to = seq_col)
-
-  if (!is.null(seq_original)) {
-    df2 <- dplyr::left_join(df2,
-                            dplyr::rename(df, {{seq_original}} := !!rlang::sym(seq_col)),
-                            by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  }
-  df2 <- dplyr::mutate(df2, {{name_col}} := factor(!!rlang::sym(name_col), levels = name_order))
+  #
+  #   df2 <- df %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(names(.) != pos_col)]),
+  #                                      names_to = name_col,
+  #                                      values_to = seq_col)
+  #
+  #   if (!is.null(seq_original)) {
+  #     df2 <- dplyr::left_join(df2,
+  #                             dplyr::rename(df, {{seq_original}} := !!rlang::sym(seq_col)),
+  #                             by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
+  #   }
+  #   df2 <- dplyr::mutate(df2, {{name_col}} := factor(!!rlang::sym(name_col), levels = name_order))
 
   # join other columns from initial data frame
-  if ("pattern" %in% names(df2)) {
-    ## try brathering::get_unique_level_columns instead of coalesce_other_cols_with_unique_vals
-    ## when is pattern there?
-    df2 <- df2 %>%
-      brathering::coalesce_join(coalesce_other_cols_with_unique_vals(df = df,
-                                                                     name_col = name_col,
-                                                                     pos_col = pos_col,
-                                                                     seq_col = seq_col), by = "pattern")
-  }
+  # if ("pattern" %in% names(df2)) {
+  #   ## try brathering::get_unique_level_columns instead of coalesce_other_cols_with_unique_vals
+  #   ## when is pattern there?
+  #   df2 <- df2 %>%
+  #     brathering::coalesce_join(coalesce_other_cols_with_unique_vals(df = df,
+  #                                                                    name_col = name_col,
+  #                                                                    pos_col = pos_col,
+  #                                                                    seq_col = seq_col), by = "pattern")
+  # }
 
 
-  if (any(!names(df)[-which(names(df) == seq_col)] %in% names(df2))) {
-    names(df)[!names(df) %in% names(df2)]
-    df2 <- dplyr::left_join(df2, dplyr::select(df, -!!rlang::sym(seq_col)), by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  }
+  # if (any(!names(df)[-which(names(df) == seq_col)] %in% names(df2))) {
+  #   names(df)[!names(df) %in% names(df2)]
+  #   df2 <- dplyr::left_join(df2, dplyr::select(df, -!!rlang::sym(seq_col)), by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
+  # }
 
-  attr(df2, "subject_name") <- ref
-  attr(df2, "ref") <- ref
+  attr(df, "subject_name") <- ref
+  attr(df, "ref") <- ref
 
-  return(df2)
+  return(df)
 }
 
 coalesce_other_cols_with_unique_vals <- function(df,

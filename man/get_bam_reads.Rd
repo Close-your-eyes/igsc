@@ -5,25 +5,25 @@
 \title{Get reads from a bam file}
 \usage{
 get_bam_reads(
-  file_path,
-  genomic_ranges,
-  add_tags = c("CR", "CB", "CY", "AS", "UR", "UY", "HI", "NH", "nM", "RE"),
-  read_scores = T,
+  bam,
+  granges = GenomicRanges::GRanges(seqnames =
+    as.character(Rsamtools::idxstatsBam(bam)[which.max(Rsamtools::idxstatsBam(bam)[["mapped"]]),
+    "seqnames"]), ranges = "1..10000"),
+  tags = c("CR", "CB", "CY", "AS", "UR", "UB", "UY", "HI", "NH", "nM", "RE"),
+  scores = T,
   revcomp_minus_strand = F,
-  revcomp_plus_strand = F,
-  lapply_fun = lapply,
-  ...
+  revcomp_plus_strand = F
 )
 }
 \arguments{
-\item{file_path}{path to a position-sorted bam file; index file (.bai) has to be in the same directory}
+\item{bam}{path to a position-sorted bam file; index file (.bai) has to be in the same directory}
 
-\item{genomic_ranges}{GRanges object with n genomic ranges. Setting the strand information to + or - does
+\item{granges}{GRanges object with n genomic ranges. Setting the strand information to + or - does
 not influence the reads returned by this function.}
 
-\item{add_tags}{tags to extract from bam file, passed to Rsamtools::ScanBamParam(); character(0) for nothing; missing tags do not seem to matter}
+\item{tags}{tags to extract from bam file, passed to Rsamtools::ScanBamParam(); character(0) for nothing; missing tags do not seem to matter}
 
-\item{read_scores}{calculate read scores from PhredQuality}
+\item{scores}{calculate read scores from PhredQuality}
 
 \item{revcomp_minus_strand}{passed as reverseComplement to Rsamtools::ScanBamParam. If FALSE, then all reads
 are returned as if they mapped to the plus strand (which is the convention for BAM files). Having all reads projected
@@ -32,10 +32,6 @@ to the plus strand may be useful for subsequent alignment of reads to a referenc
 \item{revcomp_plus_strand}{If TRUE then all reads mapped to minus strand are projected to the plus strand:
 seq is reverseComplemented and qual is reversed.
 Useful for subsequent alignment of reads to a reference sequence (e.g. a gene) from the minus strand (e.g. HLA-B or -C).}
-
-\item{lapply_fun}{lapply function name without quotes; lapply, pbapply::pblapply or parallel::mclapply are suggested}
-
-\item{...}{additional argument to the lapply function; mainly mc.cores when parallel::mclapply is chosen}
 }
 \value{
 a data frame of reads
@@ -56,6 +52,9 @@ Region type (E = exonic, N = intronic, I = intergenic) (RE)
 }
 \examples{
 \dontrun{
+# inspect content
+header <- Rsamtools::scanBamHeader(bam)
+idxstats <- Rsamtools::idxstatsBam(bam)
 The seqnames of different BAM file may require different formats:
 GenomicRanges::GRanges(seqnames = "chr1", strand = "+", ranges = IRanges::IRanges(start = start, end = end)) or
 GenomicRanges::GRanges(seqnames = "1", strand = "+", ranges = IRanges::IRanges(start = start, end = end))
@@ -76,16 +75,16 @@ hlaa <- GenomicRanges::GRanges(
 )
 
 reads <- igsc::get_bam_reads(
-  file_path = "my_bam_path",
-  genomic_ranges = chr6,
+  bam = "my_bam_path",
+  granges = chr6,
   lapply_fun = parallel::mclapply, mc.cores = parallel::detectCores()
 )
 
 # passing multiple regions may return reads twice or multiple times
 # if these reads overlap two or more of the regions (see ?scanBam and ?ScanBamParam)
 reads <- igsc::get_bam_reads(
-  file_path = "my_bam_path",
-  genomic_ranges = hlaa,
+  bam = "my_bam_path",
+  granges = hlaa,
   lapply_fun = parallel::mclapply, mc.cores = parallel::detectCores()
 )
 

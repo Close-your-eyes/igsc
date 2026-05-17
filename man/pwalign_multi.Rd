@@ -51,8 +51,6 @@ in this case no alignment is calculated}
 \item{pairwiseAlignment_args}{arguments to pwalign::pairwiseAlignment}
 
 \item{algnmt_plot_args}{arguments to igsc::algnmt_plot}
-
-\item{verbose}{}
 }
 \value{
 a list

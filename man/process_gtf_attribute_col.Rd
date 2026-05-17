@@ -23,7 +23,8 @@ process_gtf_attribute_col(
   aggregate_overlapping_exon_ranges = F,
   check_for_rotation = F,
   genome_length = NULL,
-  rm_entries_wo_matching_exon = F
+  rm_entries_wo_matching_exon = F,
+  verbose = T
 )
 }
 \arguments{

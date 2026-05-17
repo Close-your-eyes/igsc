@@ -6,9 +6,6 @@
 \usage{
 prep_ref_genome(path, genome_fasta = "genome.fa", genes_gtf = "genes.gtf")
 }
-\arguments{
-\item{genes_gtf}{}
-}
 \description{
 Title
 }

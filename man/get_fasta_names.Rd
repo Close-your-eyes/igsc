@@ -6,9 +6,6 @@
 \usage{
 get_fasta_names(file_path, prep_chr = T)
 }
-\arguments{
-\item{file_path}{}
-}
 \description{
 intended for
 }

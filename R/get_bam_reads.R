@@ -12,16 +12,14 @@
 #' UMI read quality (UY), Query hit index (HI), Number of reported alignments for query (NH), Number of mismatches per pair (nM),
 #' Region type (E = exonic, N = intronic, I = intergenic) (RE)
 #'
-#' @param file_path path to a position-sorted bam file; index file (.bai) has to be in the same directory
-#' @param genomic_ranges GRanges object with n genomic ranges. Setting the strand information to + or - does
+#' @param bam path to a position-sorted bam file; index file (.bai) has to be in the same directory
+#' @param granges GRanges object with n genomic ranges. Setting the strand information to + or - does
 #' not influence the reads returned by this function.
-#' @param add_tags tags to extract from bam file, passed to Rsamtools::ScanBamParam(); character(0) for nothing; missing tags do not seem to matter
-#' @param read_scores calculate read scores from PhredQuality
+#' @param tags tags to extract from bam file, passed to Rsamtools::ScanBamParam(); character(0) for nothing; missing tags do not seem to matter
+#' @param scores calculate read scores from PhredQuality
 #' @param revcomp_minus_strand passed as reverseComplement to Rsamtools::ScanBamParam. If FALSE, then all reads
 #' are returned as if they mapped to the plus strand (which is the convention for BAM files). Having all reads projected
 #' to the plus strand may be useful for subsequent alignment of reads to a reference sequence (e.g. a gene) from the plus strand (e.g. HLA-A).
-#' @param lapply_fun lapply function name without quotes; lapply, pbapply::pblapply or parallel::mclapply are suggested
-#' @param ... additional argument to the lapply function; mainly mc.cores when parallel::mclapply is chosen
 #' @param revcomp_plus_strand If TRUE then all reads mapped to minus strand are projected to the plus strand:
 #' seq is reverseComplemented and qual is reversed.
 #' Useful for subsequent alignment of reads to a reference sequence (e.g. a gene) from the minus strand (e.g. HLA-B or -C).
@@ -31,6 +29,9 @@
 #'
 #' @examples
 #' \dontrun{
+#' # inspect content
+#' header <- Rsamtools::scanBamHeader(bam)
+#' idxstats <- Rsamtools::idxstatsBam(bam)
 #' The seqnames of different BAM file may require different formats:
 #' GenomicRanges::GRanges(seqnames = "chr1", strand = "+", ranges = IRanges::IRanges(start = start, end = end)) or
 #' GenomicRanges::GRanges(seqnames = "1", strand = "+", ranges = IRanges::IRanges(start = start, end = end))
@@ -51,16 +52,16 @@
 #' )
 #'
 #' reads <- igsc::get_bam_reads(
-#'   file_path = "my_bam_path",
-#'   genomic_ranges = chr6,
+#'   bam = "my_bam_path",
+#'   granges = chr6,
 #'   lapply_fun = parallel::mclapply, mc.cores = parallel::detectCores()
 #' )
 #'
 #' # passing multiple regions may return reads twice or multiple times
 #' # if these reads overlap two or more of the regions (see ?scanBam and ?ScanBamParam)
 #' reads <- igsc::get_bam_reads(
-#'   file_path = "my_bam_path",
-#'   genomic_ranges = hlaa,
+#'   bam = "my_bam_path",
+#'   granges = hlaa,
 #'   lapply_fun = parallel::mclapply, mc.cores = parallel::detectCores()
 #' )
 #'
@@ -77,35 +78,31 @@
 #' # (same name for reads with different start and different seq)
 #' reads$readName <- make.unique(reads$readName)
 #' }
-get_bam_reads <- function(file_path,
-                          genomic_ranges,
-                          add_tags = c("CR", "CB", "CY", "AS", "UR", "UY", "HI", "NH", "nM", "RE"),
-                          read_scores = T,
+get_bam_reads <- function(bam,
+                          granges = GenomicRanges::GRanges(seqnames = as.character(Rsamtools::idxstatsBam(bam)[which.max(Rsamtools::idxstatsBam(bam)[["mapped"]]),"seqnames"]),
+                                                           ranges = "1..10000"),
+                          tags = c("CR", "CB", "CY", "AS", "UR", "UB",
+                                   "UY", "HI", "NH", "nM", "RE"),
+                          scores = T,
                           revcomp_minus_strand = F,
-                          revcomp_plus_strand = F,
-                          lapply_fun = lapply,
-                          ...) {
+                          revcomp_plus_strand = F) {
 
-  if (!requireNamespace("BiocManager", quietly = T)) {
-    utils::install.packages("BiocManager")
-  }
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
-  if (!requireNamespace("Rsamtools", quietly = T)) {
-    BiocManager::install("Rsamtools")
-  }
-  lapply_fun <- match.fun(lapply_fun)
 
+  if (missing(bam) || bam == "" || !file.exists(bam)) {
+    stop("bam not found or missing.")
+  }
 
   message("Reading BAM file.")
   params <- Rsamtools::ScanBamParam(
-    which = genomic_ranges,
+    which = granges,
     what = Rsamtools::scanBamWhat(),
-    tag = add_tags,
+    tag = tags,
     reverseComplement = revcomp_minus_strand
   )
-  reads <- Rsamtools::scanBam(file_path, param = params)
+  reads <- Rsamtools::scanBam(bam, param = params)
 
   # start of a read always refers to the (+)Strand, so for reads on the (-)Strand start is actually the end, (see IGV browser, read details)
   reads <- purrr::map_dfr(reads, function(x) {
@@ -128,17 +125,21 @@ get_bam_reads <- function(file_path,
     #lapply(lapply(strsplit(reads[which(reads$strand == "+"), "qual"], ""), rev), paste, collapse = "")
   }
 
-  if (anyDuplicated(reads$qname) != 0) {
+  if (anyDuplicated(reads$qname)) {
     message("Some read names (qname) are duplicated.")
   }
 
-  if (read_scores) {
+  if (scores) {
     message("Calculating read score.")
-    xx <- methods::as(Biostrings::PhredQuality(reads$qual), "IntegerList")
-    reads$readQualNum <- unlist(lapply_fun(xx, paste, collapse = ".", ...))
-    reads$minQual <- unlist(lapply_fun(xx, min, ...))
-    reads$meanQual <- unlist(lapply_fun(xx, mean, ...))
-    reads$n_belowQ30 <- unlist(lapply_fun(xx, function(x) sum(x < 30), ...))
+    pq <- methods::as(Biostrings::PhredQuality(reads$qual), "IntegerList")
+    stats <- igsc:::qual_stats_cpp(pq)
+    for (i in names(stats)) {
+      reads[[i]] <- stats[[i]]
+    }
+    # reads$readQualNum <- unlist(lapply_fun(pq, paste, collapse = ".", ...))
+    # reads$minQual <- unlist(lapply_fun(pq, min, ...))
+    # reads$meanQual <- unlist(lapply_fun(pq, mean, ...))
+    # reads$n_belowQ30 <- unlist(lapply_fun(pq, function(x) sum(x < 30), ...))
   }
   return(reads)
 }

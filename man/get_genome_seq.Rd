@@ -16,9 +16,6 @@ get_genome_seq(
   ucsc_toupper = T
 )
 }
-\arguments{
-\item{fagz_folder}{}
-}
 \description{
 Title
 }

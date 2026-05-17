@@ -4,7 +4,7 @@
 \alias{make_kv_attr_col}
 \title{Make kv pairs in attribute col for saving proper gtf df}
 \usage{
-make_kv_attr_col(gtf_df, keep_index_col = F)
+make_kv_attr_col(gtf_df, keep_index_col = F, verbose = T)
 }
 \arguments{
 \item{gtf_df}{subsetted gtf df with processed attribute column}

@@ -10,6 +10,25 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// compare_nonref_cpp
+DataFrame compare_nonref_cpp(DataFrame df, std::string ref, std::string pos_col, std::string seq_col, std::string name_col, std::string match_symbol, std::string mismatch_symbol, bool keep_gaps, std::string nonref_mismatch_as);
+RcppExport SEXP _igsc_compare_nonref_cpp(SEXP dfSEXP, SEXP refSEXP, SEXP pos_colSEXP, SEXP seq_colSEXP, SEXP name_colSEXP, SEXP match_symbolSEXP, SEXP mismatch_symbolSEXP, SEXP keep_gapsSEXP, SEXP nonref_mismatch_asSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< DataFrame >::type df(dfSEXP);
+    Rcpp::traits::input_parameter< std::string >::type ref(refSEXP);
+    Rcpp::traits::input_parameter< std::string >::type pos_col(pos_colSEXP);
+    Rcpp::traits::input_parameter< std::string >::type seq_col(seq_colSEXP);
+    Rcpp::traits::input_parameter< std::string >::type name_col(name_colSEXP);
+    Rcpp::traits::input_parameter< std::string >::type match_symbol(match_symbolSEXP);
+    Rcpp::traits::input_parameter< std::string >::type mismatch_symbol(mismatch_symbolSEXP);
+    Rcpp::traits::input_parameter< bool >::type keep_gaps(keep_gapsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type nonref_mismatch_as(nonref_mismatch_asSEXP);
+    rcpp_result_gen = Rcpp::wrap(compare_nonref_cpp(df, ref, pos_col, seq_col, name_col, match_symbol, mismatch_symbol, keep_gaps, nonref_mismatch_as));
+    return rcpp_result_gen;
+END_RCPP
+}
 // mutate_value_cpp
 CharacterVector mutate_value_cpp(CharacterVector value, CharacterVector ref_col, std::string match_symbol, std::string mismatch_symbol, bool keep_match_gaps, std::string nonref_mismatch_as);
 RcppExport SEXP _igsc_mutate_value_cpp(SEXP valueSEXP, SEXP ref_colSEXP, SEXP match_symbolSEXP, SEXP mismatch_symbolSEXP, SEXP keep_match_gapsSEXP, SEXP nonref_mismatch_asSEXP) {
@@ -48,6 +67,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// qual_stats_cpp
+List qual_stats_cpp(List pq);
+RcppExport SEXP _igsc_qual_stats_cpp(SEXP pqSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type pq(pqSEXP);
+    rcpp_result_gen = Rcpp::wrap(qual_stats_cpp(pq));
+    return rcpp_result_gen;
+END_RCPP
+}
 // revcomp_rcpp
 std::vector<std::string> revcomp_rcpp(std::vector<std::string> dna_strings);
 RcppExport SEXP _igsc_revcomp_rcpp(SEXP dna_stringsSEXP) {
@@ -73,9 +103,11 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_igsc_compare_nonref_cpp", (DL_FUNC) &_igsc_compare_nonref_cpp, 9},
     {"_igsc_mutate_value_cpp", (DL_FUNC) &_igsc_mutate_value_cpp, 6},
     {"_igsc_process_attr_col_rcpp", (DL_FUNC) &_igsc_process_attr_col_rcpp, 1},
     {"_igsc_processStrings", (DL_FUNC) &_igsc_processStrings, 1},
+    {"_igsc_qual_stats_cpp", (DL_FUNC) &_igsc_qual_stats_cpp, 1},
     {"_igsc_revcomp_rcpp", (DL_FUNC) &_igsc_revcomp_rcpp, 1},
     {"_igsc_revcomp_rcpp2", (DL_FUNC) &_igsc_revcomp_rcpp2, 2},
     {NULL, NULL, 0}
