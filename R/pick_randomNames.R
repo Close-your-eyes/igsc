@@ -25,7 +25,7 @@ pick_randomNames <- function(n,
 
   if ("which.names" %in% names(randomNames_args)) {
     if (randomNames_args$which.names == "both") {
-      if ("names.sep" %in% names(randomNames_args)) {
+      if ("name.sep" %in% names(randomNames_args)) {
         sep <- randomNames_args$name.sep
       } else {
         sep <- formals(randomNames::randomNames)$name.sep

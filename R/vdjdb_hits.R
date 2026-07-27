@@ -36,7 +36,8 @@
 #' @param ... arguments passed to mapply_fun and lapply_fun,
 #' most relevant: mc.cores (e.g parallel::detectCores())
 #' @param lapply_fun lapply function for levensthein distance calculation,
-#' suggested are lapply, pblapply::pblapply, parallel::mclapply
+#' suggested are lapply, pblapply::pblapply, parallel::mclapply;
+#' however stringdist package uses multiple threads: getOption("sd_num_thread")
 #'
 #' @return data frame of matched CDR3 from tcrs and vdjdb
 #' @export
@@ -53,9 +54,7 @@
 #' uni_res <- igsc::vdjdb_hits(vdjdb = vdjdb_hs,
 #'                             tcrs = tcr_data,
 #'                             TRAxTRB = c(F, T), # TRA vs TRA, TRB vs TRB and TRA vs TRB
-#'                             max_lvdist = 8, # max distance (max n of unequal aa in CDR3)
-#'                             lapply_fun = parallel::mclapply,
-#'                             mc.cores = 8)
+#'                             max_lvdist = 8) # max distance (max n of unequal aa in CDR3)
 #' res <- uni_res |>
 #'   dplyr::left_join(vdjdb_hs, by = c("chain_vdjdb" = "chain", "CDR3_vdjdb" = "CDR3", "MHC.class" = "MHC.class"))
 #' # filter for most reliable hits
@@ -212,6 +211,10 @@ vdjdb_hits <- function(tcrs,
                                   ...) {
 
   dots <- list(...)
+  if (is.null(dots[["mc.cores"]])) {
+    dots[["mc.cores"]] <- 1
+  }
+
   # split into chunks of 100 rows
   tcrs <- split_min100(tcrs, n = dots[["mc.cores"]])
   tcrs <- purrr::map(tcrs, ~split(.x[[tcr_cdr3_col]], .x[[tcr_tr_col]])[c("TRA", "TRB")])
@@ -222,7 +225,7 @@ vdjdb_hits <- function(tcrs,
   vdjdb <- purrr::discard(vdjdb, lengths(vdjdb) == 0)
 
   ## comparing TRA with TRA and TRB with TRB
-  matches <- purrr::map_dfr(stats::setNames(c("TRA", "TRB"), c("TRA", "TRB")), function(TRX) {
+  matches <- purrr::map_dfr(purrr::set_names(c("TRA", "TRB")), function(TRX) {
     tcrs <- tcrs[which(grepl(TRX, names(tcrs)))]
     # pick TRX or its counterpart
     vdjdb <- vdjdb[[ifelse(TRAxTRB, setdiff(c("TRA", "TRB"), TRX), TRX)]]
@@ -232,16 +235,16 @@ vdjdb_hits <- function(tcrs,
         a = vdjdb,
         b = x,
         method = "lv",
-        nthread = 1)
-      colnames(matches) <- x
-      rownames(matches) <- vdjdb
-      matches <- brathering::mat_to_df_long(
-        matches,
+        useNames = T,
+        nthread = getOption("sd_num_thread"))
+      userows <- which(apply(matches, 1, function(x) any(x<=max_lvdist)))
+      usecols <- which(apply(matches, 2, function(x) any(x<=max_lvdist)))
+      # dplyr::filter(lv <= max_lvdist)
+      brathering::mat_to_df_long(
+        matches[userows, usecols, drop = F],
         rownames_to = vdj_cdr3_col,
         colnames_to = tcr_cdr3_col,
-        values_to = "lv"
-      ) |>
-        dplyr::filter(lv <= max_lvdist)
+        values_to = "lv")
     }, ...) |>
       dplyr::bind_rows()
     matches[[tcr_tr_col]] <- TRX
