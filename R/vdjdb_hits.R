@@ -5,7 +5,7 @@
 #' aa sequences with levensthein distance (lv). Export a tsv of all or selected
 #' entries here https://vdjdb.cdr3.net/search. Provide that tsv as data frame
 #' (vdjdb). From vdjdb and tcrs distinct rows are compared by lv and if selected
-#' by amino acid similarity (PAM30_similarity). Returned data frame may be
+#' by amino acid similarity (BLOSUM62_similarity). Returned data frame may be
 #' joined to original columns from vdjdb and tcrs followed by plotting with
 #' ggplot2 (see example).
 #'
@@ -28,11 +28,9 @@
 #' TRUE: TRA vs TRB only;
 #' provide T, F or c(T,F); the latter does both
 #' @param max_lvdist maximum levensthein distance between CDR3s for return
-#' (also filtering before PAM30 similarity calculation)
-#' @param PAM30_similarity calculate similarity (pairwise alignment) between
-#' CDR3s based on PAM30 substitution matrix
-#' @param mapply_fun mapply function for PAM30_similarity,
-#' suggested are mapply, pbapply::pbmapply, parallel::mcmapply
+#' (also filtering before BLOSUM62 similarity calculation)
+#' @param BLOSUM62_similarity calculate similarity (pairwise alignment) between
+#' CDR3s based on BLOSUM62 substitution matrix
 #' @param ... arguments passed to mapply_fun and lapply_fun,
 #' most relevant: mc.cores (e.g parallel::detectCores())
 #' @param lapply_fun lapply function for levensthein distance calculation,
@@ -79,8 +77,7 @@ vdjdb_hits <- function(tcrs,
                        tcr_cdr3_col = NULL,
                        TRAxTRB = F,
                        max_lvdist = 3,
-                       PAM30_similarity = F,
-                       mapply_fun = mapply,
+                       BLOSUM62_similarity = F,
                        lapply_fun = lapply,
                        ...) {
 
@@ -95,6 +92,7 @@ vdjdb_hits <- function(tcrs,
                                         progress = F,
                                         .name_repair = make.names))
   }
+
 
   # detect column names
   if (is.null(vdj_tr_col)) {
@@ -117,8 +115,6 @@ vdjdb_hits <- function(tcrs,
   if (any(!c(tcr_tr_col, tcr_cdr3_col) %in% names(tcrs))) {
     stop("tcr_tr_col or tcr_cdr3_col not found in tcrs.")
   }
-
-
 
   if (vdj_tr_col == tcr_tr_col) {
     message("Making tcr_tr_col and vdj_tr_col unique.")
@@ -155,14 +151,13 @@ vdjdb_hits <- function(tcrs,
     stop(paste0(tcr_tr_col, " column should only contain TRA and/or TRB."))
   }
 
-  mapply_fun <- match.fun(mapply_fun)
   lapply_fun <- match.fun(lapply_fun)
 
   vdjdb <- dplyr::distinct(vdjdb, !!rlang::sym(vdj_cdr3_col), !!rlang::sym(vdj_tr_col))
   tcrs <- dplyr::distinct(tcrs, !!rlang::sym(tcr_tr_col), !!rlang::sym(tcr_cdr3_col))
 
   matches <- do.call(rbind, lapply(TRAxTRB,
-                                   .vdjdb_tcrs_match_fun,
+                                   vdjdb_tcrs_match_fun,
                                    vdjdb = vdjdb,
                                    tcrs = tcrs,
                                    vdj_tr_col = vdj_tr_col,
@@ -173,42 +168,113 @@ vdjdb_hits <- function(tcrs,
                                    lapply_fun = lapply_fun,
                                    ...))
 
-  if (PAM30_similarity) {
-    matches$PAM30 <- mapply_fun(Biostrings::pairwiseAlignment,
-                                matches[,vdj_cdr3_col],
-                                matches[,tcr_cdr3_col],
-                                substitutionMatrix = "PAM30",
-                                scoreOnly = T,
-                                ...)
-    ref1 <- mapply_fun(Biostrings::pairwiseAlignment,
-                       matches[,vdj_cdr3_col],
-                       matches[,vdj_cdr3_col],
-                       substitutionMatrix = "PAM30",
-                       scoreOnly = T,
-                       ...)
-    ref2 <- mapply_fun(Biostrings::pairwiseAlignment,
-                       matches[,tcr_cdr3_col],
-                       matches[,tcr_cdr3_col],
-                       substitutionMatrix = "PAM30",
-                       scoreOnly = T,
-                       ...)
-    matches$PAM30_corr <- matches$PAM30/(mapply(function(x, y) mean(c(x, y)), ref1, ref2))
-  }
+
+  matches <- dplyr::bind_cols(matches,
+                              get_alignment_scores(x = matches[[vdj_cdr3_col]],
+                                                   y = matches[[tcr_cdr3_col]],
+                                                   substitution_matrix = "BLOSUM62",
+                                                   ...)
+  )
+
+
 
   return(matches)
 
 }
 
-.vdjdb_tcrs_match_fun <- function(TRAxTRB,
-                                  vdjdb,
-                                  tcrs,
-                                  vdj_tr_col,
-                                  tcr_tr_col,
-                                  vdj_cdr3_col,
-                                  tcr_cdr3_col,
-                                  max_lvdist,
-                                  lapply_fun,
-                                  ...) {
+
+#' Calculate Pairwise Alignment Scores
+#'
+#' Calculates pairwise alignment scores between corresponding sequences in
+#' `x` and `y`. Each score is normalized by the mean of the two sequences'
+#' self-alignment scores.
+#'
+#' @param x A character vector or sequence-set object containing the first set
+#'   of biological sequences.
+#' @param y A character vector or sequence-set object containing the second set
+#'   of biological sequences. Must have the same length as `x`.
+#' @param substitution_matrix A substitution matrix or the name of a
+#'   substitution matrix accepted by
+#'   [pwalign::pairwiseAlignment()]. Defaults to `"BLOSUM62"`.
+#' @param score_col A single character string specifying the name of the raw
+#'   alignment-score column. Defaults to the value of `substitution_matrix`.
+#' @param normalized_col A single character string specifying the name of the
+#'   normalized-score column. Defaults to `score_col` followed by `"_rel"`.
+#' @param ... Additional arguments passed to [pwalign::pairwiseAlignment()],
+#'   such as `type`, `gapOpening`, and `gapExtension`. The `scoreOnly` argument
+#'   is set internally and should not be supplied.
+#'
+#' @return A data frame with one row per sequence pair and two numeric columns:
+#'   the raw pairwise alignment score and the score divided by the mean
+#'   self-alignment score of the two sequences.
+#'
+#' @export
+#'
+#' @examples
+#' get_alignment_scores(
+#'   x = c("CASSLGQETQYF", "CASSPGQGDNEQFF"),
+#'   y = c("CASSIRSSYEQYF", "CASSPGQGTNEQFF")
+#' )
+#'
+#' get_alignment_scores(
+#'   x = "CASSLGQETQYF",
+#'   y = "CASSIRSSYEQYF",
+#'   score_col = "alignment_score",
+#'   normalized_col = "relative_score",
+#'   gapOpening = 10,
+#'   gapExtension = 0.5
+#' )
+get_alignment_scores <- function(
+    x,
+    y,
+    substitution_matrix = "BLOSUM62",
+    score_col = substitution_matrix,
+    normalized_col = paste0(score_col, "_rel"),
+    ...
+) {
+
+  score <- pwalign::pairwiseAlignment(
+    x,
+    y,
+    substitutionMatrix = substitution_matrix,
+    scoreOnly = TRUE,
+    ...
+  )
+
+  ref1 <- pwalign::pairwiseAlignment(
+    x,
+    x,
+    substitutionMatrix = substitution_matrix,
+    scoreOnly = TRUE,
+    ...
+  )
+
+  ref2 <- pwalign::pairwiseAlignment(
+    y,
+    y,
+    substitutionMatrix = substitution_matrix,
+    scoreOnly = TRUE,
+    ...
+  )
+
+  reference_score <- (ref1 + ref2) / 2
+
+  df <- data.frame(score, score / reference_score)
+  names(df) <- c(score_col, normalized_col)
+
+  return(df)
+}
+
+vdjdb_tcrs_match_fun <- function(TRAxTRB,
+                                 vdjdb,
+                                 tcrs,
+                                 vdj_tr_col,
+                                 tcr_tr_col,
+                                 vdj_cdr3_col,
+                                 tcr_cdr3_col,
+                                 max_lvdist,
+                                 lapply_fun,
+                                 ...) {
 
   dots <- list(...)
   if (is.null(dots[["mc.cores"]])) {
@@ -239,12 +305,13 @@ vdjdb_hits <- function(tcrs,
         nthread = getOption("sd_num_thread"))
       userows <- which(apply(matches, 1, function(x) any(x<=max_lvdist)))
       usecols <- which(apply(matches, 2, function(x) any(x<=max_lvdist)))
-      # dplyr::filter(lv <= max_lvdist)
+
       brathering::mat_to_df_long(
         matches[userows, usecols, drop = F],
         rownames_to = vdj_cdr3_col,
         colnames_to = tcr_cdr3_col,
-        values_to = "lv")
+        values_to = "lv") |>
+        dplyr::filter(lv <= max_lvdist)
     }, ...) |>
       dplyr::bind_rows()
     matches[[tcr_tr_col]] <- TRX
@@ -292,7 +359,15 @@ prop_TRA_TRB <- function(df, minrow = 100) {
 prop_CDR3_start <- function(df, minrow = 100) {
   CDR3_start <- readRDS(system.file("extdata", "cdr3starts.rds", package = "igsc"))
   rows <- min(minrow, nrow(df))
-  sapply(df, function(col) mean(grepl(paste(paste0("^", names(CDR3_start)), collapse = "|"), col, ignore.case = T), na.rm = T))
+
+  charcols <- which(unlist(lapply(df, is.character)))
+  candidatecols <- which(unlist(lapply(df[,charcols], function(x) mean(nchar(x))))>9)
+  candidatecols2 <- intersect(candidatecols, charcols)
+  if (!length(candidatecols2)) {
+    stop("CDR3 column could not be guessed.")
+  }
+  sapply(df[,candidatecols2,drop = F],
+         function(col) mean(grepl(paste(paste0("^", names(CDR3_start)), collapse = "|"), col, ignore.case = T), na.rm = T))
 }
 
 split_min100 <- function(df, n) {

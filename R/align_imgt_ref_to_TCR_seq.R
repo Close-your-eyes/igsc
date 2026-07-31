@@ -1,6 +1,6 @@
 #' Align IMGTs reference sequences to your TCR sequence
 #'
-#' With Biostrings::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
+#' With pwalign::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
 #' The sequence within these border may then be used for further steps. In case of mouse, IMGT gene segments from Mus musculus are preferred.
 #'
 #' @param chain character which TCR chain to align, currently only TRA and TRB

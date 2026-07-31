@@ -13,8 +13,7 @@ vdjdb_hits(
   tcr_cdr3_col = NULL,
   TRAxTRB = F,
   max_lvdist = 3,
-  PAM30_similarity = F,
-  mapply_fun = mapply,
+  BLOSUM62_similarity = F,
   lapply_fun = lapply,
   ...
 )
@@ -46,16 +45,14 @@ TRUE: TRA vs TRB only;
 provide T, F or c(T,F); the latter does both}
 
 \item{max_lvdist}{maximum levensthein distance between CDR3s for return
-(also filtering before PAM30 similarity calculation)}
+(also filtering before BLOSUM62 similarity calculation)}
 
-\item{PAM30_similarity}{calculate similarity (pairwise alignment) between
-CDR3s based on PAM30 substitution matrix}
-
-\item{mapply_fun}{mapply function for PAM30_similarity,
-suggested are mapply, pbapply::pbmapply, parallel::mcmapply}
+\item{BLOSUM62_similarity}{calculate similarity (pairwise alignment) between
+CDR3s based on BLOSUM62 substitution matrix}
 
 \item{lapply_fun}{lapply function for levensthein distance calculation,
-suggested are lapply, pblapply::pblapply, parallel::mclapply}
+suggested are lapply, pblapply::pblapply, parallel::mclapply;
+however stringdist package uses multiple threads: getOption("sd_num_thread")}
 
 \item{...}{arguments passed to mapply_fun and lapply_fun,
 most relevant: mc.cores (e.g parallel::detectCores())}
@@ -69,7 +66,7 @@ narrow potential antigen specificity. Here this is done simply by comparing
 aa sequences with levensthein distance (lv). Export a tsv of all or selected
 entries here https://vdjdb.cdr3.net/search. Provide that tsv as data frame
 (vdjdb). From vdjdb and tcrs distinct rows are compared by lv and if selected
-by amino acid similarity (PAM30_similarity). Returned data frame may be
+by amino acid similarity (BLOSUM62_similarity). Returned data frame may be
 joined to original columns from vdjdb and tcrs followed by plotting with
 ggplot2 (see example).
 }
@@ -85,9 +82,7 @@ vdjdb_hs <- vdjdb_complete |>
 uni_res <- igsc::vdjdb_hits(vdjdb = vdjdb_hs,
                             tcrs = tcr_data,
                             TRAxTRB = c(F, T), # TRA vs TRA, TRB vs TRB and TRA vs TRB
-                            max_lvdist = 8, # max distance (max n of unequal aa in CDR3)
-                            lapply_fun = parallel::mclapply,
-                            mc.cores = 8)
+                            max_lvdist = 8) # max distance (max n of unequal aa in CDR3)
 res <- uni_res |>
   dplyr::left_join(vdjdb_hs, by = c("chain_vdjdb" = "chain", "CDR3_vdjdb" = "CDR3", "MHC.class" = "MHC.class"))
 # filter for most reliable hits

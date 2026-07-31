@@ -119,7 +119,7 @@ attach_imgt_alleles <- function(seq,
         return(y)
       } else {
         if (pick.by == "alignment") {
-          max.ind <- which.max(Biostrings::pairwiseAlignment(subject = Biostrings::DNAString(seq[x]), pattern = Biostrings::DNAStringSet(ref_seq[y]), type = "local", scoreOnly = T))
+          max.ind <- which.max(pwalign::pairwiseAlignment(subject = Biostrings::DNAString(seq[x]), pattern = Biostrings::DNAStringSet(ref_seq[y]), type = "local", scoreOnly = T))
           max.ind <- max.ind[sample(seq_along(max.ind), 1)] # if multiple matches with equal score, pick one randomly
           return(y[max.ind])
         } else if (pick.by == "random") {

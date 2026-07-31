@@ -109,7 +109,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
     if (is.na(x[,FR]) || x[,"Functionality"] != "F") {
       NA
     } else {
-      Biostrings::pairwiseAlignment(subject = x[,"seq.aa"], pattern = x[,FR], type = "local")
+      pwalign::pairwiseAlignment(subject = x[,"seq.aa"], pattern = x[,FR], type = "local")
     }
   }
 

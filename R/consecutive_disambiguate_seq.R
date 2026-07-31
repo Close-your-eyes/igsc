@@ -37,7 +37,7 @@ consecutive_distinct_seq <- function (seq,
   }
 
   out_seq <- names(which.max(sapply(strsplit(as.character(seq), paste(c(names(ref_symbols)), collapse = "|"))[[1]], nchar)))
-  pa <- Biostrings::pairwiseAlignment(subject = seq, pattern = out_seq, type = "local")
+  pa <- pwalign::pairwiseAlignment(subject = seq, pattern = out_seq, type = "local")
   pa_limits <- c(pa@subject@range@start, pa@subject@range@start + pa@subject@range@width - 1)
 
   return(list(seq = out_seq, limits = pa_limits))

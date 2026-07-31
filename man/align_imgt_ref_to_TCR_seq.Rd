@@ -38,7 +38,7 @@ align_imgt_ref_to_TCR_seq(
 a list
 }
 \description{
-With Biostrings::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
+With pwalign::pairwiseAlignment() the borders of the V(D)J-segments in your TCR sequence can be determined.
 The sequence within these border may then be used for further steps. In case of mouse, IMGT gene segments from Mus musculus are preferred.
 }
 \examples{
