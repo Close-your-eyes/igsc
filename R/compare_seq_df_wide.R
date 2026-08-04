@@ -56,6 +56,10 @@ compare_seq_df_wide <- function(df,
       df = df,
       shape = "wide"
     )
+  } else {
+    if (!ref %in% names(df)) {
+      stop("ref not found in column names.")
+    }
   }
 
   name_order <- names(which(purrr::map_lgl(df, is.character)))
@@ -71,6 +75,7 @@ compare_seq_df_wide <- function(df,
     message("Found duplicate rows in df. Will use dplyr::distict to fix this but you should check your data frame.")
     df <- dplyr::distinct(df, !!rlang::sym(pos_col), .keep_all = T)
   }
+
   #
   # df <- df %>%
   #   dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%

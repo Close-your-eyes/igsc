@@ -11,7 +11,8 @@ df_to_xstringset(
   seq_col = "seq",
   pos_col = "position",
   sym_internal_gap = "-",
-  sym_terminal_gap = "-"
+  sym_terminal_gap = "-",
+  format = c("long", "wide")
 )
 }
 \arguments{

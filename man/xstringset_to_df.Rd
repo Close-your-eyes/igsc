@@ -9,10 +9,13 @@ xstringset_to_df(
   name_col = "seq.name",
   seq_col = "seq",
   pos_col = "position",
-  subject_name = NULL
+  subject_name = NULL,
+  format = c("long", "wide")
 )
 }
 \arguments{
+\item{xstringset}{AA/DNA/RNA StringSet from Biostrings::}
+
 \item{name_col}{column with seq names}
 
 \item{seq_col}{column with seq data (nt or aa)}
@@ -21,9 +24,11 @@ xstringset_to_df(
 
 \item{subject_name}{name of sequence that is subject or reference;
 is passed as attribute to return df}
+
+\item{format}{join sequences to long or wide df?}
 }
 \value{
-long data frame
+data frame
 }
 \description{
 Convert XStringSet to data frame

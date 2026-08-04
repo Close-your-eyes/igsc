@@ -505,7 +505,6 @@ style_fun_aa <- function(x,
     P = list(cols[5], blacker),
 
     # Special case for ambiguous or unknown or stop codon
-    N = list("grey40", whiter),
     "*" = list("grey40", whiter)
   )
 

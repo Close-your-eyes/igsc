@@ -95,6 +95,7 @@ pwalign_to_df <- function(pa,
 #' @param pos_col position column
 #' @param sym_internal_gap symbol for internal gaps
 #' @param sym_terminal_gap symbol for terminal gaps
+#' @param format
 #'
 #' @returns XStringSet
 #' @export
@@ -106,7 +107,17 @@ df_to_xstringset <- function(df,
                              seq_col = "seq",
                              pos_col = "position",
                              sym_internal_gap = "-",
-                             sym_terminal_gap = "-") {
+                             sym_terminal_gap = "-",
+                             format = c("long", "wide")) {
+
+  format <- rlang::arg_match(format)
+
+  if (format == "wide") {
+    df <- df |>
+      tibble::column_to_rownames(pos_col) |>
+      as.matrix() |>
+      brathering::mat_to_df_long(rownames_to = pos_col, colnames_to = name_col, values_to = seq_col)
+  }
 
   if (!name_col %in% names(df)) {
     stop("name_col not found in df.")
@@ -143,6 +154,7 @@ df_to_xstringset <- function(df,
 
 
 guess_type2 <- function(seq_vector) {
+  seq_vector <- stats::na.omit(seq_vector)
   seq_vector <- unique(toupper(as.character(seq_vector)))
   seq_vector <- gsub("[^A-Z]", "", seq_vector)
 

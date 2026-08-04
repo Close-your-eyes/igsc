@@ -97,6 +97,22 @@ aa_list <- list(tiny = c("A", "C", "G", "S", "T"),
 #asparagine/aspartic acid - asx - B
 #glutamine/glutamic acid - glx - Z
 
+
+# colors as used in print alignment fun
+cols = RColorBrewer::brewer.pal(7, "Set2")[-c(4,5)]
+group_names <- c(
+  "Non-polar",
+  "Polar",
+  "Positive charge",
+  "Negative charge",
+  "Special"
+)
+aa_group_cols <- purrr::map_chr(seq_along(group_names), function(i) {
+  crayon::make_style(cols[i])(group_names[i])
+})
+# cat(aa_group_cols)
+
+
 aa_df_long <- stack(aa_list)
 aa_df_long$ind <- as.character(aa_df_long$ind)
 names(aa_df_long) <- c("aa", "property")
@@ -107,7 +123,8 @@ aa_info <- list(aa_main_prop = aa_main_prop,
                 aa_df_long = aa_df_long,
                 aa_df_nest = aa_df_nest,
                 aa_df_nest2 = aa_df_nest2,
-                aa_names = utils::stack(Biostrings::AMINO_ACID_CODE[Biostrings::AA_STANDARD]))
+                aa_names = utils::stack(Biostrings::AMINO_ACID_CODE[Biostrings::AA_STANDARD]),
+                aa_group_cols = aa_group_cols)
 
 # chem_col <- stack(igsc:::scheme_AA[,"Chemistry_AA"]) %>% dplyr::group_by(values) %>% dplyr::summarise(aa = paste(ind, collapse = ","))
 

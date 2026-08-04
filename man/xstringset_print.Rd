@@ -12,9 +12,8 @@ xstringset_print(
   print_pos_end = F,
   pos_by_ref = T,
   col_out = T,
-  call_compare_seq_df_long = F,
-  compare_seq_df_long_args = list(seq_original = NULL, change_nonref = T, change_ref = T,
-    keep_match_gaps = T)
+  call_compare_seq_df_wide = F,
+  compare_seq_df_wide_args = list(change_nonref = T, change_ref = F, keep_match_gaps = T)
 )
 }
 \arguments{
@@ -27,17 +26,17 @@ xstringset_print(
 \item{print_pos}{print position above}
 
 \item{print_pos_end}{print position of each sequence at lineend (gaps excluded);
-requires keep_match_gaps incompare_seq_df_long}
+requires keep_match_gaps incompare_seq_df_wide}
 
 \item{pos_by_ref}{above positions in reference to ref (considering its gaps),
 or just total position}
 
 \item{col_out}{colored output?}
 
-\item{call_compare_seq_df_long}{call igsc::compare_seq_df_long to optionally
+\item{call_compare_seq_df_wide}{call igsc::compare_seq_df_wide to optionally
 replace matches and/or mismatches}
 
-\item{compare_seq_df_long_args}{arguments to compare_seq_df_long}
+\item{compare_seq_df_wide_args}{arguments to compare_seq_df_wide}
 }
 \value{
 xstringset
@@ -52,12 +51,12 @@ msaln <- DECIPHER::AlignSeqs(Biostrings::DNAStringSet(setNames(out$coding,
                                                                out$hgnc_symbol)))
 # print as is
 xstringset_print(msaln)
-# print with call_compare_seq_df_long anf GZMB as reference
-xstringset_print(msaln, call_compare_seq_df_long = T,
+# print with call_compare_seq_df_wide anf GZMB as reference
+xstringset_print(msaln, call_compare_seq_df_wide = T,
                  ref = "GZMB", print_pos_end = T)
-# run compare_seq_df_long  yourself
+# run compare_seq_df_wide  yourself
 df <- igsc:::xstringset_to_df(msaln)
-msalndf <- compare_seq_df_long(df, ref = "GZMB",
+msalndf <- compare_seq_df_wide(df, ref = "GZMB",
                                seq_original = NULL,
                                change_nonref = T)
 msalnx <- df_to_xstringset(msalndf)

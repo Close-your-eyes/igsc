@@ -55,8 +55,12 @@ Runs the bundled Python script to calculate a full TCRdist distance
 matrix and a CDR3-only distance matrix for either T-cell receptor alpha
 (TRA) or beta (TRB) sequences.
 https://github.com/kmayerb/tcrdist3
+pip install tcrdist3 pandas
 }
 \details{
+This function works with csv files on disk. See run_tcrdist3_reticulate as
+alternative.
+
 The input must be a comma-separated text file with a header row. Required
 columns depend on \code{chain}:
 

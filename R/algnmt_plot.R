@@ -978,14 +978,15 @@ add_tile_line <- function(aln,
 
 #' Convert XStringSet to data frame
 #'
-#' @param xstringset
+#' @param xstringset AA/DNA/RNA StringSet from Biostrings::
 #' @param name_col column with seq names
 #' @param seq_col column with seq data (nt or aa)
 #' @param pos_col position column
 #' @param subject_name name of sequence that is subject or reference;
 #' is passed as attribute to return df
+#' @param format join sequences to long or wide df?
 #'
-#' @returns long data frame
+#' @returns data frame
 #' @export
 #'
 #' @examples
@@ -993,18 +994,29 @@ xstringset_to_df <- function(xstringset,
                              name_col = "seq.name",
                              seq_col = "seq",
                              pos_col = "position",
-                             subject_name = NULL) {
+                             subject_name = NULL,
+                             format = c("long", "wide")) {
+
+  format <- rlang::arg_match(format)
   terminal_gap_sym <- "&"
   out <- purrr::map(as.list(xstringset), as.character)
   out <- purrr::map(out, replace_terminal_dashes, replacement = terminal_gap_sym)
   out <- purrr::flatten(purrr::map(out, strsplit, split = ""))
   out <- purrr::map(out, ~gsub(terminal_gap_sym, NA, .x))
 
-  out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = name_col)
-  names(out)[c(2,3)] <- c(seq_col, pos_col)
-  out[[pos_col]] <- as.numeric(as.character(out[[pos_col]]))
-  # maintain the original order of sequences
-  out[[name_col]] <- factor(out[[name_col]], levels = names(xstringset))
+  if (format == "long") {
+    out <- purrr::map_dfr(out, function(x) utils::stack(stats::setNames(x, seq(1, length(x)))), .id = name_col)
+    names(out)[c(2,3)] <- c(seq_col, pos_col)
+    out[[pos_col]] <- as.numeric(as.character(out[[pos_col]]))
+    # maintain the original order of sequences
+    out[[name_col]] <- factor(out[[name_col]], levels = names(xstringset))
+  } else {
+    if (is.null(names(out))) {
+      names(out) <- seq_along(out)
+    }
+    out <- dplyr::bind_cols(out)
+    out[[pos_col]] <- 1:nrow(out)
+  }
 
   if (!is.null(subject_name)) {
     attr(out, "subject_name") <- subject_name

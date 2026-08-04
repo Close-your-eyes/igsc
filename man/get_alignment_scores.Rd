@@ -6,55 +6,70 @@
 \usage{
 get_alignment_scores(
   x,
-  y,
+  y = NULL,
   substitution_matrix = "BLOSUM62",
   score_col = substitution_matrix,
   normalized_col = paste0(score_col, "_rel"),
+  return = c("mat", "df"),
+  return_score = c("score", "normalized"),
+  make_unique = F,
   ...
 )
 }
 \arguments{
 \item{x}{A character vector or sequence-set object containing the first set
-of biological sequences.}
+of biological sequences. It must not be empty.}
 
 \item{y}{A character vector or sequence-set object containing the second set
-of biological sequences. Must have the same length as \code{x}.}
+of biological sequences, or \code{NULL}. When supplied, it must have the same
+length as \code{x}. When \code{NULL}, all ordered pairs in \code{x} are compared.}
 
-\item{substitution_matrix}{A substitution matrix or the name of a
-substitution matrix accepted by
-\code{\link[pwalign:pairwiseAlignment]{pwalign::pairwiseAlignment()}}. Defaults to \code{"BLOSUM62"}.}
+\item{substitution_matrix}{A substitution matrix or a single character
+string naming a matrix accepted by \code{\link[pwalign:pairwiseAlignment]{pwalign::pairwiseAlignment()}}. Defaults
+to \code{"BLOSUM62"}.}
 
-\item{score_col}{A single character string specifying the name of the raw
-alignment-score column. Defaults to the value of \code{substitution_matrix}.}
+\item{score_col}{A single, non-missing character string used as the name of
+the raw-score result. When \code{NULL}, the substitution-matrix name is used if
+available; otherwise \code{"score"} is used.}
 
-\item{normalized_col}{A single character string specifying the name of the
-normalized-score column. Defaults to \code{score_col} followed by \code{"_rel"}.}
+\item{normalized_col}{A single, non-missing character string used as the
+name of the normalized-score result. When \code{NULL}, \code{"_rel"} is appended to
+\code{score_col}.}
+
+\item{return}{Output format: \code{"mat"} returns a named list of matrices and
+\code{"df"} returns a data frame. In matrix output, rows represent \code{x} sequences
+and columns represent \code{y} sequences; unobserved combinations are \code{NA}.}
+
+\item{return_score}{One or both of \code{"score"} and \code{"normalized"}, specifying
+which score types to return. Defaults to both.}
 
 \item{...}{Additional arguments passed to \code{\link[pwalign:pairwiseAlignment]{pwalign::pairwiseAlignment()}},
-such as \code{type}, \code{gapOpening}, and \code{gapExtension}. The \code{scoreOnly} argument
-is set internally and should not be supplied.}
+such as \code{type}, \code{gapOpening}, and \code{gapExtension}. \code{scoreOnly} and
+\code{substitutionMatrix} are set internally and must not be supplied.}
 }
 \value{
-A data frame with one row per sequence pair and two numeric columns:
-the raw pairwise alignment score and the score divided by the mean
-self-alignment score of the two sequences.
+If \code{return = "df"}, a data frame containing \code{x}, \code{y}, and the
+requested score columns. If \code{return = "mat"}, a named list containing one
+matrix per requested score type. A normalized score is the pairwise score
+divided by the mean of the two corresponding self-alignment scores. It is
+\code{NA} when that mean is zero.
 }
 \description{
-Calculates pairwise alignment scores between corresponding sequences in
-\code{x} and \code{y}. Each score is normalized by the mean of the two sequences'
-self-alignment scores.
+Aligns corresponding elements of \code{x} and \code{y} and optionally normalizes each
+alignment score by the mean of the two sequences' self-alignment scores. If
+\code{y} is \code{NULL}, all ordered pairs of sequences in \code{x} are aligned.
 }
 \examples{
 get_alignment_scores(
   x = c("CASSLGQETQYF", "CASSPGQGDNEQFF"),
-  y = c("CASSIRSSYEQYF", "CASSPGQGTNEQFF")
+  y = c("CASSIRSSYEQYF", "CASSPGQGTNEQFF"),
+  return = "df"
 )
 
 get_alignment_scores(
-  x = "CASSLGQETQYF",
-  y = "CASSIRSSYEQYF",
-  score_col = "alignment_score",
-  normalized_col = "relative_score",
+  x = c("CASSLGQETQYF", "CASSIRSSYEQYF"),
+  return = "mat",
+  return_score = "normalized",
   gapOpening = 10,
   gapExtension = 0.5
 )

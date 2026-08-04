@@ -185,53 +185,120 @@ vdjdb_hits <- function(tcrs,
 
 #' Calculate Pairwise Alignment Scores
 #'
-#' Calculates pairwise alignment scores between corresponding sequences in
-#' `x` and `y`. Each score is normalized by the mean of the two sequences'
-#' self-alignment scores.
+#' Aligns corresponding elements of `x` and `y` and optionally normalizes each
+#' alignment score by the mean of the two sequences' self-alignment scores. If
+#' `y` is `NULL`, all ordered pairs of sequences in `x` are aligned.
 #'
 #' @param x A character vector or sequence-set object containing the first set
-#'   of biological sequences.
+#'   of biological sequences. It must not be empty.
 #' @param y A character vector or sequence-set object containing the second set
-#'   of biological sequences. Must have the same length as `x`.
-#' @param substitution_matrix A substitution matrix or the name of a
-#'   substitution matrix accepted by
-#'   [pwalign::pairwiseAlignment()]. Defaults to `"BLOSUM62"`.
-#' @param score_col A single character string specifying the name of the raw
-#'   alignment-score column. Defaults to the value of `substitution_matrix`.
-#' @param normalized_col A single character string specifying the name of the
-#'   normalized-score column. Defaults to `score_col` followed by `"_rel"`.
+#'   of biological sequences, or `NULL`. When supplied, it must have the same
+#'   length as `x`. When `NULL`, all ordered pairs in `x` are compared.
+#' @param substitution_matrix A substitution matrix or a single character
+#'   string naming a matrix accepted by [pwalign::pairwiseAlignment()]. Defaults
+#'   to `"BLOSUM62"`.
+#' @param score_col A single, non-missing character string used as the name of
+#'   the raw-score result. When `NULL`, the substitution-matrix name is used if
+#'   available; otherwise `"score"` is used.
+#' @param normalized_col A single, non-missing character string used as the
+#'   name of the normalized-score result. When `NULL`, `"_rel"` is appended to
+#'   `score_col`.
+#' @param return Output format: `"mat"` returns a named list of matrices and
+#'   `"df"` returns a data frame. In matrix output, rows represent `x` sequences
+#'   and columns represent `y` sequences; unobserved combinations are `NA`.
+#' @param return_score One or both of `"score"` and `"normalized"`, specifying
+#'   which score types to return. Defaults to both.
 #' @param ... Additional arguments passed to [pwalign::pairwiseAlignment()],
-#'   such as `type`, `gapOpening`, and `gapExtension`. The `scoreOnly` argument
-#'   is set internally and should not be supplied.
+#'   such as `type`, `gapOpening`, and `gapExtension`. `scoreOnly` and
+#'   `substitutionMatrix` are set internally and must not be supplied.
 #'
-#' @return A data frame with one row per sequence pair and two numeric columns:
-#'   the raw pairwise alignment score and the score divided by the mean
-#'   self-alignment score of the two sequences.
+#' @return If `return = "df"`, a data frame containing `x`, `y`, and the
+#'   requested score columns. If `return = "mat"`, a named list containing one
+#'   matrix per requested score type. A normalized score is the pairwise score
+#'   divided by the mean of the two corresponding self-alignment scores. It is
+#'   `NA` when that mean is zero.
 #'
 #' @export
 #'
 #' @examples
 #' get_alignment_scores(
 #'   x = c("CASSLGQETQYF", "CASSPGQGDNEQFF"),
-#'   y = c("CASSIRSSYEQYF", "CASSPGQGTNEQFF")
+#'   y = c("CASSIRSSYEQYF", "CASSPGQGTNEQFF"),
+#'   return = "df"
 #' )
 #'
 #' get_alignment_scores(
-#'   x = "CASSLGQETQYF",
-#'   y = "CASSIRSSYEQYF",
-#'   score_col = "alignment_score",
-#'   normalized_col = "relative_score",
+#'   x = c("CASSLGQETQYF", "CASSIRSSYEQYF"),
+#'   return = "mat",
+#'   return_score = "normalized",
 #'   gapOpening = 10,
 #'   gapExtension = 0.5
 #' )
 get_alignment_scores <- function(
     x,
-    y,
+    y = NULL,
     substitution_matrix = "BLOSUM62",
     score_col = substitution_matrix,
     normalized_col = paste0(score_col, "_rel"),
-    ...
-) {
+    return = c("mat", "df"),
+    return_score = c("score", "normalized"),
+    make_unique = F,
+    ...) {
+
+  return <- rlang::arg_match(return)
+  return_score <- rlang::arg_match(return_score, multiple = T)
+
+  x <- as.character(x)
+  if (!length(x) || anyNA(x)) {
+    rlang::abort("`x` must contain at least one non-missing sequence.")
+  }
+
+  if (!is.null(y)) {
+    y <- as.character(y)
+    if (!length(y) || anyNA(y)) {
+      rlang::abort("`y` must contain at least one non-missing sequence.")
+    }
+  }
+
+  if (!is.null(y) && anyDuplicated(data.frame(x,y)) && make_unique) {
+    message("making x,y pairwise unique.")
+    z <- unique(data.frame(x,y))
+    x <- z$x
+    y <- z$y
+  }
+
+  # if (anyDuplicated(x)) {
+  #   message("making x unique.")
+  #   x <- unique(x)
+  # }
+  # if (!is.null(y) && anyDuplicated(y)) {
+  #   message("making y unique.")
+  #   y <- unique(y)
+  # }
+
+  for (arg in c("score_col", "normalized_col")) {
+    value <- get(arg)
+    if (!is.character(value) || length(value) != 1L || is.na(value) || !nzchar(value)) {
+      rlang::abort(paste0("`", arg, "` must be a single, non-empty string."))
+    }
+  }
+  if (identical(score_col, normalized_col)) {
+    rlang::abort("`score_col` and `normalized_col` must be different.")
+  }
+
+  if (is.null(y)) {
+    grid <- expand.grid(x = x, y = x, stringsAsFactors = FALSE)
+    x <- grid$x
+    y <- grid$y
+  } else {
+    y <- as.character(y)
+    if (length(x) != length(y)) {
+      rlang::abort("`x` and `y` must have the same length.")
+    }
+    if (anyNA(y)) {
+      rlang::abort("`y` must not contain missing sequences.")
+    }
+  }
 
   score <- pwalign::pairwiseAlignment(
     x,
@@ -241,28 +308,65 @@ get_alignment_scores <- function(
     ...
   )
 
-  ref1 <- pwalign::pairwiseAlignment(
-    x,
-    x,
-    substitutionMatrix = substitution_matrix,
-    scoreOnly = TRUE,
-    ...
-  )
+  # ref1 <- pwalign::pairwiseAlignment(
+  #   x,
+  #   x,
+  #   substitutionMatrix = substitution_matrix,
+  #   scoreOnly = TRUE,
+  #   ...)
+  #
+  # ref2 <- pwalign::pairwiseAlignment(
+  #   y,
+  #   y,
+  #   substitutionMatrix = substitution_matrix,
+  #   scoreOnly = TRUE,
+  #   ...)
 
-  ref2 <- pwalign::pairwiseAlignment(
-    y,
-    y,
-    substitutionMatrix = substitution_matrix,
-    scoreOnly = TRUE,
-    ...
-  )
+  if ("normalized" %in% return_score) {
+    reference_score <- (pwalign::pairwiseAlignment(
+      x,
+      x,
+      substitutionMatrix = substitution_matrix,
+      scoreOnly = TRUE,
+      ...) + pwalign::pairwiseAlignment(
+        y,
+        y,
+        substitutionMatrix = substitution_matrix,
+        scoreOnly = TRUE,
+        ...)) / 2
+  }
 
-  reference_score <- (ref1 + ref2) / 2
+  if (return == "df") {
+    if (length(return_score) == 2) {
+      df <- data.frame(score, score / reference_score, x, y)
+      names(df) <- c(score_col, normalized_col, "x", "y")
+    } else if (return_score == "score") {
+      df <- data.frame(score, x, y)
+      names(df) <- c(score_col, "x", "y")
+    } else if (return_score == "normalized") {
+      df <- data.frame(score / reference_score, x, y)
+      names(df) <- c(normalized_col, "x", "y")
+    }
 
-  df <- data.frame(score, score / reference_score)
-  names(df) <- c(score_col, normalized_col)
+    return(df)
+  }
 
-  return(df)
+  if (return == "mat") {
+    if (length(return_score) == 2) {
+      mats <- list(brathering::df_long_to_mat(data.frame(y,x,score)),
+                   brathering::df_long_to_mat(data.frame(y,x,score / reference_score)))
+    } else if (return_score == "score") {
+      mats <- list(brathering::df_long_to_mat(data.frame(y,x,score)),
+                   NULL)
+    } else if (return_score == "normalized") {
+      mats <- list(NULL,
+                   brathering::df_long_to_mat(data.frame(y,x,score / reference_score)))
+    }
+
+    names(mats) <- c(score_col, normalized_col)
+    return(mats)
+  }
+
 }
 
 vdjdb_tcrs_match_fun <- function(TRAxTRB,

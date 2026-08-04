@@ -23,7 +23,7 @@ parser.add_argument(
     # UserWarning: db_file must be 'alphabeta_gammadelta_db.tsv' or 'alphabeta_db.tsv' or 'gammadelta_db.tsv' unless you have built tcrdist3 from scratch self._validate_db_file()
     "--db-file",
     default="alphabeta_gammadelta_db.tsv",
-    choices=["alphabeta_db.tsv", " alphabeta_gammadelta_db.tsv", "gammadelta_db"],
+    choices=["alphabeta_db.tsv", "alphabeta_gammadelta_db.tsv", "gammadelta_db"],
     help="Path to the TCRdist database file (default: %(default)s)",
 )
 parser.add_argument(
