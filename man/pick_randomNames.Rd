@@ -10,7 +10,9 @@ pick_randomNames(
   max_iter = 500,
   min_name_nchar = 3,
   avoid_chars = c(" ", "-", "'", ",", ";"),
-  randomNames_args = list(which.names = "first")
+  randomNames_args = list(which.names = "first"),
+  number_duplicates = F,
+  number_duplicates_pad = T
 )
 }
 \arguments{
@@ -22,10 +24,15 @@ pick_randomNames(
 
 \item{min_name_nchar}{min length of name returned by randomNames}
 
-\item{avoid_chars}{character vector of forbidden characters in names or NULL;
-reject names with one or more of these characters}
+\item{avoid_chars}{character vector of forbidden characters in names or NULL;}
 
-\item{...}{arguments passed to randomNames::randomNames}
+\item{randomNames_args}{arguments to randomNames::randomNames}
+
+\item{number_duplicates}{allow duplicate names first, then make them unique by
+trailing numbers}
+
+\item{number_duplicates_pad}{pad trailing number with brathering::pad_num_in_str
+reject names with one or more of these characters}
 }
 \value{
 a vector of n unique random names
@@ -33,4 +40,8 @@ a vector of n unique random names
 \description{
 The randomNames function from randomNames does not necessarily provide unique names (https://github.com/CenterForAssessment/randomNames/issues/55).
 Hence this function has been written to fix that issue as elegant as possible.
+}
+\examples{
+pick_randomNames(n = 1000, names_to_avoid = c("Chris", "Diana", "Leonie"), randomNames_args = list(which.names = "first"))
+# grep("[[:digit:]]{1,2}$", names, value = T)
 }
