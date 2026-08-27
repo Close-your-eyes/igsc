@@ -34,11 +34,9 @@
 #'   single-chain observation that is compatible with multiple conflicting
 #'   paired receptors is left as its own clonotype. `"any"` uses ordinary
 #'   graph connectivity and joins cells whenever either chain is shared.
-#' @param names_to_avoid A character vector of names that must not be assigned,
-#'   or `NULL` to impose no additional exclusions.
 #' @param pick_randomNames_args A named list of additional arguments passed to
 #'   [igsc::pick_randomNames()] through [Gmisc::fastDoCall()]. The function
-#'   supplies `n` and `names_to_avoid`; values supplied here should not conflict
+#'   supplies `n`; values supplied here should not conflict
 #'   with those arguments.
 #' @param sample_fields A character vector naming the fields encoded in the
 #'   sample identifier, in order. It must include `"donor"`, and its length
@@ -88,20 +86,20 @@
 #' named_clonotypes$cl_wide
 #' }
 add_clonotype_names_chatty <- function(cl_long,
-                                single_chains_only = T,
-                                strict_TCR_biology = F,
-                                same_cl_name_across_donor_only_when_full_annotation = T,
-                                shared_cdr3_mode = c("compatible", "any"),
-                                names_to_avoid = NULL,
-                                pick_randomNames_args = list(max_iter = 10000,
-                                                             randomNames_args = list(which.names = "first")),
-                                sample_fields = c("virus", "donor", "genotype", "treatment"),
-                                sample_field_sep = "_",
-                                sample_col = "sample",
-                                barcode_col = "barcode",
-                                chain_col = "chain",
-                                cdr3_col = "cdr3",
-                                clonotype_col = "clonotype_id") {
+                                       single_chains_only = T,
+                                       strict_TCR_biology = F,
+                                       same_cl_name_across_donor_only_when_full_annotation = T,
+                                       shared_cdr3_mode = c("compatible", "any"),
+                                       pick_randomNames_args = list(max_iter = 10000,
+                                                                    names_to_avoid = NULL,
+                                                                    randomNames_args = list(which.names = "first")),
+                                       sample_fields = c("virus", "donor", "genotype", "treatment"),
+                                       sample_field_sep = "_",
+                                       sample_col = "sample",
+                                       barcode_col = "barcode",
+                                       chain_col = "chain",
+                                       cdr3_col = "cdr3",
+                                       clonotype_col = "clonotype_id") {
 
   shared_cdr3_mode <- match.arg(shared_cdr3_mode)
 
@@ -275,13 +273,9 @@ add_clonotype_names_chatty <- function(cl_long,
   message("Picking random names for ", length(component_ids), " CDR3-defined clonotypes.")
   cl_wide$cl_name <- NA_character_
   if (length(component_ids)) {
-    pick_randomNames_args1 <- c(
-      list(n = length(component_ids), names_to_avoid = names_to_avoid),
-      pick_randomNames_args
-    )
     component_names <- Gmisc::fastDoCall(
       pick_randomNames,
-      pick_randomNames_args1
+      c(list(n = length(component_ids)), pick_randomNames_args)
     )
     cl_wide$cl_name <- component_names[match(cl_wide$.component_id, component_ids)]
   }
@@ -318,18 +312,21 @@ add_clonotype_names_chatty <- function(cl_long,
       values_fn = collapse_fun2) |>
     tidyr::separate(!!rlang::sym(sample_col), into = sample_fields, remove = F, sep = sample_field_sep)
 
-  message("Ordering columns of cl_wide.")
-  # use alphabetical order from TRA and TRB to order other columns
-  for (i in c(cdr3tra_col, cdr3trb_col)) {
-    TRAB_order <- sapply(strsplit(cl_wide9_join[[i]], ","), order, simplify = F)
-    for (colname in grep(paste0(gsub(cdr3_col, "", i), "$"), names(cl_wide9_join), value = T)) {
-      cl_wide9_join[[colname]] <- purrr::map2_chr(.x = cl_wide9_join[[colname]], .y = TRAB_order, function(x,y) {
-        if (is.na(x) || !grepl(",", x, fixed = TRUE)) {
-          x
-        } else {
-          paste(strsplit(x, ",", fixed = TRUE)[[1]][y], collapse = ",")
-        }
-      })
+
+  if (any(grepl(",", cl_wide9_join[[cdr3tra_col]])) || any(grepl(",", cl_wide9_join[[cdr3trb_col]]))) {
+    message("Ordering columns of cl_wide.")
+    # use alphabetical order from TRA and TRB to order other columns
+    for (i in c(cdr3tra_col, cdr3trb_col)) {
+      TRAB_order <- sapply(strsplit(cl_wide9_join[[i]], ","), order, simplify = F)
+      for (colname in grep(paste0(gsub(cdr3_col, "", i), "$"), names(cl_wide9_join), value = T)) {
+        cl_wide9_join[[colname]] <- purrr::map2_chr(.x = cl_wide9_join[[colname]], .y = TRAB_order, function(x,y) {
+          if (is.na(x) || !grepl(",", x, fixed = TRUE)) {
+            x
+          } else {
+            paste(strsplit(x, ",", fixed = TRUE)[[1]][y], collapse = ",")
+          }
+        })
+      }
     }
   }
 

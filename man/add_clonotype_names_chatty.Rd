@@ -10,9 +10,8 @@ add_clonotype_names_chatty(
   strict_TCR_biology = F,
   same_cl_name_across_donor_only_when_full_annotation = T,
   shared_cdr3_mode = c("compatible", "any"),
-  names_to_avoid = NULL,
-  pick_randomNames_args = list(max_iter = 10000, randomNames_args = list(which.names =
-    "first")),
+  pick_randomNames_args = list(max_iter = 10000, names_to_avoid = NULL, randomNames_args
+    = list(which.names = "first")),
   sample_fields = c("virus", "donor", "genotype", "treatment"),
   sample_field_sep = "_",
   sample_col = "sample",
@@ -48,12 +47,9 @@ single-chain observation that is compatible with multiple conflicting
 paired receptors is left as its own clonotype. \code{"any"} uses ordinary
 graph connectivity and joins cells whenever either chain is shared.}
 
-\item{names_to_avoid}{A character vector of names that must not be assigned,
-or \code{NULL} to impose no additional exclusions.}
-
 \item{pick_randomNames_args}{A named list of additional arguments passed to
 \code{\link[=pick_randomNames]{pick_randomNames()}} through \code{\link[Gmisc:fastDoCall]{Gmisc::fastDoCall()}}. The function
-supplies \code{n} and \code{names_to_avoid}; values supplied here should not conflict
+supplies \code{n}; values supplied here should not conflict
 with those arguments.}
 
 \item{sample_fields}{A character vector naming the fields encoded in the
