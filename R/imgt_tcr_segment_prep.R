@@ -29,8 +29,6 @@
 #' @return a data frame
 #' @export
 #'
-#' @importFrom magrittr "%>%"
-#'
 #' @examples
 #' \dontrun{
 #' imgt_df <- imgt_tcr_segment_prep()
@@ -64,7 +62,7 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
   files <- files[which(!grepl("leader", basename(files)))]
   ts <- dplyr::bind_rows(lapply(files, function(x) {
     utils::stack(read_fasta(x))
-  })) %>%
+  })) |>
     dplyr::rename("seq.nt" = values, "meta" = ind)
   ts$Allele <- stringr::str_replace(sapply(stringr::str_split(ts$meta, "\\|"), "[", 2),"/", "")
   ts$Gene <- stringr::str_replace(sapply(stringr::str_split(ts$Allele, "\\*"), "[", 1),"/", "")
@@ -81,8 +79,8 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
     }
   }))
 
-  leader.seq <- utils::stack(read_fasta(list.files(path, "TRV_leader_aa.fasta", recursive = T, full.names = T))) %>%
-    dplyr::rename("LEADER" = values, "meta" = ind) %>%
+  leader.seq <- utils::stack(read_fasta(list.files(path, "TRV_leader_aa.fasta", recursive = T, full.names = T))) |>
+    dplyr::rename("LEADER" = values, "meta" = ind) |>
     dplyr::distinct()
   leader.seq$Allele <- stringr::str_replace(sapply(stringr::str_split(leader.seq$meta, "\\|"), "[", 2), "/", "")
   leader.seq$Gene <- stringr::str_replace(sapply(stringr::str_split(leader.seq$Allele, "\\*"), "[", 1), "/", "")
@@ -90,18 +88,18 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
   leader.seq <- dplyr::select(leader.seq, -meta)
 
   imgt_cdr_fr <-
-    dplyr::bind_rows(lapply(list.files(path, "\\.xlsx", recursive = T, full.names = T), openxlsx::read.xlsx)) %>%
-    dplyr::mutate(FR1 = stringr::str_replace_all(FR1, "\\.", "")) %>%
-    dplyr::mutate(FR2 = stringr::str_replace_all(FR2, "\\.", "")) %>%
-    dplyr::mutate(FR3 = stringr::str_replace_all(FR3, "\\.", "")) %>%
-    dplyr::mutate(CDR1 = stringr::str_replace_all(CDR1, "\\.", "")) %>%
-    dplyr::mutate(CDR2 = stringr::str_replace_all(CDR2, "\\.", "")) %>%
-    dplyr::mutate(Allele = stringr::str_replace_all(Allele, "/", "")) %>%
+    dplyr::bind_rows(lapply(list.files(path, "\\.xlsx", recursive = T, full.names = T), openxlsx::read.xlsx)) |>
+    dplyr::mutate(FR1 = stringr::str_replace_all(FR1, "\\.", "")) |>
+    dplyr::mutate(FR2 = stringr::str_replace_all(FR2, "\\.", "")) |>
+    dplyr::mutate(FR3 = stringr::str_replace_all(FR3, "\\.", "")) |>
+    dplyr::mutate(CDR1 = stringr::str_replace_all(CDR1, "\\.", "")) |>
+    dplyr::mutate(CDR2 = stringr::str_replace_all(CDR2, "\\.", "")) |>
+    dplyr::mutate(Allele = stringr::str_replace_all(Allele, "/", "")) |>
     dplyr::select(-c(Species, Allele, AccNum, Functionality, Domain.label))
 
   ts <-
-    ts %>%
-    dplyr::left_join(leader.seq, by = c("Allele", "Gene", "Allele.number")) %>%
+    ts |>
+    dplyr::left_join(leader.seq, by = c("Allele", "Gene", "Allele.number")) |>
     dplyr::left_join(imgt_cdr_fr, by = "Gene")
 
 

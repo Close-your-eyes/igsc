@@ -16,14 +16,12 @@
 #' @return a data frame of unique seq entries in column
 #' @export
 #'
-#' @importFrom magrittr %>%
-#'
 #' @examples
 #' \dontrun{
 #' imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc"))
 #' ata <- attach_imgt_alleles(seq = cl_long, imgt_ref = imgt_ref, pick.by = "random", lapply_fun = lapply)
 #' cl_long <-
-#' dplyr::left_join(cl_long, ata, by = c("consensus_seq_cr" = "seq")) %>%
+#' dplyr::left_join(cl_long, ata, by = c("consensus_seq_cr" = "seq")) |>
 #' tidyr::separate(VJ_IMGT, into = c("V_imgt", "J_imgt"), sep = "___")
 #'
 #' ## or pass vector, named or unnamed

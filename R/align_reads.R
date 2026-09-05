@@ -195,8 +195,8 @@ align_reads <- function(r1,
   r2_ref_seq_inds_matches <- purrr::map(ref_names, function(ref_name) table(match_df_list[["r2"]][[ref_name]][["ref_seq_ind"]]))
   paired_ref_seq_inds_matches <- purrr::map(ref_names, function(ref_name) table(r1_r2_match_df_paired[[ref_name]][["ref_seq_ind"]]))
 
-  stat_df_long <- purrr::map(stat_df_wide, function(x) x %>% tidyr::pivot_longer(cols = names(.), names_to = "stat"))
-  stat_df <- purrr::map(stat_df_long, function(x) x %>% tidyr::separate(col = stat, into = c("read", "stat"), sep = "__") %>% tidyr::pivot_wider(names_from = read, values_from = value))
+  stat_df_long <- purrr::map(stat_df_wide, function(x) x |> tidyr::pivot_longer(cols = names(x), names_to = "stat"))
+  stat_df <- purrr::map(stat_df_long, function(x) x |> tidyr::separate(col = stat, into = c("read", "stat"), sep = "__") |> tidyr::pivot_wider(names_from = read, values_from = value))
 
   #nulls <- names(which(purrr::map_lgl(r1_r2_match_df_paired, is.null)))
   #stat_df_wide[nulls] <- NULL
@@ -223,12 +223,10 @@ align_reads <- function(r1,
                                 paired__unique_n = r1_r2_unqiue_paired_distinct_n,
                                 paired__unique_freq = r1_r2_unqiue_paired_distinct_n/r1_r2_unqiue_paired_n)
 
-  read_stats_long <-
-    read_stats_wide %>%
-    tidyr::pivot_longer(cols = names(.), names_to = "stat")
+  read_stats_long <- tidyr::pivot_longer(read_stats_wide, cols = names(read_stats_wide), names_to = "stat")
   read_stats <-
-    read_stats_long %>%
-    tidyr::separate(col = stat, into = c("read", "stat"), sep = "__") %>%
+    read_stats_long |>
+    tidyr::separate(col = stat, into = c("read", "stat"), sep = "__") |>
     tidyr::pivot_wider(names_from = read, values_from = value)
 
   return(list(read_stats = list(wide = read_stats_wide,
@@ -405,9 +403,9 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
     plots <- purrr::map(stats::setNames(inds_to_plot, inds_to_plot), function(ref_seq_ind) {
       #print(ref_seq_ind)
       temp <-
-        match_df_list[[ref_name]] %>%
-        dplyr::filter(ref_seq_ind == !!ref_seq_ind) %>%
-        dplyr::group_by(read_seq_r1, read_seq_r2) %>%
+        match_df_list[[ref_name]] |>
+        dplyr::filter(ref_seq_ind == !!ref_seq_ind) |>
+        dplyr::group_by(read_seq_r1, read_seq_r2) |>
         dplyr::summarise(n = dplyr::n(), .groups = "drop")
 
       # make r2 rev comp

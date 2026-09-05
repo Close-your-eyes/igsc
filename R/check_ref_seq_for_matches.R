@@ -13,7 +13,6 @@
 #' @return data frame
 #' @export
 #'
-#' @importFrom magrittr "%>%"
 #'
 #' @examples
 check_ref_seq_for_matches <- function(seq_set,

@@ -76,10 +76,6 @@ compare_seq_df_wide <- function(df,
     df <- dplyr::distinct(df, !!rlang::sym(pos_col), .keep_all = T)
   }
 
-  #
-  # df <- df %>%
-  #   dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) %>%
-  #   tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col))
 
   # matches to pattern
   if (change_nonref) {
@@ -148,29 +144,6 @@ compare_seq_df_wide <- function(df,
                               names_to = name_col,
                               values_to = seq_col)
   }
-
-  # if (!is.null(seq_original)) {
-  #   df2 <- dplyr::left_join(df2,
-  #                           dplyr::rename(df, {{seq_original}} := !!rlang::sym(seq_col)),
-  #                           by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  # }
-  # df2 <- dplyr::mutate(df2, {{name_col}} := factor(!!rlang::sym(name_col), levels = name_order))
-  #
-  # join other columns from initial data frame
-  # if ("pattern" %in% names(df2)) {
-  #   ## try brathering::get_unique_level_columns instead of coalesce_other_cols_with_unique_vals
-  #   ## when is pattern there?
-  #   df2 <- df2 %>%
-  #     brathering::coalesce_join(coalesce_other_cols_with_unique_vals(df = df,
-  #                                                                    name_col = name_col,
-  #                                                                    pos_col = pos_col,
-  #                                                                    seq_col = seq_col), by = "pattern")
-  # }
-  #
-  # if (any(!names(df)[-which(names(df) == seq_col)] %in% names(df2))) {
-  #   names(df)[!names(df) %in% names(df2)]
-  #   df2 <- dplyr::left_join(df2, dplyr::select(df, -!!rlang::sym(seq_col)), by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  # }
 
   attr(df, "subject_name") <- ref
   attr(df, "ref") <- ref

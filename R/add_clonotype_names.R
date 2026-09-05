@@ -426,15 +426,15 @@ check.clonotype.id.levels <- function(cl_wide,
 
   ## test if any clonotype_id between TRA and TRB is different
   cl_wide_sub <-
-    cl_wide %>%
-    tidyr::drop_na(dplyr::all_of(id_cols)) %>%
+    cl_wide |>
+    tidyr::drop_na(dplyr::all_of(id_cols)) |>
     dplyr::mutate(!!id_cols[1] := strsplit(!!rlang::sym(id_cols[1]), ","),
-                  !!id_cols[2] := strsplit(!!rlang::sym(id_cols[2]), ",")) %>%
-    dplyr::rowwise() %>%
+                  !!id_cols[2] := strsplit(!!rlang::sym(id_cols[2]), ",")) |>
+    dplyr::rowwise() |>
     dplyr::mutate(!!id_cols[1] := paste(unique(!!rlang::sym(id_cols[1])), collapse = ","),
-                  !!id_cols[2] := paste(unique(!!rlang::sym(id_cols[2])), collapse = ",")) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(!!!rlang::syms(c(id_cols[1], group_cols))) %>%
+                  !!id_cols[2] := paste(unique(!!rlang::sym(id_cols[2])), collapse = ",")) |>
+    dplyr::ungroup() |>
+    dplyr::group_by(!!!rlang::syms(c(id_cols[1], group_cols))) |>
     dplyr::summarise(n = dplyr::n_distinct(!!rlang::sym(id_cols[1])), .groups = "drop")
 
   return(cl_wide_sub)
@@ -488,19 +488,6 @@ collapse.clonotypes <- function(cl_wide,
   barcode_count_start <- sort(table(cl_wide[[barcode_col]]))
   n_unique_cl_start <- length(unique(cl_wide[["cl_name"]]))
 
-  '  if (length(cdr3_col) > 1 && unnest_cdr3_col) {
-    message("cdr3_col > 1; setting unnest_cdr3_col to FALSE.")
-    unnest_cdr3_col <- F
-  }
-
-  if (!is.null(cdr3_col_to_unnest)) {
-    cl_wide <-
-      cl_wide %>%
-      dplyr::mutate(!!cdr3_col_to_unnest := strsplit(!!rlang::sym(cdr3_col_to_unnest), ",")) %>%
-      tidyr::unnest(!!rlang::sym(cdr3_col_to_unnest))
-  }'
-
-  browser()
   split_val <- purrr::reduce(lapply(split_cols, function(x) cl_wide[,x,drop=T]), paste, sep = "_")
   cl_wide_split <- split(cl_wide, split_val)
   cl_wide_split_NA <- cl_wide_split[which(grepl("NA_NA", names(cl_wide_split)))]
@@ -624,41 +611,6 @@ collapse.clonotypes <- function(cl_wide,
                                            dplyr::bind_rows(cl_wide_split_1),
                                            dplyr::bind_rows(cl_wide_split_multi_1),
                                            dplyr::bind_rows(cl_wide_split_multi_2)))
-  '
-  if (!is.null(cdr3_col_to_unnest)) {
-    cl_wide <-
-      cl_wide %>%
-      dplyr::group_by(!!!rlang::syms(names(cl_wide)[which(!names(cl_wide) %in% cdr3_col_to_unnest)])) %>%
-      dplyr::summarise(!!cdr3_col_to_unnest := collapse_order_fun(!!rlang::sym(cdr3_col_to_unnest)), .groups = "drop")
-
-    # in rare cases clonotype with different multi-annotated chains were dragged into different split groups above, only when unnest_cdr3_col = T
-    # because of that, they got different cl_name; now they cannot be collapse and then their barcodes are duplicated (two rows for one cell which used to be one row only)
-
-    barcode_count_end <- sort(table(cl_wide$barcode))
-    barcode_count_df <-
-      stack(barcode_count_start) %>%
-      dplyr::rename("values1" = values) %>%
-      dplyr::mutate(ind = as.character(ind)) %>%
-      dplyr::full_join(stack(barcode_count_end) %>%
-                         dplyr::rename("values2" = values) %>%
-                         dplyr::mutate(ind = as.character(ind)), by = "ind") %>%
-      dplyr::mutate(diff = values2 - values1)
-    problematic_barcodes <- barcode_count_df %>% dplyr::filter(diff > 0) %>% dplyr::pull(ind)
-
-    if (any(barcode_count_df$diff < 0)) {
-      warning("Check barcode_count_df. One or more values are below 0.")
-    }
-
-    cl_wide <- rbind(cl_wide_sub1 <-
-                       cl_wide %>%
-                       dplyr::filter(!barcode %in% problematic_barcodes),
-                     cl_wide_sub2 <-
-                       cl_wide %>%
-                       dplyr::filter(barcode %in% problematic_barcodes) %>%
-                       dplyr::mutate(cl_name = cl_names_read) %>%
-                       dplyr::group_by(!!!rlang::syms(names(cl_wide)[which(!names(cl_wide) %in% cdr3_col_to_unnest)])) %>%
-                       dplyr::summarise(!!cdr3_col_to_unnest := collapse_order_fun(!!rlang::sym(cdr3_col_to_unnest)), .groups = "drop"))
-  }'
 
   n_unique_cl_end <- length(unique(cl_wide[["cl_name"]]))
   message("Number of unique clonotypes at before and after: ", n_unique_cl_start, ", ", n_unique_cl_end, ". (", n_unique_cl_end-n_unique_cl_start, ", ", round(((n_unique_cl_end-n_unique_cl_start)/n_unique_cl_start)*100, 2), " %)")
@@ -711,17 +663,17 @@ collapse.clonotypes2 <- function(cl_wide,
   # but anyway ...
 
   cl_wide <-
-    cl_wide %>%
-    dplyr::group_by(!!!rlang::syms(c(grouping_cols, cdr3_cols))) %>%
-    dplyr::mutate(cl_names = list(sort(unique(!!rlang::sym(clonotype_col))))) %>%
-    dplyr::mutate(cl_names_read = paste(sort(unique(!!rlang::sym(clonotype_col))), collapse = ",")) %>%
+    cl_wide |>
+    dplyr::group_by(!!!rlang::syms(c(grouping_cols, cdr3_cols))) |>
+    dplyr::mutate(cl_names = list(sort(unique(!!rlang::sym(clonotype_col))))) |>
+    dplyr::mutate(cl_names_read = paste(sort(unique(!!rlang::sym(clonotype_col))), collapse = ",")) |>
     dplyr::ungroup()
 
   # get groups of cl_name which have same combination of cdr3_cols with grouping_cols
   # but why has this not been catched by collapse.clonotypes?
   grouped_cls <-
-    cl_wide %>%
-    dplyr::filter(lengths(cl_names) > 1) %>%
+    cl_wide |>
+    dplyr::filter(lengths(cl_names) > 1) |>
     dplyr::distinct(cl_names_read, cl_names)
 
   if (nrow(grouped_cls) > 1) {
@@ -782,9 +734,9 @@ collapse.clonotypes2 <- function(cl_wide,
 
     for (i in 1:length(grouped_cls_intersect_final)) {
       temp <-
-        cl_wide %>%
-        dplyr::filter(cl_name %in% grouped_cls_intersect_final[[i]]) %>%
-        dplyr::group_by(!!!rlang::syms(cdr3_cols)) %>%
+        cl_wide |>
+        dplyr::filter(cl_name %in% grouped_cls_intersect_final[[i]]) |>
+        dplyr::group_by(!!!rlang::syms(cdr3_cols)) |>
         dplyr::count()
       ## clonotype_col is only collapsed when per group of cdr3_cols there are max. two different combination: nrow(temp) == 2
       ## and one of the combination has to contain an NA, meaning that one chain has not been annotated
@@ -808,11 +760,11 @@ check.clonotype.changes <- function(cl_wide_before,
                                     clonotype_col = "cl_name") {
 
   combined_cl <-
-    stack(table(cl_wide_before[,clonotype_col,drop=T])) %>%
-    dplyr::rename("prev" = values) %>%
-    dplyr::left_join(stack(table(cl_wide_after[,clonotype_col,drop=T])) %>%
-                       dplyr::rename("new" = values), by = "ind") %>%
-    dplyr::mutate(new = ifelse(is.na(new), 0, new)) %>% # now missing cl_name (assigned completely to another cl_name) get a 0
+    stack(table(cl_wide_before[,clonotype_col,drop=T])) |>
+    dplyr::rename("prev" = values) |>
+    dplyr::left_join(stack(table(cl_wide_after[,clonotype_col,drop=T])) |>
+                       dplyr::rename("new" = values), by = "ind") |>
+    dplyr::mutate(new = ifelse(is.na(new), 0, new)) |> # now missing cl_name (assigned completely to another cl_name) get a 0
     dplyr::mutate(diff = new-prev)
 
   return(combined_cl)
@@ -834,11 +786,11 @@ compare.cl.wide.df <- function(cl_wide1,
   names(cl_wide2_summ)[which(names(cl_wide2_summ) %in% c("cl_names_str", "cl_names"))] <- paste0(names(cl_wide2_summ)[which(names(cl_wide2_summ) %in% c("cl_names_str", "cl_names"))], "2")
 
   cl_wide_summ <-
-    cl_wide1_summ %>%
-    dplyr::left_join(cl_wide2_summ) %>%
-    dplyr::rowwise() %>%
-    dplyr::mutate(cl1_len = length(cl_names1), cl2_len = length(cl_names2)) %>%
-    dplyr::ungroup() %>%
+    cl_wide1_summ |>
+    dplyr::left_join(cl_wide2_summ) |>
+    dplyr::rowwise() |>
+    dplyr::mutate(cl1_len = length(cl_names1), cl2_len = length(cl_names2)) |>
+    dplyr::ungroup() |>
     dplyr::mutate(cl_len_diff = cl1_len - cl2_len)
 
   return(cl_wide_summ)
@@ -848,8 +800,8 @@ get.clonotype.levels.per.ref <- function(cl_wide,
                                          ref_cols = c("clonotype_id_TRB", "clonotype_id_TRA", "patient"),
                                          clonotype_col = "cl_name") {
   #cl_names_count = stack(table(cl_name)))
-  cl_wide %>%
-    dplyr::group_by(!!!rlang::syms(ref_cols)) %>%
+  cl_wide |>
+    dplyr::group_by(!!!rlang::syms(ref_cols)) |>
     dplyr::summarise(cl_names_str = paste(unique(cl_name), collapse = ","),
                      cl_names = list(unique(cl_name)), .groups = "drop")
 }
@@ -862,9 +814,9 @@ get.cdr3.levels.per.clonotype <- function(cl_wide,
   ## 3 different comb of cdr3_TRA and cdr3_TRB is possible (NA in TRA and TRB)
   ## 4 is also possible in case of multi annotations
 
-  cl_wide %>%
-    tidyr::drop_na(!!rlang::sym(clonotype_col)) %>%
-    dplyr::group_by(!!!rlang::syms(clonotype_col)) %>%
+  cl_wide |>
+    tidyr::drop_na(!!rlang::sym(clonotype_col)) |>
+    dplyr::group_by(!!!rlang::syms(clonotype_col)) |>
     dplyr::summarise(!!paste0("n_", paste(cdr3_cols, collapse = "_")) := dplyr::n_distinct(!!!rlang::syms(cdr3_cols)), # , na.rm = T # triple bang needed to work in n_distinct; like in group_by
                      !!cdr3_cols[1] := dplyr::n_distinct(!!!rlang::syms(cdr3_cols[1]), na.rm = T),
                      !!cdr3_cols[2] := dplyr::n_distinct(!!!rlang::syms(cdr3_cols[2]), na.rm = T),
@@ -876,20 +828,20 @@ get.clname.levels.per.clonotypeid <- function(cl_wide,
                                               clonotype_id_col = c("clonotype_id_TRB", "clonotype_id_TRA"),
                                               grouping_cols = c("sample")) {
 
-  cl_wide %>%
-    tidyr::drop_na(!!rlang::sym(clonotype_col)) %>%
-    dplyr::group_by(!!!rlang::syms(c(clonotype_id_col, grouping_cols))) %>%
+  cl_wide |>
+    tidyr::drop_na(!!rlang::sym(clonotype_col)) |>
+    dplyr::group_by(!!!rlang::syms(c(clonotype_id_col, grouping_cols))) |>
     dplyr::summarise(cl_names = paste(unique(cl_name), collapse = ","), n = dplyr::n_distinct(!!!rlang::syms(clonotype_col)), .groups = "drop")
 
 }
 
 
 compare.cl.wide.by.barcode <- function(cl_wide1, cl_wide2) {
-  cl_wide1 %>%
-    dplyr::select(barcode, sample, cl_name) %>%
-    dplyr::rename("cl_name1" = cl_name) %>%
-    dplyr::left_join(cl_wide2 %>%
-                       dplyr::select(barcode, sample, cl_name) %>%
+  cl_wide1 |>
+    dplyr::select(barcode, sample, cl_name) |>
+    dplyr::rename("cl_name1" = cl_name) |>
+    dplyr::left_join(cl_wide2 |>
+                       dplyr::select(barcode, sample, cl_name) |>
                        dplyr::rename("cl_name2" = cl_name))
 }
 
@@ -897,12 +849,12 @@ compare.cl.wide.by.barcode <- function(cl_wide1, cl_wide2) {
 
 get.number.of.cell.and.unique.cdr3.per.cl <- function(cl_long) {
 
-  cl_long %>%
-    dplyr::group_by(patient, cl_name, chain, cdr3) %>%
-    dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
-    dplyr::group_by(patient, cl_name, chain) %>%
-    dplyr::mutate(n_unique_cdr3 = dplyr::n_distinct(cdr3)) %>%
-    dplyr::ungroup() %>%
+  cl_long |>
+    dplyr::group_by(patient, cl_name, chain, cdr3) |>
+    dplyr::summarise(count = dplyr::n(), .groups = "drop") |>
+    dplyr::group_by(patient, cl_name, chain) |>
+    dplyr::mutate(n_unique_cdr3 = dplyr::n_distinct(cdr3)) |>
+    dplyr::ungroup() |>
     dplyr::mutate(count_and_ncdr3_greate_1 = count > 1 & n_unique_cdr3 > 1)
 }
 

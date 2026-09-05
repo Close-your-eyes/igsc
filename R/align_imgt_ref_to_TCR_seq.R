@@ -56,11 +56,10 @@ align_imgt_ref_to_TCR_seq <- function(chain,
     message("Splitting output by those. Double check results, please.")
   }
 
-  cl_long_sub <-
-    cl_long %>%
-    dplyr::filter(chain == !!chain) %>% # https://stackoverflow.com/questions/34219912/how-to-use-a-variable-in-dplyrfilter, https://stackoverflow.com/questions/40169949/filter-dataframe-using-global-variable-with-the-same-name-as-column-name
-    dplyr::filter(!!rlang::sym(names(TCR)) == TCR) %>%
-    dplyr::select(V_imgt, J_imgt) %>%
+  cl_long_sub <- cl_long |>
+    dplyr::filter(chain == !!chain) |> # https://stackoverflow.com/questions/34219912/how-to-use-a-variable-in-dplyrfilter, https://stackoverflow.com/questions/40169949/filter-dataframe-using-global-variable-with-the-same-name-as-column-name
+    dplyr::filter(!!rlang::sym(names(TCR)) == TCR) |>
+    dplyr::select(V_imgt, J_imgt) |>
     dplyr::distinct(V_imgt, J_imgt)
 
   pairs <- character(nrow(cl_long_sub))

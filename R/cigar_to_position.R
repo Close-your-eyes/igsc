@@ -13,7 +13,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' reads <- scexpr::reads_from_bam(bamfile_path, genomic_ranges = cd81_range, revcomp_minus_strand = F)
+#' reads <- igsc::get_bam_reads(bamfile_path, genomic_ranges = cd81_range, revcomp_minus_strand = F)
 #' reads_sub <- dplyr::slice_sample(reads, n = 40)
 #' pattern_df <- purrr::pmap_dfr(list(reads_sub$cigar, reads_sub$start, reads_sub$seq, reads_sub$readName), function(x,y,z,a) igsc::cigar_to_position(cigar = x, start = y, seq = z, name = a))
 #' algnmt_df <- data.frame(seq = strsplit(chr11_cd81, "")[[1]], position = 2378344:2391242, seq.name = "chr11")

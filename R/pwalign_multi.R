@@ -28,8 +28,6 @@
 #' @return a list
 #' @export
 #'
-#' @importFrom magrittr %>%
-#'
 #' @examples
 #' s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
 #' s <- Biostrings::DNAStringSet(s)

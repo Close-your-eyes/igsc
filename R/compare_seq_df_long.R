@@ -21,8 +21,6 @@
 #' @return data frame
 #' @export
 #'
-#' @importFrom magrittr %>%
-#'
 #' @examples
 #' df <- data.frame(
 #'   stringsAsFactors = FALSE,
@@ -141,33 +139,6 @@ compare_seq_df_long <- function(df,
                                   keep_gaps = keep_gaps,
                                   nonref_mismatch_as = nonref_mismatch_as)
 
-  # df2 <- df |>
-  #   dplyr::select(!!rlang::sym(pos_col), !!rlang::sym(seq_col), !!rlang::sym(name_col)) |>
-  #   tidyr::pivot_wider(names_from = !!rlang::sym(name_col), values_from = !!rlang::sym(seq_col))
-  #
-  # # matches to pattern
-  # if (change_nonref) {
-  #   df2 <- df2 %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(!names(.) %in% c(ref, pos_col))]))
-  #   #df2 <- df2 |> tidyr::drop_na(value)
-  #
-  #   # super quick version of rowwise pipeline below
-  #   df2$value <- igsc:::mutate_value_cpp(
-  #     value               = df2$value,
-  #     ref_col             = df2[[ref]],
-  #     match_symbol        = match_symbol,
-  #     mismatch_symbol     = mismatch_symbol,
-  #     keep_match_gaps     = keep_gaps,
-  #     nonref_mismatch_as  = nonref_mismatch_as
-  #   )
-  #   df2$value[which(df2$value == "NA")] <- NA
-  #
-  #
-  #   if (insertion_as != "base") {
-  #     df2 <- dplyr::mutate(df2, value = ifelse(!!rlang::sym(ref) == "-" & value != "-", insertion_as, value))
-  #   }
-  #   df2 <- tidyr::pivot_wider(df2, names_from = name, values_from = value)
-  # }
-
   # matches to ref
   if (change_ref) {
     if (ref_mismatch_as == "base") {
@@ -205,34 +176,6 @@ compare_seq_df_long <- function(df,
                                  function(x) (!x[1] %in% c("-", match_symbol, mismatch_symbol) && any(x[-1][which(!is.na(x[-1]))] == "-"))), insertion_as, df2[[ref]])
     }
   }
-  #
-  #   df2 <- df %>% tidyr::pivot_longer(cols = dplyr::all_of(names(.)[which(names(.) != pos_col)]),
-  #                                      names_to = name_col,
-  #                                      values_to = seq_col)
-  #
-  #   if (!is.null(seq_original)) {
-  #     df2 <- dplyr::left_join(df2,
-  #                             dplyr::rename(df, {{seq_original}} := !!rlang::sym(seq_col)),
-  #                             by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  #   }
-  #   df2 <- dplyr::mutate(df2, {{name_col}} := factor(!!rlang::sym(name_col), levels = name_order))
-
-  # join other columns from initial data frame
-  # if ("pattern" %in% names(df2)) {
-  #   ## try brathering::get_unique_level_columns instead of coalesce_other_cols_with_unique_vals
-  #   ## when is pattern there?
-  #   df2 <- df2 %>%
-  #     brathering::coalesce_join(coalesce_other_cols_with_unique_vals(df = df,
-  #                                                                    name_col = name_col,
-  #                                                                    pos_col = pos_col,
-  #                                                                    seq_col = seq_col), by = "pattern")
-  # }
-
-
-  # if (any(!names(df)[-which(names(df) == seq_col)] %in% names(df2))) {
-  #   names(df)[!names(df) %in% names(df2)]
-  #   df2 <- dplyr::left_join(df2, dplyr::select(df, -!!rlang::sym(seq_col)), by = dplyr::join_by(!!rlang::sym(pos_col), !!rlang::sym(name_col)))
-  # }
 
   attr(df, "subject_name") <- ref
   attr(df, "ref") <- ref
@@ -245,21 +188,21 @@ coalesce_other_cols_with_unique_vals <- function(df,
                                                  pos_col,
                                                  seq_col) {
   unique_add_cols <-
-    df %>%
-    dplyr::group_by(!!rlang::sym(name_col)) %>%
-    dplyr::summarise(dplyr::across(-c(!!rlang::sym(pos_col), !!rlang::sym(seq_col)), dplyr::n_distinct)) %>%
-    tidyr::pivot_longer(cols = -pattern) %>%
+    df |>
+    dplyr::group_by(!!rlang::sym(name_col)) |>
+    dplyr::summarise(dplyr::across(-c(!!rlang::sym(pos_col), !!rlang::sym(seq_col)), dplyr::n_distinct)) |>
+    tidyr::pivot_longer(cols = -pattern) |>
     dplyr::filter(value == 1)
   add_cols_vals <-
-    df %>%
-    dplyr::select(pattern, unique(unique_add_cols$name)) %>%
-    dplyr::distinct() %>%
+    df |>
+    dplyr::select(pattern, unique(unique_add_cols$name)) |>
+    dplyr::distinct() |>
     tidyr::pivot_longer(cols = - pattern)
   add_cols_vals_unique_wide <-
-    unique_add_cols %>%
-    dplyr::select(-value) %>%
-    dplyr::left_join(add_cols_vals, by = dplyr::join_by(pattern, name)) %>%
-    dplyr::distinct() %>%
+    unique_add_cols |>
+    dplyr::select(-value) |>
+    dplyr::left_join(add_cols_vals, by = dplyr::join_by(pattern, name)) |>
+    dplyr::distinct() |>
     tidyr::pivot_wider(names_from = name, values_from = value)
   return(add_cols_vals_unique_wide)
 }

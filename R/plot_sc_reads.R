@@ -20,7 +20,6 @@
 #' @return a list with a ggplot and intermediate results
 #' @export
 #'
-#' @importFrom magrittr "%>%"
 #'
 #' @examples
 #' \dontrun{

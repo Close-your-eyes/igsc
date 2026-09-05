@@ -31,7 +31,6 @@
 #'
 #' @export
 #'
-#' @importFrom magrittr "%>%"
 #'
 #' @examples
 #' \dontrun{

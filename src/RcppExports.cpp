@@ -10,6 +10,18 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// countOccurrencesInCpp
+IntegerMatrix countOccurrencesInCpp(NumericMatrix mat, IntegerMatrix cols);
+RcppExport SEXP _igsc_countOccurrencesInCpp(SEXP matSEXP, SEXP colsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type mat(matSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type cols(colsSEXP);
+    rcpp_result_gen = Rcpp::wrap(countOccurrencesInCpp(mat, cols));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compare_nonref_cpp
 DataFrame compare_nonref_cpp(DataFrame df, std::string ref, std::string pos_col, std::string seq_col, std::string name_col, std::string match_symbol, std::string mismatch_symbol, bool keep_gaps, std::string nonref_mismatch_as);
 RcppExport SEXP _igsc_compare_nonref_cpp(SEXP dfSEXP, SEXP refSEXP, SEXP pos_colSEXP, SEXP seq_colSEXP, SEXP name_colSEXP, SEXP match_symbolSEXP, SEXP mismatch_symbolSEXP, SEXP keep_gapsSEXP, SEXP nonref_mismatch_asSEXP) {
@@ -42,6 +54,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type keep_match_gaps(keep_match_gapsSEXP);
     Rcpp::traits::input_parameter< std::string >::type nonref_mismatch_as(nonref_mismatch_asSEXP);
     rcpp_result_gen = Rcpp::wrap(mutate_value_cpp(value, ref_col, match_symbol, mismatch_symbol, keep_match_gaps, nonref_mismatch_as));
+    return rcpp_result_gen;
+END_RCPP
+}
+// orderAndConcatenateStrings
+std::vector<std::string> orderAndConcatenateStrings(Rcpp::CharacterMatrix mat);
+RcppExport SEXP _igsc_orderAndConcatenateStrings(SEXP matSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::CharacterMatrix >::type mat(matSEXP);
+    rcpp_result_gen = Rcpp::wrap(orderAndConcatenateStrings(mat));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -103,8 +126,10 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_igsc_countOccurrencesInCpp", (DL_FUNC) &_igsc_countOccurrencesInCpp, 2},
     {"_igsc_compare_nonref_cpp", (DL_FUNC) &_igsc_compare_nonref_cpp, 9},
     {"_igsc_mutate_value_cpp", (DL_FUNC) &_igsc_mutate_value_cpp, 6},
+    {"_igsc_orderAndConcatenateStrings", (DL_FUNC) &_igsc_orderAndConcatenateStrings, 1},
     {"_igsc_process_attr_col_rcpp", (DL_FUNC) &_igsc_process_attr_col_rcpp, 1},
     {"_igsc_processStrings", (DL_FUNC) &_igsc_processStrings, 1},
     {"_igsc_qual_stats_cpp", (DL_FUNC) &_igsc_qual_stats_cpp, 1},
