@@ -56,9 +56,10 @@ a frame ending in a terminal stop codon is preferred; otherwise, the longest
 translation is selected. Ties are resolved using the smallest nucleotide
 offset and generate a warning.
 
-Missing trailing exon annotations are allowed. However, a missing exon from
-Exon2 through the highest available exon is treated as an internal gap and
-produces an error.
+When \code{exons} is supplied, a row returns \code{NA} if one or more of the requested
+exon columns or coordinates is missing. Missing trailing exon annotations
+are otherwise allowed. However, a missing exon from Exon2 through the
+highest available exon is treated as an internal gap and produces an error.
 }
 \examples{
 alleles <- data.frame(

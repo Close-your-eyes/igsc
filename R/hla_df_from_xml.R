@@ -23,6 +23,8 @@
 #' hla <- hla_df_from_xml("hla.xml.gz")
 #' hla <- hla_df_from_xml("hla.xml.zip")
 #'
+#' tt <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
+#'
 #' hla <- hla_df_from_xml(
 #'   "hla.xml.zip",
 #'   lapply_fun = parallel::mclapply,
@@ -33,44 +35,24 @@ hla_df_from_xml <- function(file_path,
                             lapply_fun = lapply,
                             replace_none_pg = TRUE,
                             ...) {
-  required <- c("xml2", "dplyr")
-  missing <- required[
-    !vapply(required, requireNamespace, logical(1), quietly = TRUE)
-  ]
 
-  if (length(missing)) {
-    stop(
-      "Required package(s) not installed: ",
-      paste(missing, collapse = ", "),
-      call. = FALSE
-    )
-  }
 
-  if (length(file_path) != 1L ||
-      is.na(file_path) ||
-      !nzchar(file_path)) {
+  if (length(file_path) != 1L || is.na(file_path) || !nzchar(file_path)) {
     stop("`file_path` must be a single, non-empty path.", call. = FALSE)
   }
-
   file_path <- path.expand(file_path)
-
   if (!file.exists(file_path)) {
     stop("File does not exist: ", file_path, call. = FALSE)
   }
 
-  if (!is.logical(replace_none_pg) ||
-      length(replace_none_pg) != 1L ||
-      is.na(replace_none_pg)) {
+  if (!is.logical(replace_none_pg) || length(replace_none_pg) != 1L || is.na(replace_none_pg)) {
     stop("`replace_none_pg` must be TRUE or FALSE.", call. = FALSE)
   }
 
   lapply_fun <- match.fun(lapply_fun)
-  document <- .read_hla_xml(file_path)
+  document <- read_hla_xml(file_path)
 
-  alleles <- xml2::xml_find_all(
-    document,
-    ".//*[local-name() = 'allele']"
-  )
+  alleles <- xml2::xml_find_all(document, ".//*[local-name() = 'allele']")
 
   if (!length(alleles)) {
     stop("The XML document contains no allele nodes.", call. = FALSE)
@@ -82,7 +64,7 @@ hla_df_from_xml <- function(file_path,
     stop("`lapply_fun` must return a list.", call. = FALSE)
   }
 
-  rows <- Filter(Negate(is.null), rows)
+  rows <- purrr::discard(rows, is.null)
 
   if (!length(rows)) {
     stop("No allele records could be parsed.", call. = FALSE)
@@ -93,9 +75,8 @@ hla_df_from_xml <- function(file_path,
 
   # Normalize to four allele fields while preserving expression suffixes,
   # e.g. HLA-A*01:01N -> HLA-A*01:01:01:01N.
-  df$allele <- .pad_hla_allele(df$allele)
-
-  df$prefix <- substr(df$allele, 1L, 3L)
+  df$allele <- pad_hla_allele(df$allele)
+  df$prefix <- substr(df$allele, 1, 3)
 
   allele_name <- sub("^HLA-", "", df$allele)
   mic <- grepl("^MIC[^*]*\\*", allele_name)
@@ -103,62 +84,15 @@ hla_df_from_xml <- function(file_path,
   df$gene <- sub("\\*.*$", "", allele_name)
 
   # Remove the fourth allele field and any expression suffix.
-  df$allele_coding <- sub(
-    ":[[:digit:]]+[[:alpha:]]*$",
-    "",
-    df$allele
-  )
+  df$allele_coding <- sub(":[[:digit:]]+[[:alpha:]]*$", "", df$allele)
   df$allele_coding <- sub("^HLA-", "", df$allele_coding)
   df$allele_coding <- sub("^MIC", "", df$allele_coding)
 
   fields <- strsplit(df$allele_coding, ":", fixed = TRUE)
 
-  df$allele_group <- vapply(
-    fields,
-    function(x) x[[1L]],
-    character(1)
-  )
-
-  df$allele_protein <- vapply(
-    fields,
-    function(x) paste(x[seq_len(min(2L, length(x)))], collapse = ":"),
-    character(1)
-  )
-
+  df$allele_group <- vapply(fields, function(x) x[[1L]], character(1))
+  df$allele_protein <- vapply(fields, function(x) paste(x[seq_len(min(2L, length(x)))], collapse = ":"), character(1))
   df$seq_length <- nchar(df$seq)
-
-  exon2 <- if ("Exon2" %in% names(df)) {
-    df$Exon2
-  } else {
-    rep(NA_character_, nrow(df))
-  }
-
-  exon3 <- if ("Exon3" %in% names(df)) {
-    df$Exon3
-  } else {
-    rep(NA_character_, nrow(df))
-  }
-
-  exon2_start <- suppressWarnings(
-    as.integer(sub("_.*$", "", exon2))
-  )
-  exon3_end <- suppressWarnings(
-    as.integer(sub("^.*_", "", exon3))
-  )
-
-  valid <- !is.na(df$seq) &
-    !is.na(exon2_start) &
-    !is.na(exon3_end) &
-    exon2_start >= 1L &
-    exon3_end >= exon2_start
-
-  df$seq_Exon2_3 <- NA_character_
-  df$seq_Exon2_3[valid] <- substr(
-    df$seq[valid],
-    exon2_start[valid],
-    exon3_end[valid]
-  )
-  df$seq_Exon2_3_length <- nchar(df$seq_Exon2_3)
 
   if (replace_none_pg) {
     replace_g <- !is.na(df$g_group) & df$g_group == "None"
@@ -168,12 +102,13 @@ hla_df_from_xml <- function(file_path,
     df$p_group[replace_p] <- df$allele_protein[replace_p]
   }
 
-  df
+  df$seq_Exon2_3 <- extract_cds(df, exons = c(2,3))
+
+  return(df)
 }
 
-
 # Read an XML document from .xml, .xml.gz, or .xml.zip.
-.read_hla_xml <- function(file_path) {
+read_hla_xml <- function(file_path) {
   lower_path <- tolower(file_path)
 
   if (grepl("\\.xml$", lower_path)) {
@@ -183,20 +118,14 @@ hla_df_from_xml <- function(file_path,
   if (grepl("\\.xml\\.gz$", lower_path)) {
     connection <- gzfile(file_path, open = "rb")
     on.exit(close(connection), add = TRUE)
-
     return(xml2::read_xml(connection))
   }
 
   if (grepl("\\.xml\\.zip$", lower_path)) {
     archive <- utils::unzip(file_path, list = TRUE)
 
-    xml_members <- archive$Name[
-      grepl("\\.xml$", archive$Name, ignore.case = TRUE)
-    ]
-
-    preferred <- xml_members[
-      tolower(basename(xml_members)) == "hla.xml"
-    ]
+    xml_members <- archive$Name[grepl("\\.xml$", archive$Name, ignore.case = TRUE)]
+    preferred <- xml_members[tolower(basename(xml_members)) == "hla.xml"]
 
     member <- if (length(preferred) == 1L) {
       preferred
@@ -206,11 +135,7 @@ hla_df_from_xml <- function(file_path,
       stop("The ZIP archive contains no XML file.", call. = FALSE)
     } else {
       stop(
-        paste0(
-          "The ZIP archive contains multiple XML files and no unique ",
-          "`hla.xml`: ",
-          paste(xml_members, collapse = ", ")
-        ),
+        paste0("The ZIP archive contains multiple XML files and no unique ", "`hla.xml`: ", paste(xml_members, collapse = ", ")),
         call. = FALSE
       )
     }
@@ -221,10 +146,7 @@ hla_df_from_xml <- function(file_path,
     return(xml2::read_xml(connection))
   }
 
-  stop(
-    "`file_path` must end in .xml, .xml.gz, or .xml.zip.",
-    call. = FALSE
-  )
+  stop("`file_path` must end in .xml, .xml.gz, or .xml.zip.", call. = FALSE)
 }
 
 
@@ -241,7 +163,7 @@ read_child <- function(x) {
     "./*[local-name() = 'sequence']"
   )
 
-  if (.is_xml_missing(sequence_node)) {
+  if (is_xml_missing(sequence_node)) {
     sequence <- NA_character_
     features <- list()
   } else {
@@ -250,7 +172,7 @@ read_child <- function(x) {
       "./*[local-name() = 'nucsequence']"
     )
 
-    sequence <- if (.is_xml_missing(nucleotide_node)) {
+    sequence <- if (is_xml_missing(nucleotide_node)) {
       NA_character_
     } else {
       gsub(
@@ -269,8 +191,8 @@ read_child <- function(x) {
   result <- data.frame(
     allele = allele,
     seq = sequence,
-    g_group = .read_hla_group(x, "hla_g_group"),
-    p_group = .read_hla_group(x, "hla_p_group"),
+    g_group = read_hla_group(x, "hla_g_group"),
+    p_group = read_hla_group(x, "hla_p_group"),
     stringsAsFactors = FALSE
   )
 
@@ -291,7 +213,7 @@ read_child <- function(x) {
       # Keep the first occurrence if a feature name is duplicated.
       if (!feature_names[[i]] %in% names(result)) {
         result[[feature_names[[i]]]] <-
-          .read_feature_bounds(features[[i]])
+          read_feature_bounds(features[[i]])
       }
     }
   }
@@ -300,13 +222,10 @@ read_child <- function(x) {
 }
 
 
-.read_hla_group <- function(allele_node, group_name) {
-  node <- xml2::xml_find_first(
-    allele_node,
-    sprintf("./*[local-name() = '%s']", group_name)
-  )
+read_hla_group <- function(allele_node, group_name) {
+  node <- xml2::xml_find_first(allele_node, sprintf("./*[local-name() = '%s']", group_name))
 
-  if (.is_xml_missing(node)) {
+  if (is_xml_missing(node)) {
     return("None")
   }
 
@@ -328,13 +247,10 @@ read_child <- function(x) {
 }
 
 
-.read_feature_bounds <- function(feature) {
-  coordinates <- xml2::xml_find_first(
-    feature,
-    "./*[local-name() = 'coordinates']"
-  )
+read_feature_bounds <- function(feature) {
+  coordinates <- xml2::xml_find_first(feature, "./*[local-name() = 'coordinates']")
 
-  if (.is_xml_missing(coordinates)) {
+  if (is_xml_missing(coordinates)) {
     return(NA_character_)
   }
 
@@ -355,37 +271,25 @@ read_child <- function(x) {
 }
 
 
-.pad_hla_allele <- function(x) {
+pad_hla_allele <- function(x) {
   result <- x
   valid <- !is.na(x)
 
-  suffix <- ifelse(
-    grepl("[NLSCAQ]$", x[valid]),
-    sub("^.*([NLSCAQ])$", "\\1", x[valid]),
-    ""
-  )
+  suffix <- ifelse(grepl("[NLSCAQ]$", x[valid]), sub("^.*([NLSCAQ])$", "\\1", x[valid]), "")
 
-  stem <- ifelse(
-    nzchar(suffix),
-    substr(x[valid], 1L, nchar(x[valid]) - 1L),
-    x[valid]
-  )
+  stem <- ifelse(nzchar(suffix), substr(x[valid], 1L, nchar(x[valid]) - 1L), x[valid])
 
   colon_count <- nchar(gsub("[^:]", "", stem))
   missing_fields <- pmax.int(0L, 3L - colon_count)
 
-  padding <- vapply(
-    missing_fields,
-    function(n) paste(rep(":01", n), collapse = ""),
-    character(1)
-  )
+  padding <- vapply(missing_fields, function(n) paste(rep(":01", n), collapse = ""), character(1))
 
   result[valid] <- paste0(stem, padding, suffix)
   result
 }
 
 
-.is_xml_missing <- function(x) {
+is_xml_missing <- function(x) {
   length(x) == 0L || inherits(x, "xml_missing")
 }
 
@@ -425,9 +329,10 @@ read_child <- function(x) {
 #' translation is selected. Ties are resolved using the smallest nucleotide
 #' offset and generate a warning.
 #'
-#' Missing trailing exon annotations are allowed. However, a missing exon from
-#' Exon2 through the highest available exon is treated as an internal gap and
-#' produces an error.
+#' When `exons` is supplied, a row returns `NA` if one or more of the requested
+#' exon columns or coordinates is missing. Missing trailing exon annotations
+#' are otherwise allowed. However, a missing exon from Exon2 through the
+#' highest available exon is treated as an internal gap and produces an error.
 #'
 #' @examples
 #' alleles <- data.frame(
@@ -452,6 +357,11 @@ extract_cds <- function(data,
                         translate = FALSE,
                         no.init.codon = TRUE,
                         if.fuzzy.codon = "X") {
+
+  if (translate && !requireNamespace("Biostrings", quietly = TRUE)) {
+    BiocManager::install("Biostrings")
+  }
+
   if (!is.data.frame(data)) {
     stop("`data` must be a data frame.", call. = FALSE)
   }
@@ -464,59 +374,12 @@ extract_cds <- function(data,
     stop("`data$seq` must be a character vector.", call. = FALSE)
   }
 
-  validate_logical <- function(x, name) {
-    if (!is.logical(x) || length(x) != 1L || is.na(x)) {
-      stop("`", name, "` must be TRUE or FALSE.", call. = FALSE)
-    }
-  }
-
-  validate_position <- function(x, name) {
-    if (is.null(x)) {
-      return(invisible(NULL))
-    }
-
-    if (!is.numeric(x) ||
-        length(x) != 1L ||
-        is.na(x) ||
-        !is.finite(x) ||
-        x < 1 ||
-        x != floor(x)) {
-      stop(
-        "`", name, "` must be NULL or one positive integer.",
-        call. = FALSE
-      )
-    }
-
-    invisible(NULL)
-  }
-
   validate_logical(translate, "translate")
   validate_logical(no.init.codon, "no.init.codon")
   validate_position(cds_start, "cds_start")
   validate_position(cds_end, "cds_end")
 
-  exon_cols <- grep(
-    "^Exon[0-9]+$",
-    names(data),
-    value = TRUE
-  )
-
-  if (!length(exon_cols)) {
-    stop("No exon columns were found.", call. = FALSE)
-  }
-
-  exon_numbers <- as.integer(sub("^Exon", "", exon_cols))
-  exon_order <- order(exon_numbers)
-
-  exon_cols <- exon_cols[exon_order]
-  exon_numbers <- exon_numbers[exon_order]
-
-  if (anyDuplicated(exon_numbers)) {
-    stop("Duplicate exon numbers were found.", call. = FALSE)
-  }
-
   explicit_exons <- !is.null(exons)
-
   if (explicit_exons) {
     if (!is.numeric(exons) ||
         !length(exons) ||
@@ -533,272 +396,101 @@ extract_cds <- function(data,
     if (anyDuplicated(exons)) {
       stop("`exons` must not contain duplicates.", call. = FALSE)
     }
+  }
 
-    exon_cols_req <- paste0("Exon", as.integer(exons))
+  exon_cols <- grep("^Exon[0-9]+$", names(data), value = TRUE)
 
-    missing_columns <- setdiff(exon_cols_req, names(data))
-    disallowed_missing <- setdiff(
-      missing_columns,
-      if (translate) "Exon1" else character()
-    )
-
-    if (length(disallowed_missing)) {
-      stop(
-        "Missing exon columns: ",
-        paste(disallowed_missing, collapse = ", "),
-        ".",
-        call. = FALSE
-      )
+  if (!length(exon_cols)) {
+    if (explicit_exons) {
+      return(rep(NA_character_, nrow(data)))
     }
+
+    stop("No exon columns were found.", call. = FALSE)
+  }
+
+  exon_numbers <- as.integer(sub("^Exon", "", exon_cols))
+  exon_order <- order(exon_numbers)
+
+  exon_cols <- exon_cols[exon_order]
+  exon_numbers <- exon_numbers[exon_order]
+
+  if (anyDuplicated(exon_numbers)) {
+    stop("Duplicate exon numbers were found.", call. = FALSE)
+  }
+
+  if (explicit_exons) {
+    exon_cols_req <- paste0("Exon", as.integer(exons))
   } else {
     exon_cols_req <- exon_cols
-  }
-
-  if (translate && !requireNamespace("Biostrings", quietly = TRUE)) {
-    stop(
-      "Package `Biostrings` is required when `translate = TRUE`.",
-      call. = FALSE
-    )
-  }
-
-  translate_inferred_frame <- function(cds, row_number) {
-    translate_candidate <- function(offset) {
-      available_length <- nchar(cds) - offset
-      translated_width <- available_length -
-        (available_length %% 3L)
-
-      if (translated_width < 3L) {
-        return(NULL)
-      }
-
-      candidate_dna <- substr(
-        cds,
-        offset + 1L,
-        offset + translated_width
-      )
-
-      candidate_aa <- as.character(
-        Biostrings::translate(
-          Biostrings::DNAString(toupper(candidate_dna)),
-          no.init.codon = TRUE,
-          if.fuzzy.codon = if.fuzzy.codon
-        )
-      )
-
-      aa_letters <- strsplit(
-        candidate_aa,
-        "",
-        fixed = TRUE
-      )[[1]]
-
-      stop_positions <- which(aa_letters == "*")
-      terminal_position <- length(aa_letters)
-
-      premature_stop <- any(
-        stop_positions < terminal_position
-      )
-
-      terminal_stop <- (
-        length(aa_letters) > 0L &&
-          aa_letters[[terminal_position]] == "*"
-      )
-
-      list(
-        offset = offset,
-        aa = candidate_aa,
-        length = length(aa_letters),
-        premature_stop = premature_stop,
-        terminal_stop = terminal_stop
-      )
-    }
-
-    candidates <- lapply(0:2, translate_candidate)
-
-    acceptable <- which(vapply(
-      candidates,
-      function(candidate) {
-        !is.null(candidate) && !candidate$premature_stop
-      },
-      logical(1)
-    ))
-
-    if (!length(acceptable)) {
-      stop(
-        "Cannot infer a reading frame in row ", row_number,
-        ": all three frames contain a premature stop codon.",
-        call. = FALSE
-      )
-    }
-
-    terminal_candidates <- acceptable[vapply(
-      candidates[acceptable],
-      function(candidate) candidate$terminal_stop,
-      logical(1)
-    )]
-
-    candidate_pool <- if (length(terminal_candidates)) {
-      terminal_candidates
-    } else {
-      acceptable
-    }
-
-    candidate_lengths <- vapply(
-      candidates[candidate_pool],
-      function(candidate) candidate$length,
-      integer(1)
-    )
-
-    longest_candidates <- candidate_pool[
-      candidate_lengths == max(candidate_lengths)
-    ]
-
-    candidate_offsets <- vapply(
-      candidates[longest_candidates],
-      function(candidate) candidate$offset,
-      integer(1)
-    )
-
-    selected <- longest_candidates[
-      which.min(candidate_offsets)
-    ]
-
-    if (length(candidate_pool) > 1L) {
-      warning(
-        "Multiple acceptable reading frames were found in row ",
-        row_number, "; selected nucleotide offset ",
-        candidates[[selected]]$offset, ".",
-        call. = FALSE
-      )
-    }
-
-    candidates[[selected]]$aa
   }
 
   extract_one <- function(i) {
     sequence <- data$seq[[i]]
 
-    if (is.na(sequence) || !nzchar(sequence)) {
-      stop(
-        "Missing or empty sequence in row ", i, ".",
-        call. = FALSE
-      )
-    }
-
     # Create a complete coordinate vector so absent exon columns can also
     # be detected as internal gaps.
-    maximum_exon <- max(c(
-      exon_numbers,
-      if (explicit_exons) as.integer(exons) else integer()
-    ))
-
-    all_ranges <- setNames(
-      rep(NA_character_, maximum_exon),
-      paste0("Exon", seq_len(maximum_exon))
-    )
-
-    available_columns <- intersect(
-      names(all_ranges),
-      exon_cols
-    )
-
-    all_ranges[available_columns] <- unlist(
-      data[i, available_columns, drop = FALSE],
-      use.names = FALSE
-    )
+    maximum_exon <- max(c(exon_numbers, if (explicit_exons) as.integer(exons) else integer()))
+    all_ranges <- stats::setNames(rep(NA_character_, maximum_exon), paste0("Exon", seq_len(maximum_exon)))
+    available_columns <- intersect(names(all_ranges), exon_cols)
+    all_ranges[available_columns] <- unlist(data[i, available_columns, drop = FALSE], use.names = FALSE)
 
     available <- !is.na(all_ranges) & nzchar(all_ranges)
     available_numbers <- which(available)
+
+    requested_ranges <- all_ranges[exon_cols_req]
+    requested_unavailable <- is.na(requested_ranges) |
+      !nzchar(requested_ranges)
+
+    if (explicit_exons && any(requested_unavailable)) {
+      return(NA_character_)
+    }
+
+    if (is.na(sequence) || !nzchar(sequence)) {
+      stop("Missing or empty sequence in row ", i, ".", call. = FALSE)
+    }
 
     if (!length(available_numbers)) {
       return(NA_character_)
     }
 
-    highest_available <- max(available_numbers)
+    # With exons = NULL, reject gaps in the complete annotated exon series.
+    # With an explicit exon list, unrequested exons are outside the extraction
+    # scope and must not affect the result.
+    if (!explicit_exons) {
+      highest_available <- max(available_numbers)
+      required_internal <- if (highest_available >= 2L) {
+        seq.int(2L, highest_available)
+      } else {
+        integer()
+      }
 
-    # Exon1 may be absent, but no gaps are permitted after Exon22 begins.
-    required_internal <- if (highest_available >= 2L) {
-      seq.int(2L, highest_available)
-    } else {
-      integer()
-    }
+      missing_internal <- required_internal[!available[required_internal]]
 
-    missing_internal <- required_internal[
-      !available[required_internal]
-    ]
-
-    if (length(missing_internal)) {
-      stop(
-        "Missing internal exon coordinates in row ", i, ": ",
-        paste0(
-          "Exon",
-          missing_internal,
-          collapse = ", "
-        ),
-        ".",
-        call. = FALSE
-      )
-    }
-
-    exon1_missing <- !available[1L]
-
-    requested_ranges <- all_ranges[exon_cols_req]
-    requested_unavailable <- (
-      is.na(requested_ranges) |
-        !nzchar(requested_ranges)
-    )
-
-    if (explicit_exons && any(requested_unavailable)) {
-      unavailable_names <- names(requested_ranges)[
-        requested_unavailable
-      ]
-
-      allowed_missing <- (
-        translate &&
-          unavailable_names == "Exon1"
-      )
-
-      disallowed_names <- unavailable_names[
-        !allowed_missing
-      ]
-
-      if (length(disallowed_names)) {
+      if (length(missing_internal)) {
         stop(
-          "No coordinates available for ",
-          paste(disallowed_names, collapse = ", "),
-          " in row ", i, ".",
+          "Missing internal exon coordinates in row ", i, ": ",
+          paste0("Exon", missing_internal, collapse = ", "),
+          ".",
           call. = FALSE
         )
       }
     }
 
-    requested_ranges <- requested_ranges[
-      !is.na(requested_ranges) &
-        nzchar(requested_ranges)
-    ]
-
+    exon1_missing <- !available[1L]
+    requested_ranges <- requested_ranges[!is.na(requested_ranges) & nzchar(requested_ranges)]
     if (!length(requested_ranges)) {
-      stop(
-        "No extractable exon sequence remains in row ", i, ".",
-        call. = FALSE
-      )
+      stop("No extractable exon sequence remains in row ", i, ".", call. = FALSE)
     }
 
     exon_sequences <- vapply(
       names(requested_ranges),
       function(exon_name) {
         range <- requested_ranges[[exon_name]]
-
         if (!grepl("^[0-9]+_[0-9]+$", range)) {
-          stop(
-            "Invalid coordinate for ", exon_name,
-            " in row ", i, ": ", range, ".",
-            call. = FALSE
-          )
+          stop("Invalid coordinate for ", exon_name, " in row ", i, ": ", range, ".", call. = FALSE)
         }
 
-        coordinate <- as.integer(
-          strsplit(range, "_", fixed = TRUE)[[1]]
-        )
+        coordinate <- as.integer(strsplit(range, "_", fixed = TRUE)[[1]])
 
         start <- coordinate[1]
         end <- coordinate[2]
@@ -871,14 +563,119 @@ extract_cds <- function(data,
     )
   }
 
-  vapply(
-    seq_len(nrow(data)),
-    extract_one,
-    character(1),
-    USE.NAMES = FALSE
-  )
+  vapply(seq_len(nrow(data)), extract_one, character(1), USE.NAMES = FALSE)
 }
 
+
+validate_logical <- function(x, name) {
+  if (!is.logical(x) || length(x) != 1L || is.na(x)) {
+    stop("`", name, "` must be TRUE or FALSE.", call. = FALSE)
+  }
+}
+
+validate_position <- function(x, name) {
+  if (is.null(x)) {
+    return(invisible(NULL))
+  }
+
+  if (!is.numeric(x) ||
+      length(x) != 1L ||
+      is.na(x) ||
+      !is.finite(x) ||
+      x < 1 ||
+      x != floor(x)) {
+    stop(
+      "`", name, "` must be NULL or one positive integer.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+translate_inferred_frame <- function(cds, row_number) {
+  translate_candidate <- function(offset) {
+    available_length <- nchar(cds) - offset
+    translated_width <- available_length -
+      (available_length %% 3L)
+
+    if (translated_width < 3L) {
+      return(NULL)
+    }
+
+    candidate_dna <- substr(
+      cds,
+      offset + 1L,
+      offset + translated_width
+    )
+
+    candidate_aa <- as.character(Biostrings::translate(
+      Biostrings::DNAString(toupper(candidate_dna)),
+      no.init.codon = TRUE,
+      if.fuzzy.codon = if.fuzzy.codon))
+
+    aa_letters <- strsplit(candidate_aa, "", fixed = TRUE)[[1]]
+
+    stop_positions <- which(aa_letters == "*")
+    terminal_position <- length(aa_letters)
+    premature_stop <- any(stop_positions < terminal_position)
+    terminal_stop <- (length(aa_letters) > 0L && aa_letters[[terminal_position]] == "*")
+
+    list(
+      offset = offset,
+      aa = candidate_aa,
+      length = length(aa_letters),
+      premature_stop = premature_stop,
+      terminal_stop = terminal_stop
+    )
+  }
+
+  candidates <- lapply(0:2, translate_candidate)
+
+  acceptable <- which(vapply(candidates, function(candidate) {
+    !is.null(candidate) && !candidate$premature_stop
+  }, logical(1)))
+
+  if (!length(acceptable)) {
+    stop("Cannot infer a reading frame in row ", row_number, ": all three frames contain a premature stop codon.", call. = FALSE)
+  }
+
+  terminal_candidates <- acceptable[vapply(
+    candidates[acceptable],
+    function(candidate) candidate$terminal_stop,
+    logical(1)
+  )]
+
+  candidate_pool <- if (length(terminal_candidates)) {
+    terminal_candidates
+  } else {
+    acceptable
+  }
+
+  candidate_lengths <- vapply(
+    candidates[candidate_pool],
+    function(candidate) candidate$length,
+    integer(1))
+
+  longest_candidates <- candidate_pool[candidate_lengths == max(candidate_lengths)]
+
+  candidate_offsets <- vapply(
+    candidates[longest_candidates],
+    function(candidate) candidate$offset,
+    integer(1))
+
+  selected <- longest_candidates[which.min(candidate_offsets)]
+
+  if (length(candidate_pool) > 1L) {
+    warning(
+      "Multiple acceptable reading frames were found in row ",
+      row_number, "; selected nucleotide offset ",
+      candidates[[selected]]$offset, ".",
+      call. = FALSE
+    )
+  }
+
+  candidates[[selected]]$aa
+}
 
 #' Prepare a data frame from a xml file containing hla allele information
 #'
@@ -903,9 +700,9 @@ extract_cds <- function(data,
 #' mc.cores = parallel::detectCores())
 #' }
 hla_df_from_xml_legacy <- function(file_path,
-                            lapply_fun = lapply,
-                            replace_none_pg = T,
-                            ...) {
+                                   lapply_fun = lapply,
+                                   replace_none_pg = T,
+                                   ...) {
 
   if (!requireNamespace("xml2", quietly = T)) {
     utils::install.packages("xml2")

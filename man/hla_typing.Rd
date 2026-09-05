@@ -9,17 +9,18 @@ hla_typing(
   reads,
   allele_diff = 5,
   top_n_pairwise_results = 50,
-  hla_seq_colName = "seq_Exon2_3",
-  hla_seq_colName2 = "seq",
-  read_seq_colName = "seq",
-  hla_allele_colName = "allele",
-  read_name_colName = "readName",
-  p_group_colName = "p_group",
-  g_group_colName = "g_group",
+  hla_seq_col_name = "seq_Exon2_3",
+  read_seq_col_name = "seq",
+  hla_allele_col_name = "allele",
+  read_name_col_name = "readName",
+  p_group_col_name = "p_group",
+  g_group_col_name = "g_group",
   lapply_fun = lapply,
   maxmis = 0,
-  complete_seq_columns = c("5'UTR", paste0("Exon", 1:8), "3'UTR"),
-  make_reads_distinct = F,
+  make_reads_distinct = FALSE,
+  rev_comp_minus = FALSE,
+  strand_col_name = "strand",
+  minus_strand_value = "-",
   ...
 )
 }
@@ -39,26 +40,22 @@ alleles with at least 4 matches are retained.}
 \item{top_n_pairwise_results}{A positive integer giving the number of leading
 pairwise results to include in the rank plot.}
 
-\item{hla_seq_colName}{A character scalar naming the reference sequence
+\item{hla_seq_col_name}{A character scalar naming the reference sequence
 column used for the first matching round.}
 
-\item{hla_seq_colName2}{A character scalar naming the reference sequence
-column used for the optional second matching round. If it is absent from
-\code{hla_ref}, the second round is skipped.}
-
-\item{read_seq_colName}{A character scalar naming the sequence column in
+\item{read_seq_col_name}{A character scalar naming the sequence column in
 \code{reads}.}
 
-\item{hla_allele_colName}{A character scalar naming the allele column in
+\item{hla_allele_col_name}{A character scalar naming the allele column in
 \code{hla_ref}.}
 
-\item{read_name_colName}{A character scalar naming the read identifier column
+\item{read_name_col_name}{A character scalar naming the read identifier column
 in \code{reads}.}
 
-\item{p_group_colName}{A character scalar naming the P-group column in
+\item{p_group_col_name}{A character scalar naming the P-group column in
 \code{hla_ref}.}
 
-\item{g_group_colName}{A character scalar naming the G-group column in
+\item{g_group_col_name}{A character scalar naming the G-group column in
 \code{hla_ref}.}
 
 \item{lapply_fun}{A function, or the name of a function, used to apply the
@@ -68,19 +65,27 @@ matching operation. Suggested values are \code{\link[base:lapply]{base::lapply()
 \item{maxmis}{A non-negative integer giving the maximum number of mismatches
 allowed per read match.}
 
-\item{complete_seq_columns}{A character vector naming columns used to identify
-reference alleles with complete sequence annotation for the second round.
-Columns not present in \code{hla_ref} are ignored.}
-
 \item{make_reads_distinct}{A logical value indicating whether duplicated read
 sequences should be removed before matching.}
+
+\item{rev_comp_minus}{A logical value indicating whether sequences whose
+strand equals \code{minus_strand_value} should be reverse-complemented before
+matching. This is useful when minus-strand reads are stored in their
+sequenced orientation rather than reference orientation.}
+
+\item{strand_col_name}{A character scalar naming the strand column in
+\code{reads}. The column is required when \code{rev_comp_minus = TRUE} and is used
+for strand-specific match summaries when present.}
+
+\item{minus_strand_value}{The value in \code{strand_col_name} identifying
+minus-strand reads.}
 
 \item{...}{Additional arguments passed to \code{lapply_fun}, such as \code{mc.cores}
 when \code{\link[parallel:mclapply]{parallel::mclapply()}} is used.}
 }
 \value{
-A named list containing first- and, when available, second-round
-results. Each non-\code{NULL} round contains:
+\code{NULL} if no read matches a reference allele; otherwise, a list
+containing:
 \describe{
 \item{top_sin_res_df}{A data frame of retained alleles and their
 explained-read counts.}
@@ -110,18 +115,14 @@ exons 2 and 3). Candidate alleles are retained according to
 \code{allele_diff}, and all retained allele pairs are scored by the number of
 reads they explain uniquely, redundantly, and in total. Pairwise results are
 summarized by P group because typing at greater resolution may be uncertain.
-
-Matching is performed first with \code{hla_seq_colName}. If
-\code{hla_seq_colName2} is present in \code{hla_ref}, a second round uses that sequence
-column and the complete reference alleles associated with the leading P
-groups from the first round. If the column is absent, the second round is
-skipped with a message.
 }
 \examples{
 \dontrun{
-hla_a_results <- hla_typing(
-  hla_ref = subset(hla_reference, grepl("HLA-A", allele)),
-  reads = bam_reads
-)
+# get hla refs
+hla_ref <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
+# create synthetic reads
+reads_hla <- simulate_hla_reads(hla_ref, snps_per_read = c(1), gene = "A", minus_strand_prob = 0)
+# run typing algorithm
+type <- hla_typing(hla_ref = hla_ref |> dplyr::filter(gene == "A"), reads = reads_hla, maxmis = 1)
 }
 }

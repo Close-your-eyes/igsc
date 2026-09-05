@@ -35,6 +35,8 @@ hla <- hla_df_from_xml("hla.xml")
 hla <- hla_df_from_xml("hla.xml.gz")
 hla <- hla_df_from_xml("hla.xml.zip")
 
+tt <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
+
 hla <- hla_df_from_xml(
   "hla.xml.zip",
   lapply_fun = parallel::mclapply,

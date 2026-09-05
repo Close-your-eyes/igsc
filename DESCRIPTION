@@ -48,7 +48,8 @@ Imports:
     viridisLite,
     Rsamtools,
     reticulate,
-    Matrix
+    Matrix,
+    xml2
 Suggests: 
     rmarkdown,
     knitr,
