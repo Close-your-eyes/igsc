@@ -41,16 +41,14 @@ pwalign_print <- function(pa,
                           extend_subject = c(0,0),
                           out_file = NULL) {
 
+  .ensure_packages(c("Peptides", "RColorBrewer", "crayon", "pwalign"))
+
   # pa formats
   #http://emboss.sourceforge.net/docs/themes/AlignFormats.html
 
   # @param use_align_starts if TRUE, the first positions are not 1 but refer to
   # position of alignment within the provided sequences
   # use_align_starts = T,
-
-  if (!requireNamespace("pwalign", quietly = T)){
-    BiocManager::install("pwalign")
-  }
 
   if (!is.null(out_file)) {
     if (!grepl("\\.txt", out_file)) {

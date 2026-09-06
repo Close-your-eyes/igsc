@@ -44,9 +44,7 @@ concat_10X_fastq <- function(
     verify = TRUE
 ) {
 
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
+  .ensure_package("brathering")
 
   existing <- match.arg(existing)
 

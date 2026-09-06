@@ -16,9 +16,7 @@
 get_sequences_from_biomart <- function(hgnc_symbol,
                                        dataset = "hsapiens_gene_ensembl") {
 
-  if (!requireNamespace("biomaRt", quietly = T)){
-    BiocManager::install("biomaRt")
-  }
+  .ensure_package("biomaRt")
 
   mart <- biomaRt::useEnsembl(biomart = "ensembl",
                               dataset = "hsapiens_gene_ensembl")
@@ -67,4 +65,3 @@ get_sequences_from_biomart <- function(hgnc_symbol,
 
   return(df)
 }
-

@@ -2,6 +2,13 @@
 
 
 get_tcrdist_module <- function() {
+  .ensure_package("reticulate")
+
+  reticulate::py_require(c(
+    "pandas",
+    "tcrdist3"
+  ))
+
   if (!exists(
     "module",
     envir = .tcrdist_python,

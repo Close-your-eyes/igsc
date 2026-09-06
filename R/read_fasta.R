@@ -77,9 +77,7 @@ read_fasta <- function(file,
                        progress = T,
                        seqname = NULL) {
 
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
+  .ensure_packages(c("brathering", "janitor"))
 
   if (missing(file)) {
     stop("Please provide a path to a file in 'file'.")

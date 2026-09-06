@@ -64,6 +64,8 @@ plot_tcren_structures <- function(
     label_top = TRUE,
     point_alpha = 0.85) {
 
+  .ensure_packages(c("ggplot2", "ggrepel"))
+
   read_input <- function(x, object_name) {
     if (is.character(x) && length(x) == 1L && !is.na(x)) {
       if (!file.exists(x)) {

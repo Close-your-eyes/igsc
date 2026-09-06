@@ -160,12 +160,7 @@ pwalign_multi <- function(subject,
 
   # remove pattern that do not align full length?
 
-  if (!requireNamespace("Biostrings", quietly = T)) {
-    BiocManager::install("Biostrings")
-  }
-  if (!requireNamespace("pwalign", quietly = T)) {
-    BiocManager::install("pwalign")
-  }
+  .ensure_packages(c("Biostrings", "brathering", "pwalign"))
 
   '  if (fix_indels) {
     message("fix_indels does not work yet. Set to F.")
@@ -1078,4 +1073,3 @@ compare_seq_previous <- function(df,
   }
   return(df)
 }
-

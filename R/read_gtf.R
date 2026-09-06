@@ -325,9 +325,9 @@ process_gtf_attribute_col <- function(gtf,
   } else if (use_fun == "rust") {
     # rust fun was found slower; so using rcpp fun with proper registration
     stop("rust fun is not up to date. e.g. splitting at first space only missing.")
-    rextendr::rust_source(system.file("extdata/lib.rs", package = "igsc"))
-    attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
-    attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
+    # rextendr::rust_source(system.file("extdata/lib.rs", package = "igsc"))
+    # attr_ind <- rep(seq_along(gtf$attribute), lengths(stringi::stri_split_fixed(gtf$attribute, pattern = ";", omit_empty = T)))
+    # attr_col <- process_attr_col_rust(gtf$attribute) #igsc:::
   }
 
   gtf$index <- as.character(seq(1, nrow(gtf), 1))
@@ -437,6 +437,8 @@ process_gtf_attribute_col <- function(gtf,
 
   ### this is specifically for viral genomes with overlapping ranges
   if (aggregate_overlapping_exon_ranges) {
+    .ensure_package("igraph")
+
     # attr_col2 then needs to be filtered by whats left in df
     df <- dplyr::left_join(attr_col2, gtf |>
                              dplyr::select(-dplyr::any_of("attribute")), by = "index")

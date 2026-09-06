@@ -27,13 +27,15 @@ get_sequence_order <- function(distmat,
                                method = c("tsp", "seriate", "treeline"),
                                ...) {
 
-  if (!requireNamespace("DECIPHER", quietly = T)){
-    BiocManager::install("DECIPHER")
-  }
-
   method <- rlang::arg_match(method)
 
-  # install.packages("seriation")
+  if (method == "tsp") {
+    .ensure_package("TSP")
+  } else if (method == "treeline") {
+    .ensure_package("DECIPHER")
+  } else {
+    .ensure_package("seriation")
+  }
 
   if (method == "tsp") {
     order <- distmat |>

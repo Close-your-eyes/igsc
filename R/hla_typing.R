@@ -55,7 +55,6 @@
 #' @param ... Additional arguments passed to `lapply_fun`, such as `mc.cores`
 #'   when [parallel::mclapply()] is used.
 #'
-#' @import Matrix
 #'
 #' @return `NULL` if no read matches a reference allele; otherwise, a list
 #'   containing:
@@ -105,17 +104,9 @@ hla_typing <- function(hla_ref,
                        strand_col_name = "strand",
                        minus_strand_value = "-",
                        ...) {
-  required_packages <- c(
-    "Biostrings", "Matrix", "brathering", "dplyr", "ggplot2",
-    "patchwork", "rlang", "stringr", "tibble"
-  )
-  missing_packages <- required_packages[
-    !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
-  ]
-  if (length(missing_packages) > 0L) {
-    stop("Required packages are not installed: ",
-         paste(missing_packages, collapse = ", "), ".", call. = FALSE)
-  }
+  .ensure_packages(c(
+    "Biostrings", "Matrix", "brathering", "ggplot2", "patchwork"
+  ))
   if (!is.data.frame(hla_ref) || nrow(hla_ref) == 0L) {
     stop("hla_ref must be a non-empty data frame.")
   }
@@ -869,4 +860,3 @@ simulate_hla_reads <- function(
     stringsAsFactors = FALSE
   ))
 }
-

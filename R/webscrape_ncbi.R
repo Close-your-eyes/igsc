@@ -9,6 +9,8 @@
 #' @examples
 webscrape_ncbi <- function(accession,
                            origin = NULL) {
+  .ensure_package("rentrez")
+
   if (missing(accession)) {
     stop("accession is missing.")
   }

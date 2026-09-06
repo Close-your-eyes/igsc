@@ -42,9 +42,7 @@ revcompDNA <- function(x,
                        rev = T,
                        comp = T) {
 
-  if (!requireNamespace("Biostrings", quietly = T)){
-    BiocManager::install("Biostrings")
-  }
+  .ensure_package("Biostrings")
 
   if (!is.character(x)) {
     stop("x has to be a character vector of DNA sequences.")

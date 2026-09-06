@@ -26,9 +26,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                      order_features = F,
                                      compare_seq_df_long_args = list()) {
 
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
+  .ensure_package("brathering")
 
   return <- rlang::arg_match(return, multiple = T)
 
@@ -91,7 +89,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                       }
                                     }))'
                                     if (revcomp && make_revcomp) {
-                                      seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
+                                      seq <- revcompDNA(seq)
                                       seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
                                     }
                                     if (concat) {
@@ -124,7 +122,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                  value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
                                    seq <- unlist(lapply(x, function(y) substr(origin, y[1], y[2])))
                                    if (revcomp && make_revcomp) {
-                                     seq <- as.character(Biostrings::reverseComplement(Biostrings::DNAStringSet(seq)))
+                                     seq <- revcompDNA(seq)
                                      seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
                                    }
                                    seq <- paste(seq, collapse = "")
@@ -205,4 +203,3 @@ any_false <- function(x) {
     stop("Logical error.")
   }
 }
-

@@ -36,6 +36,7 @@ Stop codon added to CDS - add option
 https://www.biostars.org/p/3423/, https://pmc.ncbi.nlm.nih.gov/articles/PMC6099125/, https://en.wikipedia.org/wiki/Sense_(molecular_biology)
 }
 \examples{
+\dontrun{
 gtf <- read_gtf("/Volumes/CMS_SSD_2TB/reference_genomes/release_114/Homo_sapiens.GRCh38.114.gtf.gz",
                 gene_names = "CD8B")[[1]]
 gtf <- dplyr::filter(gtf, gene_id == "ENSG00000172116") # choose an ensembl id
@@ -70,4 +71,5 @@ bm_ref_cds <- bm_ref_df$coding[which(nchar(bm_ref_df$coding) == nchar(conc[["CDS
 # align ref from bm and from concat_transcript
 aln <- pwalign::pairwiseAlignment(bm_ref_cds, cd8b_cds)
 igsc::pwalign_print(aln, linewidth = 100)
+}
 }

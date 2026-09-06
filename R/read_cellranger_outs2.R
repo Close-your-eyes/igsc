@@ -708,11 +708,12 @@ collapse.unique.order.fun <- function(x) {
 }
 
 print_table <- function(stack_table, colnames, caption) {
+  .ensure_package("knitr")
+
   temp_tab <- data.frame(stack_table)
   colnames(temp_tab) <- colnames
   print(knitr::kable(temp_tab, format = "simple", caption = caption))
 }
-
 
 
 

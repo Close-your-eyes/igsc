@@ -36,6 +36,8 @@ hla_df_from_xml <- function(file_path,
                             replace_none_pg = TRUE,
                             ...) {
 
+  .ensure_package("xml2")
+
 
   if (length(file_path) != 1L || is.na(file_path) || !nzchar(file_path)) {
     stop("`file_path` must be a single, non-empty path.", call. = FALSE)
@@ -358,8 +360,8 @@ extract_cds <- function(data,
                         no.init.codon = TRUE,
                         if.fuzzy.codon = "X") {
 
-  if (translate && !requireNamespace("Biostrings", quietly = TRUE)) {
-    BiocManager::install("Biostrings")
+  if (translate) {
+    .ensure_package("Biostrings")
   }
 
   if (!is.data.frame(data)) {
@@ -704,9 +706,7 @@ hla_df_from_xml_legacy <- function(file_path,
                                    replace_none_pg = T,
                                    ...) {
 
-  if (!requireNamespace("xml2", quietly = T)) {
-    utils::install.packages("xml2")
-  }
+  .ensure_package("xml2")
 
   if (grepl("zip$", file_path)) {
     utils::unzip(file_path, exdir = tempdir())
@@ -767,5 +767,3 @@ read_child <- function(x) {
     return(NULL)
   })
 }
-
-

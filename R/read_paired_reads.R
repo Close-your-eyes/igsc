@@ -42,9 +42,7 @@ read_paired_reads <- function(fastq_path_r1,
                               sample = 1,
                               mc.cores = 1) {
 
-  if (!requireNamespace("Biostrings", quietly = T)){
-    BiocManager::install("Biostrings")
-  }
+  .ensure_package("Biostrings")
 
   # do not return qual_num - would also allow to make parallel computing easier
 
@@ -270,5 +268,4 @@ sample_reads <- function(reads, p = 1) {
   }
   return(reads)
 }
-
 

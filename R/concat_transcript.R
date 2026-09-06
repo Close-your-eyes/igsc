@@ -18,6 +18,7 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' gtf <- read_gtf("/Volumes/CMS_SSD_2TB/reference_genomes/release_114/Homo_sapiens.GRCh38.114.gtf.gz",
 #'                 gene_names = "CD8B")[[1]]
 #' gtf <- dplyr::filter(gtf, gene_id == "ENSG00000172116") # choose an ensembl id
@@ -52,7 +53,7 @@
 #' # align ref from bm and from concat_transcript
 #' aln <- pwalign::pairwiseAlignment(bm_ref_cds, cd8b_cds)
 #' igsc::pwalign_print(aln, linewidth = 100)
-
+#' }
 concat_transcript <- function(gtf_df,
                               refseq,
                               refseq_strand = c("+", "-"),
@@ -60,9 +61,7 @@ concat_transcript <- function(gtf_df,
                               run_test = F,
                               ...) {
 
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
+  .ensure_package("brathering")
 
   # # CD8A - strand
   # gtf_df <- readRDS("/Users/vonskopnik/Documents/2024_igsc_testing/cd8a_gtf.rds")
@@ -498,6 +497,5 @@ get_mode <- function(x) {
   uniq_vals <- unique(x)
   uniq_vals[which.max(tabulate(match(x, uniq_vals)))]
 }
-
 
 

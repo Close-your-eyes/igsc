@@ -37,12 +37,10 @@
 #' }
 imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
-  if (!requireNamespace("Biostrings", quietly = T)){
-    BiocManager::install("Biostrings")
+  if (mc) {
+    .ensure_package("pbapply")
   }
-  if (!requireNamespace("pwalign", quietly = T)){
-    BiocManager::install("pwalign")
-  }
+  .ensure_packages(c("Biostrings", "pwalign", "openxlsx"))
 
   organism <- match.arg(organism, c("human", "mouse"))
 
@@ -132,5 +130,3 @@ imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
   return(ts)
 }
-
-

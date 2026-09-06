@@ -50,6 +50,8 @@ xstringset_print <- function(set,
                                                              change_ref = F,
                                                              keep_match_gaps = T)) {
 
+  .ensure_package("Biostrings")
+
   if (call_compare_seq_df_wide) {
     df <- xstringset_to_df(set, format = "wide")
     if ("ref" %in% names(compare_seq_df_wide_args)) {

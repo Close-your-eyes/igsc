@@ -28,12 +28,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       type = "local",
                                       ...) {
 
-  if (!requireNamespace("Biostrings", quietly = T)){
-    BiocManager::install("Biostrings")
-  }
-  if (!requireNamespace("DECIPHER", quietly = T)){
-    BiocManager::install("DECIPHER")
-  }
+  .ensure_packages(c("Biostrings", "DECIPHER", "ggplot2"))
 
   chain <- match.arg(chain, c("TRA", "TRB"))
   cl_long <- as.data.frame(cl_long)

@@ -203,16 +203,14 @@ aln_plot <- function(aln,
                      y_order = c("as_is", "increasing", "decreasing"),
                      order_numeric_seq_names = F) {
 
+  .ensure_packages(c(
+    "Biostrings", "Peptides", "RColorBrewer", "crayon", "ggplot2",
+    "ggrepel", "scales", "brathering", "colrr"
+  ))
+
   # document and clean up
 
   ## check duplicate names
-
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
-  if (!requireNamespace("colrr", quietly = T)){
-    pak::pak("colrr")
-  }
 
   pattern_lim_pos <- rlang::arg_match(pattern_lim_pos)
   y_order <- rlang::arg_match(y_order)

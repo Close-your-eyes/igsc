@@ -81,6 +81,7 @@ vdjdb_hits <- function(tcrs,
                        lapply_fun = lapply,
                        ...) {
 
+  .ensure_package("stringdist")
 
   if (missing(tcrs)) {
     stop("Please provide a tcrs data frame.")
@@ -246,12 +247,7 @@ get_alignment_scores <- function(
     make_unique = F,
     ...) {
 
-  if (!requireNamespace("pwalign", quietly = T)){
-    BiocManager::install("pwalign")
-  }
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
+  .ensure_packages(c("brathering", "pwalign"))
 
   return <- rlang::arg_match(return)
   return_score <- rlang::arg_match(return_score, multiple = T)
@@ -495,5 +491,3 @@ split_min100 <- function(df, n) {
 
   return(split(df, groups))
 }
-
-

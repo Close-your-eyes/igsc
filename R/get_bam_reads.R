@@ -87,12 +87,7 @@ get_bam_reads <- function(bam,
                           revcomp_minus_strand = F,
                           revcomp_plus_strand = F) {
 
-  if (!requireNamespace("Biostrings", quietly = T)) {
-    BiocManager::install("Biostrings")
-  }
-  if (!requireNamespace("GenomicRanges", quietly = T)){
-    BiocManager::install("GenomicRanges")
-  }
+  .ensure_packages(c("Biostrings", "GenomicRanges", "Rsamtools"))
 
   if (missing(bam) || bam == "" || !file.exists(bam)) {
     stop("bam not found or missing.")

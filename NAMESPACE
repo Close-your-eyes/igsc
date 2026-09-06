@@ -68,7 +68,6 @@ export(write_gtf)
 export(write_gtf_and_genome_for_cellranger)
 export(xstringset_print)
 export(xstringset_to_df)
-import(Matrix)
 importFrom(Rcpp,sourceCpp)
 importFrom(rlang,
   "%||%",

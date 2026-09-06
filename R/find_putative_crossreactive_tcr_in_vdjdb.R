@@ -79,12 +79,7 @@ find_putative_crossreactive_tcr_in_vdjdb <- function(vdjdb_df,
                                                      nthread = 20,
                                                      substitutionMatrix = "BLOSUM62") {
 
-  if (!requireNamespace("DECIPHER", quietly = T)){
-    BiocManager::install("DECIPHER")
-  }
-  if (!requireNamespace("brathering", quietly = T)){
-    pak::pak("brathering")
-  }
+  .ensure_packages(c("Biostrings", "DECIPHER", "brathering", "stringdist"))
 
   # vdjdb_df <- "/Volumes/CMS_SSD_2TB/VDJdb/vdjdb_20260725.tsv.gz"
   vdjdbhs <- read_vdjdb_fixed(vdjdb_df) |>
