@@ -2,7 +2,7 @@
 % Please edit documentation in R/attach_imgt_allele.R
 \name{attach_imgt_alleles}
 \alias{attach_imgt_alleles}
-\title{Find best matching IMGT reference alleles for TCR V and J gene segments}
+\title{Attach matching IMGT alleles to TCR sequences}
 \usage{
 attach_imgt_alleles(
   seq,
@@ -16,39 +16,84 @@ attach_imgt_alleles(
 )
 }
 \arguments{
-\item{seq}{data frame with clonotype data in long format, e.g. cl_long preferentially from igsc::read_cellranger_outs or
-a named vector of consensus sequences, named by V and J segments, separated by "\emph{\strong{"; e.g. stats::setNames(object = cl_long$consensus_seq_cr, nm = paste0(cl_long$V_cr, '}}', cl_long$J_cr))}
+\item{seq}{A data frame containing clonotype sequences and their V and J gene
+names, or a character vector of nucleotide sequences. Character-vector
+names, when present and non-missing, must contain a V and J name separated
+by \code{"___"}.}
 
-\item{imgt_ref}{IMGT reference data frame created with igsc::imgt_tcr_segment_prep or a named vector of sequences and respective allele names;
-e.g. stats::setNames(imgt_ref$seq.nt, imgt_ref$Allele)}
+\item{imgt_ref}{An IMGT reference data frame containing columns \code{seq.nt} and
+\code{Allele}, or a named character vector whose values are reference nucleotide
+sequences and whose names are allele names. A data frame produced by
+\code{\link[=imgt_tcr_segment_prep]{imgt_tcr_segment_prep()}} is suitable.}
 
-\item{pick.by}{match disambiguate alleles from IMGT by best match (alignment) or just randomly (random);
-random is intended to speed up the process for testing or when exact IMGT alleles are not necessary}
+\item{pick.by}{Method used when multiple candidate alleles remain. Use
+\code{"alignment"} to choose the allele with the highest local alignment score,
+or \code{"random"} to sample a candidate. Random selection is faster and useful
+when the exact allele is not required.}
 
-\item{lapply_fun}{function name without quotes; lapply, pbapply::pblapply or parallel::mclapply are suggested}
+\item{lapply_fun}{Apply function, or its name, used to process sequences.
+Common choices are \code{\link[base:lapply]{base::lapply()}}, \code{pbapply::pblapply()}, and
+\code{\link[parallel:mclapply]{parallel::mclapply()}}.}
 
-\item{...}{additional argument to the lapply function; mainly mc.cores when parallel::mclapply is chosen}
+\item{seq_col}{Name of the sequence column when \code{seq} is a data frame.}
+
+\item{V_col}{Name of the V-gene column when \code{seq} is a data frame.}
+
+\item{J_col}{Name of the J-gene column when \code{seq} is a data frame.}
+
+\item{...}{Additional arguments passed to \code{lapply_fun}, such as \code{mc.cores}
+for \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
 }
 \value{
-a data frame of unique seq entries in column
+A data frame with one row per unique input sequence and two columns:
+\code{seq}, containing the input sequence, and \code{VJ_IMGT}, containing the selected
+V- and J-allele names separated by \code{"___"}.
 }
 \description{
-Entries from seq are made unique and are matched against reference alleles in imgt_ref.
-If names are provided to seq (or respective V and J columns in case of a data frame) matching will be
-quicker as possibles alleles are initially narrowed down by string matching.
+Find IMGT reference alleles for the V and J segments of each unique input
+sequence. When V and J gene names are available, candidate reference alleles
+are first narrowed by name similarity. A candidate is then chosen by local
+sequence-alignment score or by random sampling.
+}
+\details{
+Duplicate sequence values are removed before matching. For data-frame input,
+names used to restrict the search are constructed from \code{V_col} and \code{J_col}.
+For character-vector input, equivalent names may be supplied directly in the
+form \code{"TRBV11-3___TRBJ2-5"}. Unnamed sequences are compared against all V
+and J alleles in \code{imgt_ref}.
 }
 \examples{
 \dontrun{
-imgt_ref <- readRDS(system.file("extdata", "IMGT_ref/human/hs.rds", package = "igsc"))
-ata <- attach_imgt_alleles(seq = cl_long, imgt_ref = imgt_ref, pick.by = "random", lapply_fun = lapply)
+imgt_ref <- readRDS(system.file(
+  "extdata", "IMGT_ref/human/hs.rds", package = "igsc"
+))
+
+ata <- attach_imgt_alleles(
+  seq = cl_long,
+  imgt_ref = imgt_ref,
+  pick.by = "random",
+  lapply_fun = lapply
+)
 cl_long <-
-dplyr::left_join(cl_long, ata, by = c("consensus_seq_cr" = "seq")) |>
-tidyr::separate(VJ_IMGT, into = c("V_imgt", "J_imgt"), sep = "___")
+  dplyr::left_join(cl_long, ata, by = c("consensus_seq_cr" = "seq")) |>
+  tidyr::separate(VJ_IMGT, into = c("V_imgt", "J_imgt"), sep = "___")
 
-## or pass vector, named or unnamed
-ata <- attach_imgt_alleles(seq = cl_long$consensus_seq_cr, imgt_ref = imgt_ref, pick.by = "random", lapply_fun = lapply)
+# Alternatively, pass an unnamed vector.
+ata <- attach_imgt_alleles(
+  seq = cl_long$consensus_seq_cr,
+  imgt_ref = imgt_ref,
+  pick.by = "random"
+)
 
-ata <- attach_imgt_alleles(seq = stats::setNames(object = cl_long$consensus_seq_cr, nm = paste0(cl_long$V_cr, '___', cl_long$J_cr)),
-imgt_ref = imgt_ref, pick.by = "random", lapply_fun = lapply)
+# Or provide V and J gene names on the vector to narrow the search.
+named_seq <- stats::setNames(
+  object = cl_long$consensus_seq_cr,
+  nm = paste0(cl_long$V_cr, "___", cl_long$J_cr)
+)
+ata <- attach_imgt_alleles(
+  seq = named_seq,
+  imgt_ref = imgt_ref,
+  pick.by = "random"
+)
 }
 }

@@ -8,7 +8,6 @@
 #' @param imgt_ref the prepared data.frame of IMGT references
 #' @param sequence_col name of the column to pull sequences from
 #' @param cl_long clonotype data frame long format
-#' @param cl_wide clonotype data frame wide format
 #' @param C_allele optional name of the constant allele to use for the alignment, must be the entry in the "Allele"-column of the imgt_ref data frame
 #' @param type type of alignment
 #' @param ...  arguments to pwalign_multi
@@ -23,7 +22,6 @@
 align_imgt_ref_to_TCR_seq <- function(chain,
                                       TCR,
                                       cl_long,
-                                      #cl_wide,
                                       imgt_ref,
                                       sequence_col = "consensus_seq",
                                       C_allele = NULL,
@@ -31,7 +29,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       ...) {
 
   if (!requireNamespace("BiocManager", quietly = T)) {
-    install.packages("BiocManager")
+    utils::install.packages("BiocManager")
   }
   if (!requireNamespace("Biostrings", quietly = T)){
     BiocManager::install("Biostrings")
@@ -116,7 +114,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
 
   # imgt ref seqs
   imgt_v_allele_seq <- unlist(lapply(V_imgt.name, function(x) {
-    imgt_v_allele_seq <- imgt_ref[which(imgt_ref$Allele %in% x),] %>% dplyr::distinct(seq.nt, meta, Allele)
+    imgt_v_allele_seq <- imgt_ref[which(imgt_ref$Allele %in% x),] |> dplyr::distinct(seq.nt, meta, Allele)
     if (nrow(imgt_v_allele_seq) > 1) {
       if (sum(grepl("Mus musculus", imgt_v_allele_seq$meta)) == 1) {
         imgt_v_allele_seq <- imgt_v_allele_seq[which(grepl("Mus musculus", imgt_v_allele_seq$meta)),]
@@ -129,7 +127,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
   names(imgt_v_allele_seq) <- V_imgt.name
 
   imgt_j_allele_seq <- unlist(lapply(J_imgt.name, function(x) {
-    imgt_j_allele_seq <- imgt_ref[which(imgt_ref$Allele %in% x),] %>% dplyr::distinct(seq.nt, meta, Allele)
+    imgt_j_allele_seq <- imgt_ref[which(imgt_ref$Allele %in% x),] |> dplyr::distinct(seq.nt, meta, Allele)
     if (nrow(imgt_j_allele_seq) > 1) {
       if (sum(grepl("Mus musculus", imgt_j_allele_seq$meta)) == 1) {
         imgt_j_allele_seq <- imgt_j_allele_seq[which(grepl("Mus musculus", imgt_j_allele_seq$meta)),]

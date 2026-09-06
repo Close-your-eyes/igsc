@@ -2,7 +2,7 @@
 % Please edit documentation in R/genome_fasta_to_fst.R
 \name{genome_fasta_to_fst}
 \alias{genome_fasta_to_fst}
-\title{Title}
+\title{Split a genome FASTA into per-sequence files}
 \usage{
 genome_fasta_to_fst(
   genome_file,
@@ -14,8 +14,62 @@ genome_fasta_to_fst(
 )
 }
 \arguments{
-\item{subfolder}{"genome_fst"}
+\item{genome_file}{Path to a multi-record genome FASTA file accepted by
+\code{\link[=get_fasta_seq_bounds]{get_fasta_seq_bounds()}} and \code{\link[=read_fasta]{read_fasta()}}.}
+
+\item{subfolder}{One or both of \code{"genome_fst"} and \code{"genome_fagz"}, selecting
+the output formats and directory names. Directories are created beneath
+\code{dirname(genome_file)}.}
+
+\item{overwrite}{Logical retained for API compatibility. In the current
+implementation, existing output files are always skipped and are not
+overwritten regardless of this value.}
+
+\item{compression}{Numeric fst compression level passed as \code{compress} to
+\code{\link[fst:write_fst]{fst::write_fst()}}, conventionally from \code{0} to \code{100}. It does not affect
+gzip compression.}
+
+\item{verbose}{Logical; report each sequence name, its progress through the
+input records, and its approximate length.}
+
+\item{simplify_names}{Logical; use only the first whitespace-delimited field
+of each FASTA record name in output filenames and fst column names. The
+header written to split FASTA files remains unchanged.}
+}
+\value{
+Invisibly, the exit status returned by \code{gzip} when an uncompressed
+input genome is compressed; otherwise \code{NULL}. This function is primarily
+called for its file-writing side effects.
 }
 \description{
-Title
+Read each record from a genome FASTA file and write it either as a
+column-oriented \code{fst} file, as an individual gzip-compressed FASTA file, or
+in both formats. Output directories are created beside \code{genome_file}.
+}
+\details{
+For \code{"genome_fst"}, each base is written in a separate row of a one-column
+data frame to \verb{<name>_fa.fst}. For \code{"genome_fagz"}, the complete record is
+written to \verb{<name>_fa.fa.gz}; the header retains the original FASTA name.
+The \code{fst} compression level is controlled by \code{compression}, whereas split
+FASTA files are compressed with the external command \code{gzip -1}.
+
+Sequence boundaries are obtained with \code{\link[=get_fasta_seq_bounds]{get_fasta_seq_bounds()}}. When that
+object has a \code{file_path} attribute, it is rewritten after sequence lengths
+and counts of leading and trailing \code{N} bases are calculated. Finally, an
+input genome whose extension is not \code{.gz} is compressed with \code{gzip -1}. On
+success this removes the original file and creates \code{paste0(genome_file, ".gz")}.
+}
+\examples{
+\dontrun{
+# Write both random-access fst files and compressed per-sequence FASTA files.
+genome_fasta_to_fst(
+  genome_file = "reference/genome.fa",
+  subfolder = c("genome_fst", "genome_fagz"),
+  compression = 100,
+  verbose = TRUE
+)
+
+list.files("reference/genome_fst")
+list.files("reference/genome_fagz")
+}
 }

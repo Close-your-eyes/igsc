@@ -25,7 +25,7 @@
 #' @param top_n_pairwise_results A positive integer giving the number of leading
 #'   pairwise results to include in the rank plot.
 #' @param hla_seq_col_name A character scalar naming the reference sequence
-#'   column used for the first matching round.
+#'   column in `hla_ref`.
 #' @param read_seq_col_name A character scalar naming the sequence column in
 #'   `reads`.
 #' @param hla_allele_col_name A character scalar naming the allele column in
@@ -79,11 +79,14 @@
 #' @examples
 #' \dontrun{
 #' # get hla refs
-#' hla_ref <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
+#' hla_ref <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz",
+#'                            lapply_fun = parallel::mclapply, mc.cores = 8)
 #' # create synthetic reads
-#' reads_hla <- simulate_hla_reads(hla_ref, snps_per_read = c(1), gene = "A", minus_strand_prob = 0)
+#' reads_hla <- simulate_hla_reads(hla_ref, snps_per_read = c(1),
+#'                                 gene = "A", minus_strand_prob = 0)
 #' # run typing algorithm
-#' type <- hla_typing(hla_ref = hla_ref |> dplyr::filter(gene == "A"), reads = reads_hla, maxmis = 1)
+#' type <- hla_typing(hla_ref = hla_ref |> dplyr::filter(gene == "A"),
+#'                    reads = reads_hla, maxmis = 1)
 #' }
 hla_typing <- function(hla_ref,
                        reads,

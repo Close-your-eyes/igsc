@@ -2,10 +2,49 @@
 % Please edit documentation in R/genes_gtf_to_fst.R
 \name{genes_gtf_to_fst}
 \alias{genes_gtf_to_fst}
-\title{Title}
+\title{Split GTF annotations into per-sequence fst files}
 \usage{
 genes_gtf_to_fst(gtf_file, subfolder = "genes_fst", compression = 50)
 }
+\arguments{
+\item{gtf_file}{Path to the source GTF file. It must be readable by
+\code{\link[=read_gtf]{read_gtf()}} and provide \code{seqname}, \code{gene_id}, and \code{gene_name} columns after
+its attribute column is processed.}
+
+\item{subfolder}{Name of the output directory to create beneath
+\code{dirname(gtf_file)} for the per-sequence files.}
+
+\item{compression}{Numeric fst compression level passed as \code{compress} to
+\code{\link[fst:write_fst]{fst::write_fst()}}, conventionally from \code{0} to \code{100}.}
+}
+\value{
+Invisibly, the exit status returned by \code{gzip} when an uncompressed
+input is compressed; otherwise \code{NULL}. This function is primarily called
+for its file-writing side effects.
+}
 \description{
-Title
+Partition a GTF file by \code{seqname} and write each partition as a separate
+\code{\link[fst:write_fst]{fst::write_fst()}} file. A second lookup file records the distinct
+combinations of sequence name, gene ID, and gene name.
+}
+\details{
+Per-sequence files are written to \code{subfolder} beneath the directory containing
+\code{gtf_file} and are named \verb{<seqname>_gtf.fst}. The lookup table is written as
+\code{genes_on_chr.fst} beside the input GTF, not inside \code{subfolder}. Existing
+output files may be replaced by \code{\link[fst:write_fst]{fst::write_fst()}}.
+
+After all outputs are written, an input file whose extension is not \code{.gz} is
+compressed with the external command \code{gzip -1}. On success, this creates
+\code{paste0(gtf_file, ".gz")} and removes the original uncompressed GTF file.
+}
+\examples{
+\dontrun{
+genes_gtf_to_fst(
+  gtf_file = "reference/genes.gtf",
+  subfolder = "genes_fst",
+  compression = 50
+)
+
+list.files("reference/genes_fst", pattern = "[.]fst$")
+}
 }

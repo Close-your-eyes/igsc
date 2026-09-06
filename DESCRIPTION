@@ -1,6 +1,6 @@
 Package: igsc
 Title: Misc
-Version: 0.2.3
+Version: 0.2.5
 Authors@R: 
     person(given = "Christopher Mark",
            family = "Skopnik",
@@ -43,13 +43,16 @@ Imports:
     rextendr,
     stringi,
     tibble,
-    farver,
     Peptides,
-    viridisLite,
     Rsamtools,
     reticulate,
     Matrix,
-    xml2
+    xml2,
+    patchwork,
+    collapse,
+    forcats,
+    TSP,
+    seriation
 Suggests: 
     rmarkdown,
     knitr,

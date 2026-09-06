@@ -14,6 +14,8 @@ get_sequence_order(distmat, method = c("tsp", "seriate", "treeline"), ...)
 \item{method}{Character string specifying the ordering method. \code{"tsp"}
 uses a TSP solver, while \code{"treeline"} derives the order from clusters
 produced by a neighbor-joining tree.}
+
+\item{...}{args to seriation::get_order}
 }
 \value{
 An integer vector containing the sequence indices in their

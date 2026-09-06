@@ -3,9 +3,6 @@
 #' Use forcats::fct_drop to drop unused factor levels.
 #'
 #' @param file_path path to fasta file or fst file
-#' @param save_fst
-#' @param check_fst
-#' @param overwrite_fst
 #'
 #' @return
 #' @export

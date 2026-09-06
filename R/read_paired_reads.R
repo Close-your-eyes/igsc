@@ -22,8 +22,14 @@
 #' @export
 #'
 #' @examples
-#' #' \dontrun{
-#' reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path, fastq_path_r2 = r2_path, vroom_lines_args = list(progress = T, skip_empty_rows = T), min_len = 40, mc.cores = 8)
+#' \dontrun{
+#'   reads_paired <- igsc::read_paired_reads(
+#'     fastq_path_r1 = r1_path,
+#'     fastq_path_r2 = r2_path,
+#'     vroom_lines_args = list(progress = T,
+#'                             skip_empty_rows = T),
+#'     min_len = 40,
+#'     mc.cores = 8)
 #' }
 read_paired_reads <- function(fastq_path_r1,
                               fastq_path_r2,
@@ -221,7 +227,7 @@ read_paired_reads <- function(fastq_path_r1,
   }
 
   ## kind of slow
-'  message("returning:")
+  '  message("returning:")
 >>>>>>> 66f59d22b5aea47c00090d0147660d27eb55cc82
   if (filter_paired) {
     message("  ", format(length(which(!is.na(reads[["r1"]][["seq"]]))), big.mark=","), " paired reads.")

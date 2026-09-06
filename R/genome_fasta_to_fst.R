@@ -1,16 +1,57 @@
-#' Title
+#' Split a genome FASTA into per-sequence files
 #'
-#' @param genome_file
-#' @param subfolder "genome_fst"
-#' @param overwrite
-#' @param compression
-#' @param verbose
-#' @param simplify_names
+#' Read each record from a genome FASTA file and write it either as a
+#' column-oriented `fst` file, as an individual gzip-compressed FASTA file, or
+#' in both formats. Output directories are created beside `genome_file`.
 #'
-#' @return
+#' For `"genome_fst"`, each base is written in a separate row of a one-column
+#' data frame to `<name>_fa.fst`. For `"genome_fagz"`, the complete record is
+#' written to `<name>_fa.fa.gz`; the header retains the original FASTA name.
+#' The `fst` compression level is controlled by `compression`, whereas split
+#' FASTA files are compressed with the external command `gzip -1`.
+#'
+#' Sequence boundaries are obtained with [get_fasta_seq_bounds()]. When that
+#' object has a `file_path` attribute, it is rewritten after sequence lengths
+#' and counts of leading and trailing `N` bases are calculated. Finally, an
+#' input genome whose extension is not `.gz` is compressed with `gzip -1`. On
+#' success this removes the original file and creates `paste0(genome_file,
+#' ".gz")`.
+#'
+#' @param genome_file Path to a multi-record genome FASTA file accepted by
+#'   [get_fasta_seq_bounds()] and [read_fasta()].
+#' @param subfolder One or both of `"genome_fst"` and `"genome_fagz"`, selecting
+#'   the output formats and directory names. Directories are created beneath
+#'   `dirname(genome_file)`.
+#' @param overwrite Logical retained for API compatibility. In the current
+#'   implementation, existing output files are always skipped and are not
+#'   overwritten regardless of this value.
+#' @param compression Numeric fst compression level passed as `compress` to
+#'   [fst::write_fst()], conventionally from `0` to `100`. It does not affect
+#'   gzip compression.
+#' @param verbose Logical; report each sequence name, its progress through the
+#'   input records, and its approximate length.
+#' @param simplify_names Logical; use only the first whitespace-delimited field
+#'   of each FASTA record name in output filenames and fst column names. The
+#'   header written to split FASTA files remains unchanged.
+#'
+#' @return Invisibly, the exit status returned by `gzip` when an uncompressed
+#'   input genome is compressed; otherwise `NULL`. This function is primarily
+#'   called for its file-writing side effects.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' # Write both random-access fst files and compressed per-sequence FASTA files.
+#' genome_fasta_to_fst(
+#'   genome_file = "reference/genome.fa",
+#'   subfolder = c("genome_fst", "genome_fagz"),
+#'   compression = 100,
+#'   verbose = TRUE
+#' )
+#'
+#' list.files("reference/genome_fst")
+#' list.files("reference/genome_fagz")
+#' }
 genome_fasta_to_fst <- function(genome_file,
                                 subfolder = "genome_fagz",
                                 # fst for random access, but large as a whole data frame read into mem

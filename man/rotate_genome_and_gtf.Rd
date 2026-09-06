@@ -2,10 +2,36 @@
 % Please edit documentation in R/rotate_genome_and_gtf.R
 \name{rotate_genome_and_gtf}
 \alias{rotate_genome_and_gtf}
-\title{Title}
+\title{Rotate a circular genome and its GTF annotations}
 \usage{
 rotate_genome_and_gtf(genome, gtf, verbose = T)
 }
+\arguments{
+\item{genome}{A single character string containing the complete circular
+genome sequence.}
+
+\item{gtf}{A data frame containing GTF annotations for \code{genome}, in the format
+accepted by \code{\link[=detect_wrap_and_cut]{detect_wrap_and_cut()}}. Its coordinates must refer to the
+supplied, unrotated genome sequence.}
+
+\item{verbose}{Logical; emit informational messages while detecting a cut and
+preparing the GTF attribute column.}
+}
+\value{
+A named list with two elements: \code{genome}, the original or rotated
+genome string, and \code{gtf}, the corresponding GTF data frame with original or
+rotated coordinates and a key-value attribute column.
+}
 \description{
-Title
+Detect whether annotations wrap across the origin of a circular genome and,
+when necessary, rotate the genome sequence and annotation coordinates to a
+shared cut position. This keeps the sequence and its GTF records in the same
+coordinate system.
+}
+\details{
+The genome length is calculated with \code{\link[base:nchar]{base::nchar()}} and supplied to
+\code{\link[=detect_wrap_and_cut]{detect_wrap_and_cut()}}. If that function returns a cut, the GTF coordinates
+and genome string are rotated together. If no cut is detected, both remain in
+their original coordinate system. In either case, the GTF attribute column
+is converted to key-value form before the result is returned.
 }

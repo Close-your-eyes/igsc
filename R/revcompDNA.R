@@ -1,14 +1,42 @@
-#' Title
+#' Reverse and/or Complement DNA Sequences
 #'
-#' @param x
-#' @param fun
-#' @param rev
-#' @param comp
+#' Reverse, complement, or reverse-complement a character vector of DNA
+#' sequences using an Rcpp, Biostrings, or base R implementation.
 #'
-#' @return
+#' @param x A character vector containing DNA sequences. Sequences are
+#'   converted to uppercase before processing.
+#' @param fun Character string selecting the implementation. One of
+#'   \code{"rcpp"} (the default), \code{"Biostrings"}, or \code{"r"}.
+#' @param rev A single logical value indicating whether each sequence should
+#'   be reversed.
+#' @param comp A single logical value indicating whether each sequence should
+#'   be complemented. The canonical substitutions are \code{A <-> T} and
+#'   \code{C <-> G}.
+#'
+#' @return A character vector containing the transformed DNA sequences.
+#'
+#' @details
+#' When both \code{rev} and \code{comp} are \code{TRUE}, the reverse
+#' complement is returned. When only \code{rev} is \code{TRUE}, the sequences
+#' are reversed. When only \code{comp} is \code{TRUE}, the sequences are
+#' complemented.
+#'
+#' The \code{"Biostrings"} implementation requires the Biostrings package.
+#' Handling of non-canonical nucleotide symbols may differ between
+#' implementations.
+#'
 #' @export
 #'
 #' @examples
+#' revcompDNA("ATGC")
+#'
+#' revcompDNA(c("ATGC", "AATT"))
+#'
+#' # Reverse without complementing
+#' revcompDNA("ATGC", rev = TRUE, comp = FALSE)
+#'
+#' # Complement without reversing
+#' revcompDNA("ATGC", rev = FALSE, comp = TRUE)
 revcompDNA <- function(x,
                        fun = c("rcpp", "Biostrings", "r"),
                        rev = T,
@@ -17,7 +45,7 @@ revcompDNA <- function(x,
     stop("x has to be a character vector of DNA sequences.")
   }
 
-  fun <- match.arg(fun, c("rcpp", "Biostrings", "r"))
+  fun <- rlang::arg_match(fun)
 
   x <- toupper(x)
 

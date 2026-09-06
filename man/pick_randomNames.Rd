@@ -42,6 +42,7 @@ The randomNames function from randomNames does not necessarily provide unique na
 Hence this function has been written to fix that issue as elegant as possible.
 }
 \examples{
-pick_randomNames(n = 1000, names_to_avoid = c("Chris", "Diana", "Leonie"), randomNames_args = list(which.names = "first"))
+pick_randomNames(n = 1000, names_to_avoid = c("Chris", "Diana", "Leonie"),
+                 randomNames_args = list(which.names = "first"))
 # grep("[[:digit:]]{1,2}$", names, value = T)
 }

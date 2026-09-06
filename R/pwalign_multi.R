@@ -1,47 +1,113 @@
-#' Separately align multiple pattern sequences to one subject
+#' Align multiple pattern sequences to one subject
 #'
-#' This function is useful to visualise the alignment position of multiple patterns on one subject.
-#' It uses pwalign::pairwiseAlignment(), obtains the individual alignment boundaries and converts
-#' the results to a ggplot object.
-#' The function will fail if a gap is induced in the subject and at least two pattern alignments overlap at this gap.
-#' Method = local-global avoids indels in subject. Local cuts subject and pattern to the best matching sequence of both.
+#' Align each pattern independently to a common subject with
+#' [pwalign::pairwiseAlignment()], combine the individual alignments into wide
+#' and long data frames, and create an alignment plot. This is useful for
+#' visualizing where multiple features align along one reference sequence.
 #'
-#' @param subject a named character or named DNAStringSet of one subject (only the DNAStringSet but not DNAString can hold a name)
-#' @param patterns a named character vector or named DNAStringSet of patterns to align to the subject sequence
-#' @param type the type of alignment passed to pwalign::pairwiseAlignment; not every type may work well with this function (if there are overlapping ranges of the alignments to the subject for example)
-#' @param order_patterns order pattern increasingly by alignment position (start)
-#' @param max_mismatch only use patterns that have a maximum number of mismatches
-#' with the subject
-#' @param fix_subject_indels in case of overlapping indels and shared subject ranges, cut respective patterns to avoid indels
-#' @param seq_type set sequence type to AA or NT if necessary; if NULL
-#' it is attempted to guess the type
-#' @param return_max_mismatch_info_only only return information on mismatches of patterns with the subject;
-#' in this case no alignment is calculated
-#' @param rm_indel_inducing_pattern remove patterns that cause indels in subject
-#' and hence may be a problem for plotting
-#' @param compare_seq_df_wide_args arguments to igsc::compare_seq_df_wide
-#' @param pairwiseAlignment_args arguments to pwalign::pairwiseAlignment
-#' @param algnmt_plot_args arguments to igsc::algnmt_plot
-#' @param order_subject_ranges
-#' @param verbose
+#' Character and XStringSet inputs are converted to DNA, RNA, or amino-acid
+#' string sets before alignment. Missing subject and pattern names are generated,
+#' and duplicate pattern names are made unique. A list of multi-sequence pattern
+#' groups is also accepted; group members are displayed on the same plot row.
 #'
-#' @return a list
+#' Alignments that introduce gaps into the subject require special handling when
+#' another pattern overlaps the gap. By default, an unhandled overlap raises an
+#' error. Such patterns can instead be removed with
+#' `rm_indel_inducing_pattern = TRUE`, or experimental truncation can be enabled
+#' with `fix_subject_indels = TRUE`. Alignment modes also differ in how they
+#' trim input sequences and introduce gaps; `"local-global"` is often useful
+#' when gaps in the subject should be avoided.
+#'
+#' @param subject One subject sequence supplied as a character vector of length
+#'   one or a length-one `DNAStringSet`, `RNAStringSet`, or `AAStringSet`. A
+#'   missing name is replaced with `"subject"`.
+#' @param patterns Pattern sequences supplied as a character vector, a
+#'   `DNAStringSet`, `RNAStringSet`, or `AAStringSet`, or a list containing such
+#'   objects. A list with multi-sequence elements is treated as named pattern
+#'   groups; unnamed groups and patterns receive generated names.
+#' @param type Alignment mode passed to [pwalign::pairwiseAlignment()]: one of
+#'   `"global-local"`, `"global"`, `"local"`, `"overlap"`, or
+#'   `"local-global"`.
+#' @param max_mismatch `NA` or a non-negative integer. For DNA input, retain only
+#'   patterns found in the subject with at most this many mismatches before
+#'   computing pairwise alignments. Patterns containing non-DNA characters are
+#'   removed during this filtering step and returned separately. This filter
+#'   does not apply to amino-acid or RNA input.
+#' @param order_patterns Logical; order ungrouped patterns by the start of their
+#'   aligned subject range in the long data and plot. Otherwise, preserve their
+#'   original order.
+#' @param fix_subject_indels Logical; experimentally truncate patterns when a
+#'   subject gap induced by one alignment overlaps another pattern's subject
+#'   range, then recalculate the alignments.
+#' @param rm_indel_inducing_pattern Logical; remove patterns whose alignment
+#'   introduces a gap in the subject. Removed sequences are returned in
+#'   `pattern_indel_inducing`.
+#' @param seq_type Optional sequence type, either `"NT"` or `"AA"`. When
+#'   `NULL`, the type is inferred from the characters in `subject` and
+#'   `patterns`. Nucleotide input containing `U` is represented as RNA.
+#' @param return_max_mismatch_info_only Logical; return mismatch-filtering
+#'   information immediately, without calculating alignments, data frames, or a
+#'   plot. This is primarily useful when `max_mismatch` is not `NA`.
+#' @param compare_seq_df_wide_args Named list of arguments passed to
+#'   [compare_seq_df_wide()] when preparing the long plotting data.
+#' @param pairwiseAlignment_args Named list of additional arguments passed to
+#'   [pwalign::pairwiseAlignment()]. `subject`, `pattern`, and `type` are
+#'   supplied by `pwalign_multi()`.
+#' @param algnmt_plot_args Named list of additional arguments passed to
+#'   `algnmt_plot()` when creating the plot.
+#' @param order_subject_ranges Logical; order the returned `subject_ranges` list
+#'   by increasing start position. This does not control plot order; use
+#'   `order_patterns` for that.
+#' @param verbose Logical; emit informational messages about inferred sequence
+#'   types, duplicate patterns, mismatch filtering, and indels.
+#'
+#' @return Unless `return_max_mismatch_info_only = TRUE`, a named list with:
+#'   \describe{
+#'     \item{data}{Long-format alignment data used for plotting.}
+#'     \item{plot}{The generated ggplot alignment object.}
+#'     \item{subject_limits}{The minimum and maximum aligned subject positions.}
+#'     \item{data_wide}{Wide-format combined subject and pattern alignment data.}
+#'     \item{pairwise_alignments}{The underlying pairwise-alignment object.}
+#'     \item{subject_ranges}{A named list of aligned subject-position vectors,
+#'       one per retained pattern.}
+#'     \item{pattern_invalid}{Patterns removed during DNA mismatch filtering
+#'       because they contained unsupported characters, or `NULL`.}
+#'     \item{pattern_indel_inducing}{Patterns removed because they introduced
+#'       subject gaps, or `NULL`.}
+#'     \item{pattern_mismatching}{A named list recording patterns found at each
+#'       mismatch threshold, or `NULL` when mismatch filtering was not used.}
+#'   }
+#'   With `return_max_mismatch_info_only = TRUE`, a two-element list containing
+#'   `patterns_invalid` and `pattern_mismatching` is returned instead.
 #' @export
 #'
 #' @examples
-#' s <- stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "sub")
-#' s <- Biostrings::DNAStringSet(s)
-#' p <- stats::setNames(c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"), c("pat1", "pat2", "pat3", "pat4", "pat5"))
-#' p <- Biostrings::DNAStringSet(p)
-#' als <- pwalign_multi(subject = s, patterns = p)
-#' als_ordered <- pwalign_multi(subject = s, patterns = p, order_patterns = T,
-#'                                                       compare_seq_df_wide_args = list(seq_original = NULL,
-#'                                                                                       match_symbol = ".",
-#'                                                                                       change_nonref = T,
-#'                                                                                       nonref_mismatch_as = "base",
-#'                                                                                       change_ref = F,
-#'                                                                                       ref_mismatch_as = "base",
-#'                                                                                       insertion_as = "base"))
+#' subject <- Biostrings::DNAStringSet(
+#'   stats::setNames("AAAACCCCTTTTGGGGAACCTTCC", "subject")
+#' )
+#' patterns <- Biostrings::DNAStringSet(stats::setNames(
+#'   c("TTCC", "CCCC", "TTTT", "GGGG", "AAAA"),
+#'   paste0("pattern_", 1:5)
+#' ))
+#'
+#' alignments <- pwalign_multi(subject = subject, patterns = patterns)
+#' alignments$data
+#' alignments$plot
+#'
+#' alignments_ordered <- pwalign_multi(
+#'   subject = subject,
+#'   patterns = patterns,
+#'   order_patterns = TRUE,
+#'   compare_seq_df_wide_args = list(
+#'     seq_original = NULL,
+#'     match_symbol = ".",
+#'     change_nonref = TRUE,
+#'     nonref_mismatch_as = "base",
+#'     change_ref = FALSE,
+#'     ref_mismatch_as = "base",
+#'     insertion_as = "base"
+#'   )
+#' )
 pwalign_multi <- function(subject,
                           patterns,
                           type = c(
@@ -857,9 +923,9 @@ paste_patterns_to_subject <- function(subject_indels,
       ## all previous gaps are summed and added after a pattern for all subsequent ones
       ## group by group = multiple indels by one pattern are grouped; gaps induced are summed because only the sum of gaps is relevant to shift patterns afterwards
       subject_indels_grouped <-
-        subject_indels %>%
-        dplyr::group_by(group, al_start) %>%
-        dplyr::summarise(start = list(start), end = list(end), gap_insert = sum(gap_insert), .groups = "drop") %>%
+        subject_indels |>
+        dplyr::group_by(group, al_start) |>
+        dplyr::summarise(start = list(start), end = list(end), gap_insert = sum(gap_insert), .groups = "drop") |>
         dplyr::arrange(al_start)
       for (i in 1:(nrow(subject_indels_grouped)-1)) {
         subject_indels_grouped$gap_insert[i] <- ifelse((identical(subject_indels_grouped$start[i+1], subject_indels_grouped$start[i]) && identical(subject_indels_grouped$end[i+1], subject_indels_grouped$end[i])), 0, subject_indels_grouped$gap_insert[i])
@@ -890,17 +956,6 @@ paste_patterns_to_subject <- function(subject_indels,
   assign("df", df2, envir = parent.frame())
   assign("subject_indels", subject_indels, envir = parent.frame())
   #assign("pattern_order", pattern_order, envir = parent.frame())
-}
-
-
-seq2_default <- Vectorize(seq.default, vectorize.args = c("from", "to"))
-seq2 <- function(from = 1, to = 1) {
-  x <- seq2_default(from = from, to = to)
-  # make sure always a list is returned
-  if (is.matrix(x)) {
-    x <- unname(as.list(as.data.frame(x)))
-  }
-  return(x)
 }
 
 join_chunkwise <- function(data_frame_list,

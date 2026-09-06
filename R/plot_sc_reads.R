@@ -41,7 +41,7 @@ plot_sc_reads <- function(gtf_file,
   gene_info <-
     read_gtf(file_path = gtf_file,
              seqnames = seqname,
-             features = feature)[["gtf"]] %>%
+             features = feature)[["gtf"]] |>
     dplyr::filter(gene_name == !!gene_name)
     #dplyr::filter(feature == !!feature)
 

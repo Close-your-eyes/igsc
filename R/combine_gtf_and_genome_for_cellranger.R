@@ -12,6 +12,7 @@
 #' @param save_names save names
 #' @param overwrite overwrite existing target files?
 #' @param gtf_header header for gtf
+#' @param verbose print messages?
 #'
 #' @returns
 #' @export
@@ -59,7 +60,7 @@ combine_gtf_and_genome_for_cellranger <- function(genome_files,
                                                     "##description: made with combine_gtf_and_genome_for_cellranger function from https://github.com/Close-your-eyes/igsc",
                                                     paste0("##sources: ", paste(basename(gtf_files), collapse = ", ")),
                                                     "##creator: CMS",
-                                                    "##conctact: vonskopnik@pm.me",
+                                                    "##conctact: vonskopnik_aet_pm.me",
                                                     "##format: gtf",
                                                     paste0("##date: ", Sys.Date())
                                                   ),

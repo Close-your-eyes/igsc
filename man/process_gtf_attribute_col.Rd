@@ -77,6 +77,8 @@ start end coordinates are adjusted; genome_length needed then}
 for rotation}
 
 \item{rm_entries_wo_matching_exon}{this has to done to meet mkref requirements}
+
+\item{verbose}{print messages?}
 }
 \description{
 Process attribute column of gtf file

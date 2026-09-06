@@ -29,6 +29,8 @@ df_to_xstringset(
 \item{sym_internal_gap}{symbol for internal gaps}
 
 \item{sym_terminal_gap}{symbol for terminal gaps}
+
+\item{format}{df input format}
 }
 \value{
 XStringSet

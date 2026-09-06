@@ -10,6 +10,8 @@ make_kv_attr_col(gtf_df, keep_index_col = F, verbose = T)
 \item{gtf_df}{subsetted gtf df with processed attribute column}
 
 \item{keep_index_col}{keep index column away from attributes}
+
+\item{verbose}{print messages?}
 }
 \value{
 data frame

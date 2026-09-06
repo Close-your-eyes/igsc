@@ -2,7 +2,7 @@
 % Please edit documentation in R/write_gtf.R
 \name{write_gtf}
 \alias{write_gtf}
-\title{Write a gtf data frames to file}
+\title{Write a GTF data frame to a file}
 \usage{
 write_gtf(
   gtf_df,
@@ -14,15 +14,67 @@ write_gtf(
 )
 }
 \arguments{
-\item{gtf_df}{gtf data frame}
+\item{gtf_df}{A data frame containing GTF records. It must contain \code{start}
+and \code{end} columns; all columns are written in their current order.}
 
-\item{file}{file path where to save}
+\item{file}{Output path for the uncompressed GTF file. Its parent directory
+is created when necessary.}
 
-\item{header}{vector of header lines}
+\item{header}{Character vector of header lines to prepend to the file. Supply
+\code{character(0)} to write no header.}
 
-\item{check_unique}{check for uniqueness of gene_name, gene_id,
-transcript_id}
+\item{check_unique}{Logical; process the GTF attribute column with
+\code{\link[=process_gtf_attribute_col]{process_gtf_attribute_col()}} before writing, ensuring that \code{gene_name},
+\code{gene_id}, and \code{transcript_id} values are unique where required.}
+
+\item{gzip}{Logical; compress the completed file with the external \code{gzip}
+command.}
+
+\item{verbose}{Logical; emit progress messages while processing attributes
+and report the requested output path after writing.}
+}
+\value{
+\code{NULL}, invisibly. This function is called for its file-writing side
+effect.
 }
 \description{
-Write a gtf data frames to file
+Write the rows of a data frame as tab-delimited GTF records, optionally
+processing the attribute column for identifier uniqueness and compressing the
+result. Header lines are written before the records, and missing parent
+directories are created recursively.
+}
+\details{
+Columns are written in their existing order; the function does not rearrange
+or validate them against the nine-column GTF specification. Consequently,
+\code{gtf_df} must include \code{start} and \code{end} columns and should already have the
+intended GTF column order.
+
+When \code{gzip = TRUE}, the external \code{gzip} command compresses \code{file}, removes
+the uncompressed file, and creates a file whose path is \code{paste0(file, ".gz")}.
+}
+\examples{
+gtf <- data.frame(
+  seqname = c("chr1", "chr1"),
+  source = "example",
+  feature = c("gene", "transcript"),
+  start = c(1, 1),
+  end = c(100, 100),
+  score = ".",
+  strand = "+",
+  frame = ".",
+  attribute = c(
+    'gene_id "g1"; gene_name "G1";',
+    'gene_id "g1"; transcript_id "t1"; gene_name "G1";'
+  )
+)
+
+gtf_file <- tempfile(fileext = ".gtf")
+write_gtf(
+  gtf_df = gtf,
+  file = gtf_file,
+  check_unique = FALSE,
+  verbose = FALSE
+)
+readLines(gtf_file)
+unlink(gtf_file)
 }

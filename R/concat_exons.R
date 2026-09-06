@@ -34,9 +34,9 @@ concat_exons <- function(gtf_df,
       message("name of refseq and seqname in gtf_df are unequal: ", names(refseq), " vs. ", unique(gtf_df[["seqname"]]), ".")
     }
   }
-  # print message if strand is minus; then alignment against sequences from ncbi requires igsc:::revcompDNA
+  # print message if strand is minus; then alignment against sequences from ncbi requires revcompDNA
   # if ("strand" %in% names(gtf_df) && unique(gtf_df[["strand"]]) == "-") {
-  #   message("gene is on minus strand. for alignment against sequences from e.g. NCBI, the reverse complement is require, e.g. with igsc:::revcompDNA.")
+  #   message("gene is on minus strand. for alignment against sequences from e.g. NCBI, the reverse complement is require, e.g. with revcompDNA.")
   # }
 
   # check diffs on - and + strand, name utrs by 3' and 5', label seqlist or attribute with 3' and 5' end
@@ -73,7 +73,7 @@ concat_exons <- function(gtf_df,
     names(intron_phase) <- gsub("CDS", "intron", names(intron_phase))
 
     gtf_df_CDS <- gtf_df[which(gtf_df$feature == "CDS"),]
-    nt_intron <- lengths(igsc:::seq2(gtf_df_CDS$start[-length(gtf_df_CDS$start)], gtf_df_CDS$end[-1])) - 2
+    nt_intron <- lengths(brathering::seq2(gtf_df_CDS$start[-length(gtf_df_CDS$start)], gtf_df_CDS$end[-1])) - 2
     nt_sum_intron <- sum(nt_intron)
 
     #seqlist[which(grepl("codon", names(seqlist)))]

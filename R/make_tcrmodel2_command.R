@@ -115,7 +115,7 @@ make_tcrmodel2_command <- function(
   }
 
   # Normalize case and remove spaces or line breaks
-  seqs <- setNames(
+  seqs <- stats::setNames(
     toupper(gsub("\\s+", "", as.character(seqs))),
     names(seqs)
   )

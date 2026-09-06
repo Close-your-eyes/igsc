@@ -77,13 +77,13 @@ df = tidyr::pivot_longer(df,
                          names_to = "seq.name",
                          values_to = "seq")
 df2 <- compare_seq_df_long(df,
-                           change_ref = T)
-algnmt_plot(df2)
+                           change_ref = TRUE)
+igsc::aln_plot(df2)
 df3 <- compare_seq_df_long(df,
-                           change_ref = T,
-                           change_nonref = T)
-algnmt_plot(df3)
-algnmt_plot(df)
+                           change_ref = TRUE,
+                           change_nonref = TRUE)
+igsc::aln_plot(df3)
+igsc::aln_plot(df)
 df$seq.name <- factor(df$seq.name, levels = c("sub", paste0("pat", 1:5)))
-algnmt_plot(df)
+igsc::aln_plot(df)
 }

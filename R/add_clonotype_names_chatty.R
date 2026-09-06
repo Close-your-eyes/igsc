@@ -687,6 +687,7 @@ collapse_order_fun2 <- function(x) {
   if (!length(values)) NA_character_ else paste(values, collapse = ",")
 }
 
+#' @importFrom rlang :=
 check.clonotype.id.levels <- function(cl_wide,
                                       id_cols = c("clonotype_id_TRA", "clonotype_id_TRB"),
                                       group_cols = c("sample")) {
@@ -896,41 +897,7 @@ collapse.clonotypes <- function(cl_wide,
                                            dplyr::bind_rows(cl_wide_split_1),
                                            dplyr::bind_rows(cl_wide_split_multi_1),
                                            dplyr::bind_rows(cl_wide_split_multi_2)))
-  '
-  if (!is.null(cdr3_col_to_unnest)) {
-    cl_wide <-
-      cl_wide |>
-      dplyr::group_by(!!!rlang::syms(names(cl_wide)[which(!names(cl_wide) %in% cdr3_col_to_unnest)])) |>
-      dplyr::summarise(!!cdr3_col_to_unnest := collapse_order_fun(!!rlang::sym(cdr3_col_to_unnest)), .groups = "drop")
 
-    # in rare cases clonotype with different multi-annotated chains were dragged into different split groups above, only when unnest_cdr3_col = T
-    # because of that, they got different cl_name; now they cannot be collapse and then their barcodes are duplicated (two rows for one cell which used to be one row only)
-
-    barcode_count_end <- sort(table(cl_wide$barcode))
-    barcode_count_df <-
-      stack(barcode_count_start) |>
-      dplyr::rename("values1" = values) |>
-      dplyr::mutate(ind = as.character(ind)) |>
-      dplyr::full_join(stack(barcode_count_end) |>
-                         dplyr::rename("values2" = values) |>
-                         dplyr::mutate(ind = as.character(ind)), by = "ind") |>
-      dplyr::mutate(diff = values2 - values1)
-    problematic_barcodes <- barcode_count_df |> dplyr::filter(diff > 0) |> dplyr::pull(ind)
-
-    if (any(barcode_count_df$diff < 0)) {
-      warning("Check barcode_count_df. One or more values are below 0.")
-    }
-
-    cl_wide <- rbind(cl_wide_sub1 <-
-                       cl_wide |>
-                       dplyr::filter(!barcode %in% problematic_barcodes),
-                     cl_wide_sub2 <-
-                       cl_wide |>
-                       dplyr::filter(barcode %in% problematic_barcodes) |>
-                       dplyr::mutate(cl_name = cl_names_read) |>
-                       dplyr::group_by(!!!rlang::syms(names(cl_wide)[which(!names(cl_wide) %in% cdr3_col_to_unnest)])) |>
-                       dplyr::summarise(!!cdr3_col_to_unnest := collapse_order_fun(!!rlang::sym(cdr3_col_to_unnest)), .groups = "drop"))
-  }'
 
   n_unique_cl_end <- length(unique(cl_wide[["cl_name"]]))
   message("Number of unique clonotypes at before and after: ", n_unique_cl_start, ", ", n_unique_cl_end, ". (", n_unique_cl_end-n_unique_cl_start, ", ", round(((n_unique_cl_end-n_unique_cl_start)/n_unique_cl_start)*100, 2), " %)")

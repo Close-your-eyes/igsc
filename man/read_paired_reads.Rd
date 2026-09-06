@@ -50,7 +50,13 @@ Reads fastq files from Illumina paired sequencing and applied optional filtering
 by quality metrics.
 }
 \examples{
-#' \dontrun{
-reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path, fastq_path_r2 = r2_path, vroom_lines_args = list(progress = T, skip_empty_rows = T), min_len = 40, mc.cores = 8)
+\dontrun{
+  reads_paired <- igsc::read_paired_reads(
+    fastq_path_r1 = r1_path,
+    fastq_path_r2 = r2_path,
+    vroom_lines_args = list(progress = T,
+                            skip_empty_rows = T),
+    min_len = 40,
+    mc.cores = 8)
 }
 }

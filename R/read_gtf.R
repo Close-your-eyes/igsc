@@ -31,6 +31,7 @@
 #'
 #' @export
 #'
+#' @importFrom rlang :=
 #'
 #' @examples
 #' \dontrun{
@@ -39,19 +40,19 @@
 #' # this is how to expand the attributes names and values columns
 #' # tidyr unnest over two columns matches the list indices
 #' gtf2 <-
-#' gtf[["gtf"]] %>%
+#' gtf[["gtf"]] |>
 #' dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
-#'                attribute_values = I(strsplit(attribute_values, ","))) %>%
+#'                attribute_values = I(strsplit(attribute_values, ","))) |>
 #'                tidyr::unnest(cols = c(attribute_names, attribute_values))
 #'
 #' # this is how to make a named list from separate names and values columns
 #' # this is returned when attr_col_as_list = T
 #' gtf2 <-
-#' gtf[["gtf"]] %>%
+#' gtf[["gtf"]] |>
 #' dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
-#' attribute_values = I(strsplit(attribute_values, ","))) %>%
-#' dplyr::rowwise() %>%
-#' dplyr::mutate(attr = I(list(setNames(attribute_names, attribute_values))))
+#' attribute_values = I(strsplit(attribute_values, ","))) |>
+#' dplyr::rowwise() |>
+#' dplyr::mutate(attr = I(list(stats::setNames(attribute_names, attribute_values))))
 #'
 #' # you may want to use the fst package to write the data frames to disk
 #' # this allows quick reading and random access
@@ -217,7 +218,7 @@ read_gtf <- function(
 #' @param genome_length length of associated genome or refseq; only needed
 #' for rotation
 #' @param rm_entries_wo_matching_exon this has to done to meet mkref requirements
-#' @param verbose
+#' @param verbose print messages?
 #'
 #' @returns
 #' @export
@@ -570,8 +571,8 @@ vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
 
 
 fill_gene_name_warn <- function(df) {
-  df %>%
-    dplyr::group_by(gene_id) %>%
+  df |>
+    dplyr::group_by(gene_id) |>
     dplyr::group_modify(~ {
       vals <- stats::na.omit(.x$gene_name)
 
@@ -595,13 +596,13 @@ fill_gene_name_warn <- function(df) {
 
       .x$gene_name[is.na(.x$gene_name)] <- chosen
       .x
-    }) %>%
+    }) |>
     dplyr::ungroup()
 }
 
 fill_gene_name_strict <- function(df) {
-  df %>%
-    dplyr::group_by(gene_id) %>%
+  df |>
+    dplyr::group_by(gene_id) |>
     dplyr::group_modify(~ {
       vals <- unique(stats::na.omit(.x$gene_name))
 
@@ -619,7 +620,7 @@ fill_gene_name_strict <- function(df) {
       fill <- if (length(vals) == 1) vals else NA_character_
       .x$gene_name[is.na(.x$gene_name)] <- fill
       .x
-    }) %>%
+    }) |>
     dplyr::ungroup()
 }
 
@@ -643,9 +644,9 @@ aggregate_overlapping_exon_ranges_fun <- function(df, strand = c("same", "opposi
         group[is.na(group)] <- sample(pool, na_n)
         group
       }
-    ) %>%
+    ) |>
     ## collapse all columns by group
-    dplyr::group_by(group) %>%
+    dplyr::group_by(group) |>
     dplyr::summarise(
       dplyr::across(
         dplyr::everything(),
@@ -735,7 +736,7 @@ detect_wrap_and_cut <- function(df, genome_length = NULL, verbose = T) {
 
     # sanity check
     if (length(strand) != 1) {
-      return(TRUE)  # inconsistent strand → treat as problematic
+      return(TRUE)  # inconsistent strand - treat as problematic
     }
 
     if (strand == "+") {
@@ -745,7 +746,7 @@ detect_wrap_and_cut <- function(df, genome_length = NULL, verbose = T) {
       # should decrease
       any(diff(starts) > 0)
     } else {
-      TRUE  # unknown strand → treat as problematic
+      TRUE  # unknown strand - treat as problematic
     }
   })
 
@@ -827,7 +828,7 @@ pick_best_cut_from_positions <- function(df, genome_length = NULL) {
   best <- which.max(gaps)
 
   if (gaps[best] <= 0) {
-    stop("No intergenic gap found — genome fully covered.")
+    stop("No intergenic gap found - genome fully covered.")
   }
 
   # Midpoint of best gap
@@ -901,7 +902,7 @@ pick_best_cut <- function(df, genome_length = NULL, wrap_threshold = 0.5) {
   best <- which.max(gaps)
 
   if (gaps[best] <= 0) {
-    stop("No intergenic gap found — genome fully covered.")
+    stop("No intergenic gap found - genome fully covered.")
   }
 
   cut <- floor((gap_starts[best] + gap_ends[best]) / 2)
@@ -996,7 +997,7 @@ rotate_genome_string <- function(genome, cut) {
 
 
 most_frequent <- function(x) {
-  ux <- na.omit(x)
+  ux <- stats::na.omit(x)
   if (length(ux) == 0) return(NA)
   tab <- table(ux)
   names(tab)[which.max(tab)]
@@ -1011,6 +1012,7 @@ most_frequent <- function(x) {
 #'
 #' @param gtf_df subsetted gtf df with processed attribute column
 #' @param keep_index_col keep index column away from attributes
+#' @param verbose print messages?
 #'
 #' @returns data frame
 #' @export
@@ -1020,7 +1022,9 @@ most_frequent <- function(x) {
 #' gtf <- make_kv_attr_col(gtf)
 #' write_gtf(gtf)
 #' }
-make_kv_attr_col <- function(gtf_df, keep_index_col = F, verbose = T) {
+make_kv_attr_col <- function(gtf_df,
+                             keep_index_col = F,
+                             verbose = T) {
   gtf_cols <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame")
   if (keep_index_col && "index" %in% names(gtf_df)) {
     gtf_cols <- c(gtf_cols, "index")

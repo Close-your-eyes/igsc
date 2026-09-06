@@ -163,7 +163,7 @@ write_gtf_and_genome_for_cellranger <- function(data,
 
     # allow for other column names, and check above
     features <-
-      data[[x]][["features"]] %>%
+      data[[x]][["features"]] |>
       dplyr::filter(Feature %in% feat_select)
 
     original_values <- features$value

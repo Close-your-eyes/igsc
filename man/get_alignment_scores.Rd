@@ -43,6 +43,8 @@ and columns represent \code{y} sequences; unobserved combinations are \code{NA}.
 \item{return_score}{One or both of \code{"score"} and \code{"normalized"}, specifying
 which score types to return. Defaults to both.}
 
+\item{make_unique}{make x,y pairwise unique?}
+
 \item{...}{Additional arguments passed to \code{\link[pwalign:pairwiseAlignment]{pwalign::pairwiseAlignment()}},
 such as \code{type}, \code{gapOpening}, and \code{gapExtension}. \code{scoreOnly} and
 \code{substitutionMatrix} are set internally and must not be supplied.}

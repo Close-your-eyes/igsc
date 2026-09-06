@@ -288,7 +288,7 @@ plot_tcren_structures <- function(
     ggplot2::scale_colour_viridis_c() +
     clash_shape_scale +
     ggplot2::labs(
-      x = "Buried interface area (Å²)",
+      x = "Buried interface area (A^2)",
       y = "TCR-peptide hydrogen bonds",
       colour = "Chain balance",
       size = "Peptide residues contacted",
@@ -771,7 +771,7 @@ triage_tcren_candidates <- function(
     if (out$flag_very_low_burial[[i]]) {
       messages <- c(
         messages,
-        paste0("very low buried area (", fmt(out$burial[[i]], 0L), " Å²)")
+        paste0("very low buried area (", fmt(out$burial[[i]], 0L), " A^2)")
       )
     }
 
@@ -826,7 +826,7 @@ triage_tcren_candidates <- function(
     if (out$caution_high_burial[[i]]) {
       messages <- c(
         messages,
-        paste0("unusually high burial (", fmt(out$burial[[i]], 0L), " Å²)")
+        paste0("unusually high burial (", fmt(out$burial[[i]], 0L), " A^2)")
       )
     }
     if (out$caution_fragmented_footprint[[i]]) {

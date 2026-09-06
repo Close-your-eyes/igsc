@@ -211,6 +211,7 @@ vdjdb_hits <- function(tcrs,
 #' @param ... Additional arguments passed to [pwalign::pairwiseAlignment()],
 #'   such as `type`, `gapOpening`, and `gapExtension`. `scoreOnly` and
 #'   `substitutionMatrix` are set internally and must not be supplied.
+#' @param make_unique make x,y pairwise unique?
 #'
 #' @return If `return = "df"`, a data frame containing `x`, `y`, and the
 #'   requested score columns. If `return = "mat"`, a named list containing one

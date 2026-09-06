@@ -39,15 +39,15 @@
 #'                          names_to = "seq.name",
 #'                          values_to = "seq")
 #' df2 <- compare_seq_df_long(df,
-#'                            change_ref = T)
-#' algnmt_plot(df2)
+#'                            change_ref = TRUE)
+#' igsc::aln_plot(df2)
 #' df3 <- compare_seq_df_long(df,
-#'                            change_ref = T,
-#'                            change_nonref = T)
-#' algnmt_plot(df3)
-#' algnmt_plot(df)
+#'                            change_ref = TRUE,
+#'                            change_nonref = TRUE)
+#' igsc::aln_plot(df3)
+#' igsc::aln_plot(df)
 #' df$seq.name <- factor(df$seq.name, levels = c("sub", paste0("pat", 1:5)))
-#' algnmt_plot(df)
+#' igsc::aln_plot(df)
 compare_seq_df_long <- function(df,
                                 ref = NULL,
                                 pos_col = "position",
@@ -65,6 +65,7 @@ compare_seq_df_long <- function(df,
 
   # insertion_as can be base or any other character, like "x"
 
+  warning("change_nonref and change_ref not functioning currently.")
   nonref_mismatch_as <- rlang::arg_match(nonref_mismatch_as)
   ref_mismatch_as <- rlang::arg_match(ref_mismatch_as)
   #insertion_as <- rlang::arg_match(insertion_as)
@@ -139,43 +140,45 @@ compare_seq_df_long <- function(df,
                                   keep_gaps = keep_gaps,
                                   nonref_mismatch_as = nonref_mismatch_as)
 
-  # matches to ref
-  if (change_ref) {
-    if (ref_mismatch_as == "base") {
-      mismatch_replace <- df2[[ref]]
-    } else if (ref_mismatch_as == "mismatch_symbol") {
-      mismatch_replace <- rep(mismatch_symbol, nrow(df2))
-    }
 
-    if (change_nonref) {
-      df2[[ref]] <- ifelse(
-        apply(
-          df2[,c(ref, non_ref)],
-          MARGIN = 1,
-          function(x) length(unique(x[intersect(which(!is.na(x)), which(x != match_symbol))]))
-        ) == 1,
-        # keep "-" when gaps in all seq - keep_gaps decides, not tested yet
-        dplyr::if_else(keep_gaps, "-", match_symbol), #match_symbol;
-        mismatch_replace
-      )
-    } else {
-      df2[[ref]] <- ifelse(
-        apply(
-          df2[,c(ref, non_ref)],
-          MARGIN = 1,
-          function(x) length(unique(x[which(!is.na(x))]))
-        ) == 1,
-        # keep "-" when gaps in all seq - keep_gaps decides, not tested yet
-        dplyr::if_else(keep_gaps, "-", match_symbol), #match_symbol;
-        mismatch_replace
-      )
-    }
-    if (insertion_as != "base") {
-      # any or all? any(x[-1] == "-")
-      df2[[ref]] <- ifelse(apply(df2[,c(ref, non_ref)], 1,
-                                 function(x) (!x[1] %in% c("-", match_symbol, mismatch_symbol) && any(x[-1][which(!is.na(x[-1]))] == "-"))), insertion_as, df2[[ref]])
-    }
-  }
+  ## currently not working:
+  # matches to ref
+  # if (change_ref) {
+  #   if (ref_mismatch_as == "base") {
+  #     mismatch_replace <- df[[ref]]
+  #   } else if (ref_mismatch_as == "mismatch_symbol") {
+  #     mismatch_replace <- rep(mismatch_symbol, nrow(df))
+  #   }
+  #
+  #   if (change_nonref) {
+  #     df[[ref]] <- ifelse(
+  #       apply(
+  #         df[,c(ref, non_ref)],
+  #         MARGIN = 1,
+  #         function(x) length(unique(x[intersect(which(!is.na(x)), which(x != match_symbol))]))
+  #       ) == 1,
+  #       # keep "-" when gaps in all seq - keep_gaps decides, not tested yet
+  #       dplyr::if_else(keep_gaps, "-", match_symbol), #match_symbol;
+  #       mismatch_replace
+  #     )
+  #   } else {
+  #     df[[ref]] <- ifelse(
+  #       apply(
+  #         df[,c(ref, non_ref)],
+  #         MARGIN = 1,
+  #         function(x) length(unique(x[which(!is.na(x))]))
+  #       ) == 1,
+  #       # keep "-" when gaps in all seq - keep_gaps decides, not tested yet
+  #       dplyr::if_else(keep_gaps, "-", match_symbol), #match_symbol;
+  #       mismatch_replace
+  #     )
+  #   }
+  #   if (insertion_as != "base") {
+  #     # any or all? any(x[-1] == "-")
+  #     df[[ref]] <- ifelse(apply(df[,c(ref, non_ref)], 1,
+  #                                function(x) (!x[1] %in% c("-", match_symbol, mismatch_symbol) && any(x[-1][which(!is.na(x[-1]))] == "-"))), insertion_as, df[[ref]])
+  #   }
+  # }
 
   attr(df, "subject_name") <- ref
   attr(df, "ref") <- ref

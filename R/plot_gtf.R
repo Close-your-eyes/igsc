@@ -63,7 +63,7 @@ plot_gtf <- function(gtf_df,
     gtf_df2$group <- paste0(gtf_df2$ind, "__", gtf_df2$ovlp_run)
     temp <- dplyr::slice_min(gtf_df2, order_by = values, n = 1, by = y) |>
       dplyr::arrange(values)
-    gtf_df2[[y]] <- factor(gtf_df2[[y]], level = temp[[y]])
+    gtf_df2[[y]] <- factor(gtf_df2[[y]], levels = temp[[y]])
 
     plot <- ggplot2::ggplot(gtf_df2, ggplot2::aes(x = values, y = !!rlang::sym(y), color = !!rlang::sym(color))) +
       ggplot2::geom_line(ggplot2::aes(group = group)) +

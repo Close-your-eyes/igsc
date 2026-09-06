@@ -95,10 +95,12 @@ pwalign_to_df <- function(pa,
 #' @param pos_col position column
 #' @param sym_internal_gap symbol for internal gaps
 #' @param sym_terminal_gap symbol for terminal gaps
-#' @param format
+#' @param format df input format
 #'
 #' @returns XStringSet
 #' @export
+#'
+#' @importFrom rlang :=
 #'
 #' @examples
 df_to_xstringset <- function(df,
@@ -135,9 +137,9 @@ df_to_xstringset <- function(df,
   }
 
   df <-
-    df %>%
+    df |>
     dplyr::select(!!rlang::sym(seq_col), !!rlang::sym(name_col), !!rlang::sym(pos_col)) |>
-    dplyr::mutate({{seq_col}} := ifelse(is.na(!!rlang::sym(seq_col)), sym_internal_gap, !!rlang::sym(seq_col))) %>%
+    dplyr::mutate({{seq_col}} := ifelse(is.na(!!rlang::sym(seq_col)), sym_internal_gap, !!rlang::sym(seq_col))) |>
     tidyr::pivot_wider(names_from = !!rlang::sym(name_col),
                        values_from = !!rlang::sym(seq_col), values_fill = sym_terminal_gap)
   df <- df[,-1]

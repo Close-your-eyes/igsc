@@ -17,7 +17,7 @@ acp <- c("A" = "lightpink",
 ## to give credit color scales are integrated with dependency
 
 if (!requireNamespace("BiocManager", quietly = T)) {
-  install.packages("BiocManager")
+  utils::install.packages("BiocManager")
 }
 if (!requireNamespace("ggmsa", quietly = T)) {
   BiocManager::install("ggmsa")
@@ -126,7 +126,7 @@ aa_info <- list(aa_main_prop = aa_main_prop,
                 aa_names = utils::stack(Biostrings::AMINO_ACID_CODE[Biostrings::AA_STANDARD]),
                 aa_group_cols = aa_group_cols)
 
-# chem_col <- stack(igsc:::scheme_AA[,"Chemistry_AA"]) %>% dplyr::group_by(values) %>% dplyr::summarise(aa = paste(ind, collapse = ","))
+# chem_col <- stack(igsc:::scheme_AA[,"Chemistry_AA"]) |> dplyr::group_by(values) |> dplyr::summarise(aa = paste(ind, collapse = ","))
 
 usethis::use_data(scheme_AA, scheme_NT, acp, aa_info,
                   overwrite = T, internal = T)

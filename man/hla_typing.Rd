@@ -41,7 +41,7 @@ alleles with at least 4 matches are retained.}
 pairwise results to include in the rank plot.}
 
 \item{hla_seq_col_name}{A character scalar naming the reference sequence
-column used for the first matching round.}
+column in \code{hla_ref}.}
 
 \item{read_seq_col_name}{A character scalar naming the sequence column in
 \code{reads}.}
@@ -119,10 +119,13 @@ summarized by P group because typing at greater resolution may be uncertain.
 \examples{
 \dontrun{
 # get hla refs
-hla_ref <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
+hla_ref <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz",
+                           lapply_fun = parallel::mclapply, mc.cores = 8)
 # create synthetic reads
-reads_hla <- simulate_hla_reads(hla_ref, snps_per_read = c(1), gene = "A", minus_strand_prob = 0)
+reads_hla <- simulate_hla_reads(hla_ref, snps_per_read = c(1),
+                                gene = "A", minus_strand_prob = 0)
 # run typing algorithm
-type <- hla_typing(hla_ref = hla_ref |> dplyr::filter(gene == "A"), reads = reads_hla, maxmis = 1)
+type <- hla_typing(hla_ref = hla_ref |> dplyr::filter(gene == "A"),
+                   reads = reads_hla, maxmis = 1)
 }
 }

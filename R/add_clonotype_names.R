@@ -67,6 +67,8 @@
 #'
 #' @export
 #'
+#' @importFrom rlang :=
+#'
 #' @examples
 #' \dontrun{
 #' named_clonotypes <- add_clonotype_names(tcr_annotations)
@@ -760,9 +762,9 @@ check.clonotype.changes <- function(cl_wide_before,
                                     clonotype_col = "cl_name") {
 
   combined_cl <-
-    stack(table(cl_wide_before[,clonotype_col,drop=T])) |>
+    utils::stack(table(cl_wide_before[,clonotype_col,drop=T])) |>
     dplyr::rename("prev" = values) |>
-    dplyr::left_join(stack(table(cl_wide_after[,clonotype_col,drop=T])) |>
+    dplyr::left_join(utils::stack(table(cl_wide_after[,clonotype_col,drop=T])) |>
                        dplyr::rename("new" = values), by = "ind") |>
     dplyr::mutate(new = ifelse(is.na(new), 0, new)) |> # now missing cl_name (assigned completely to another cl_name) get a 0
     dplyr::mutate(diff = new-prev)
@@ -799,7 +801,7 @@ compare.cl.wide.df <- function(cl_wide1,
 get.clonotype.levels.per.ref <- function(cl_wide,
                                          ref_cols = c("clonotype_id_TRB", "clonotype_id_TRA", "patient"),
                                          clonotype_col = "cl_name") {
-  #cl_names_count = stack(table(cl_name)))
+  #cl_names_count = utils::stack(table(cl_name)))
   cl_wide |>
     dplyr::group_by(!!!rlang::syms(ref_cols)) |>
     dplyr::summarise(cl_names_str = paste(unique(cl_name), collapse = ","),

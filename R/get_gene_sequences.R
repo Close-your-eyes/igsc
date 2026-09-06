@@ -1,17 +1,37 @@
-#' Title
+#' Extract transcript sequences for a gene
 #'
-#' @param gtf_path
-#' @param genome_path
-#' @param gene_name
+#' Read the annotations for one gene from a GTF file, split them by transcript,
+#' and reconstruct sequence data for each transcript from a reference genome
+#' FASTA file.
 #'
-#' @returns
+#' The function locates the FASTA record named by the GTF `seqname`, reads that
+#' record once, and passes each transcript's annotation rows and the reference
+#' sequence to [concat_transcript()]. All selected transcript annotations are
+#' therefore expected to refer to the same sequence record. Each individual
+#' transcript must contain no more than one unique `seqname`.
+#'
+#' @param gtf_path Path to a GTF annotation file accepted by [read_gtf()]. The
+#'   selected records must contain `transcript_id` and `seqname` columns.
+#' @param genome_path Path to the reference genome FASTA file corresponding to
+#'   `gtf_path`. FASTA record names must match the GTF `seqname` values and be
+#'   discoverable by [get_fasta_seq_bounds()].
+#' @param gene_name A single gene name used to filter the GTF annotations.
+#'
+#' @return Invisibly, a named list with one element per `transcript_id`. Each
+#'   element is the sequence-data object returned by [concat_transcript()] for
+#'   that transcript.
 #' @export
 #'
 #' @examples
-#'\dontrun{
-#' out <- get_gene_sequences(gtf_path = "/Users/chris/Documents/2024_igsc_testing/refdata-gex-GRCh38-2020-A/genes.gtf",
-#'                           genome_path = "/Users/chris/Documents/2024_igsc_testing/refdata-gex-GRCh38-2020-A/genome.fa",
-#'                           gene_name = "GZMB")
+#' \dontrun{
+#' transcripts <- get_gene_sequences(
+#'   gtf_path = "reference/genes.gtf",
+#'   genome_path = "reference/genome.fa",
+#'   gene_name = "GZMB"
+#' )
+#'
+#' names(transcripts)
+#' transcripts[[1]]
 #' }
 get_gene_sequences <- function(gtf_path,
                                genome_path,

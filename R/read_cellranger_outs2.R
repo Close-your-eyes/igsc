@@ -184,7 +184,11 @@ read_cellranger_outs2 <- function(vdj_outs_path,
   message("Picking random names.")
   cl_wide_names <-
     cl_wide_names |>
-    dplyr::mutate(cl_name = igsc::pick_randomNames(n = nrow(.), max_iter = 10000, names_to_avoid = names_to_avoid)) |> #
+    dplyr::mutate(cl_name = igsc::pick_randomNames(
+      n = nrow(cl_wide_names),
+      max_iter = 10000,
+      names_to_avoid = names_to_avoid
+    )) |>
     tidyr::unnest(data)
   #any(cl_wide_names$cl_name %in% names_to_avoid)
 
@@ -377,6 +381,7 @@ collapse.unique.order.fun <- function(x) {
   }
 }
 
+#' @importFrom rlang :=
 .check.clonotype.id.levels <- function(cl_wide,
                                        id_cols = c("clonotype_id_TRA", "clonotype_id_TRB"),
                                        group_cols = c("sample")) {

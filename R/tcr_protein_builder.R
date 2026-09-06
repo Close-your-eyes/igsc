@@ -87,7 +87,7 @@
   ]))
   if (!length(candidates)) return(NULL)
 
-  distances <- as.integer(adist(query, candidates))
+  distances <- as.integer(utils::adist(query, candidates))
   closest <- candidates[distances == min(distances)]
   if (length(closest) > 1L) {
     stop("No unique closest ", family, " gene segment for ", query,
@@ -518,7 +518,7 @@ as_fasta.tcr_protein <- function(x, header = NULL, width = 80L, ...) {
     stop("width must be a positive integer", call. = FALSE)
   }
   if (is.null(header)) {
-    segment_text <- paste(na.omit(unname(x$segments)), collapse = "_")
+    segment_text <- paste(stats::na.omit(unname(x$segments)), collapse = "_")
     header <- paste0("TCR_", x$chain, "|", segment_text,
                      "|CDR3=", x$cdr3)
   }

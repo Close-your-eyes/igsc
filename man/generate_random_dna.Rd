@@ -2,10 +2,29 @@
 % Please edit documentation in R/generate_random_dna.R
 \name{generate_random_dna}
 \alias{generate_random_dna}
-\title{Title}
+\title{Generate random DNA sequences}
 \usage{
 generate_random_dna(n, length)
 }
+\arguments{
+\item{n}{Positive integer giving the number of sequences to generate.}
+
+\item{length}{Non-negative integer giving the number of bases in each
+sequence.}
+}
+\value{
+A character vector of \code{n} random DNA sequences, each containing
+\code{length} bases.
+}
 \description{
-Title
+Generate one or more DNA strings by independently sampling the canonical
+bases \code{A}, \code{T}, \code{C}, and \code{G} with equal probability and replacement.
+}
+\details{
+This function uses R's global random-number generator. Call \code{\link[base:set.seed]{base::set.seed()}}
+before generation when reproducible sequences are required.
+}
+\examples{
+set.seed(42)
+generate_random_dna(n = 3, length = 12)
 }

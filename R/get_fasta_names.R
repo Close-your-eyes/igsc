@@ -1,13 +1,45 @@
-#' Title
+#' Extract sequence names from a FASTA file
 #'
-#' intended for
+#' Find every FASTA header in a plain-text or gzip-compressed file and return
+#' its line number and header text. The leading `">"` is removed from each
+#' header.
 #'
-#' @param file_path
+#' When `prep_chr = TRUE`, the first whitespace-delimited field of each header
+#' is treated as a sequence name. The `"chr"` substring is removed to construct
+#' an ordering key: numeric names are ordered numerically, followed by
+#' non-numeric names in their input order. This is useful for chromosome FASTA
+#' files, where lexical ordering would otherwise place `chr10` before `chr2`.
 #'
-#' @return
+#' Header detection uses `rg` when available and falls back to `grep`. Reading a
+#' file whose extension is `.gz` additionally requires the `gunzip` command.
+#'
+#' @param file_path Path to a FASTA file. Files with a `.gz` extension are read
+#'   as gzip-compressed input; all other extensions are read as plain text.
+#' @param prep_chr Logical; derive chromosome-oriented `seqname` and `fctname`
+#'   factor columns and order the FASTA names by them.
+#'
+#' @return A data frame with one row per FASTA header. It always contains
+#'   `start_line`, the numeric line number of the header, and `fastaname`, the
+#'   complete header without its leading `">"`. When `prep_chr = TRUE`,
+#'   `fastaname` is converted to a factor and the result also contains
+#'   `seqname`, the first field of the header, and `fctname`, the same field with
+#'   `"chr"` removed; all three are factors in chromosome-aware order.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' fasta <- tempfile(fileext = ".fa")
+#' writeLines(
+#'   c(">chr2 chromosome 2", "ACGT", ">chr10 chromosome 10", "TGCA",
+#'     ">chrX chromosome X", "AAAA"),
+#'   fasta
+#' )
+#'
+#' get_fasta_names(fasta)
+#' get_fasta_names(fasta, prep_chr = FALSE)
+#'
+#' unlink(fasta)
+#' }
 get_fasta_names <- function(file_path,
                             prep_chr = T) {
 

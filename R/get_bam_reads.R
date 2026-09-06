@@ -120,7 +120,7 @@ get_bam_reads <- function(bam,
 
   if (revcomp_plus_strand) {
     # start and CIGAR remain the same ?? Not sure. But in ScanBamParam start and CIGAR remain the same when reverseComplement = T.
-    reads[which(reads$strand == "+"), "seq"] <- igsc:::revcompDNA(reads[which(reads$strand == "+"), "seq"])
+    reads[which(reads$strand == "+"), "seq"] <- revcompDNA(reads[which(reads$strand == "+"), "seq"])
     reads[which(reads$strand == "+"), "qual"] <- stringi::stri_reverse(reads[which(reads$strand == "+"), "qual"])
     #lapply(lapply(strsplit(reads[which(reads$strand == "+"), "qual"], ""), rev), paste, collapse = "")
   }

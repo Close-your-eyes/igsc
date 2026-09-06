@@ -10,7 +10,7 @@
 #' @param return which formats to return; restriction to what is needed saves memory and increases speed
 #' @param matches_to_origin_and_feature mark matches and mismatches in origin and/or feature sequences
 #' @param order_features order features by min position
-#' @param compare_seq_df_long_args
+#' @param compare_seq_df_long_args args to igsc::compare_seq_df_long
 #'
 #' @return
 #' @export
@@ -124,7 +124,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                      seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
                                    }
                                    seq <- paste(seq, collapse = "")
-                                   df <- data.frame(position = unlist(igsc:::seq2(sapply(x, "[", 1), sapply(x, "[", 2)), use.names = F), seq = strsplit(seq, "")[[1]])
+                                   df <- data.frame(position = unlist(brathering::seq2(sapply(x, "[", 1), sapply(x, "[", 2)), use.names = F), seq = strsplit(seq, "")[[1]])
                                    names(df)[2] <- value
                                    return(df)
                                  })

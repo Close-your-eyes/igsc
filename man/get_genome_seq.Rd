@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_genome_seq.R
 \name{get_genome_seq}
 \alias{get_genome_seq}
-\title{Title}
+\title{Retrieve a genomic subsequence}
 \usage{
 get_genome_seq(
   fasta_file = NULL,
@@ -16,6 +16,79 @@ get_genome_seq(
   ucsc_toupper = T
 )
 }
+\arguments{
+\item{fasta_file}{Optional path to a multi-record FASTA file. Sequence bounds
+are located with \code{\link[=get_fasta_seq_bounds]{get_fasta_seq_bounds()}} and the selected record is read
+with \code{\link[=read_fasta]{read_fasta()}}. When supplied, this source takes precedence over all
+folder and API sources.}
+
+\item{fst_folder}{Optional path to a directory containing per-sequence \code{.fst}
+files. Each filename without its extension is treated as a sequence name,
+and the first column must contain sequence characters in positional order.}
+
+\item{fagz_folder}{Reserved for a directory of per-sequence \code{.fa.gz} files.
+This source is not reachable in the current dispatch implementation; use
+\code{fasta_file} or \code{fst_folder} instead.}
+
+\item{ucsc_api}{Base URL for a UCSC sequence endpoint, including the genome
+and a trailing \code{"&"}. Used only when both \code{fasta_file} and \code{fst_folder} are
+\code{NULL}. The default requests the human \code{hg38} assembly through the external
+\code{curl} command.}
+
+\item{query_string}{Optional character string encoding the sequence name,
+start, and end coordinates. When supplied, its parsed values override
+\code{chromosome}, \code{start}, and \code{end}.}
+
+\item{chromosome}{Sequence or chromosome name. Required unless supplied in
+\code{query_string}. API sequence names generally begin with \code{"chr"}.}
+
+\item{start}{One-based inclusive start coordinate, or a value coercible to
+numeric. Required unless supplied in \code{query_string}.}
+
+\item{end}{One-based inclusive end coordinate, or a value coercible to
+numeric. Required unless supplied in \code{query_string}.}
+
+\item{ucsc_toupper}{Logical; convert API results to uppercase. This does not
+alter sequences read from local FASTA or \code{fst} files.}
+}
+\value{
+A single character string containing the requested genomic sequence.
+}
 \description{
-Title
+Extract a genomic interval from a multi-record FASTA file, from a directory
+containing one \code{fst} file per sequence, or from the UCSC Genome Browser API.
+Coordinates supplied to this function are one-based and inclusive.
+}
+\details{
+The data source is selected in this order: \code{fasta_file}, \code{fst_folder}, then
+\code{ucsc_api}. In API mode, the start coordinate is converted to UCSC's
+zero-based, half-open convention before the request is made. Local source
+names are matched to \code{chromosome}; if no exact match exists, the name with
+the smallest edit distance is selected and reported in a message.
+
+\code{query_string} can replace the separate \code{chromosome}, \code{start}, and \code{end}
+arguments. Accepted forms include \code{"chr2:1000-2000"},
+\code{"chr2:86,784,610-86,790,913"},
+\code{"chrom=chr2;start=1000;end=2000"}, and \code{"2,1000,2000"}. The parsed
+values are printed before retrieval.
+}
+\examples{
+\dontrun{
+# Read from a local multi-record FASTA file.
+seq <- get_genome_seq(
+  fasta_file = "reference/genome.fa",
+  query_string = "chr2:1000-2000"
+)
+
+# Read rows from a per-chromosome fst file.
+seq <- get_genome_seq(
+  fst_folder = "reference/fst",
+  chromosome = "chr2",
+  start = 1000,
+  end = 2000
+)
+
+# With no local source, query the default UCSC hg38 endpoint.
+seq <- get_genome_seq(query_string = "chr2:1000-2000")
+}
 }

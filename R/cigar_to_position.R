@@ -1,25 +1,59 @@
-#' Convert cigar string to data frame with matched position and elements from sequence
+#' Expand a CIGAR string into aligned sequence positions
 #'
-#' @param cigar CIGAR string
-#' @param start start position, integer
-#' @param seq which sequence to pro
-#' @param name
-#' @param name_col
-#' @param rm_clipped
-#' @param skip_as what to insert for N in CIGAR
+#' Convert a CIGAR string and its query sequence into a position-by-position data
+#' frame. Matched (`M`), sequence-match (`=`), and sequence-mismatch (`X`)
+#' operations copy bases from `seq`; deletions (`D`) are represented by `"-"`;
+#' skipped regions (`N`) are represented by `skip_as`; and insertions (`I`) are
+#' omitted from the returned reference-coordinate rows.
 #'
-#' @return
+#' Soft-clipped (`S`) bases are retained by default. An initial soft clip shifts
+#' the first returned position upstream by its length so that clipped bases are
+#' included before `start`. Set `rm_clipped = TRUE` to replace soft-clipped bases
+#' with `skip_as` instead.
+#'
+#' If two CIGAR operations occur consecutively without an explicit length, the
+#' function assumes the omitted length is one and inserts it before parsing.
+#'
+#' @param cigar A single CIGAR string. Operation lengths must be integers;
+#'   omitted lengths of one between consecutive operations are inferred.
+#' @param start Integer genomic start position of the alignment. When `cigar`
+#'   begins with soft clipping, the returned positions begin before this value
+#'   so that the clipped bases can be represented.
+#' @param seq A single character string containing the query sequence described
+#'   by `cigar`.
+#' @param name Optional sequence or read identifier. When non-`NULL`, it is
+#'   repeated in an additional output column named by `name_col`.
+#' @param name_col Name of the output column containing `name`.
+#' @param rm_clipped Logical; replace soft-clipped bases with `skip_as` rather
+#'   than retaining their values from `seq`.
+#' @param skip_as Scalar value used for skipped (`N`) positions and, when
+#'   `rm_clipped = TRUE`, soft-clipped (`S`) positions. The default is `NA`.
+#'
+#' @return A data frame with columns `seq` and `position`, containing one row per
+#'   returned reference-coordinate position. If `name` is supplied, the result
+#'   also contains a column named by `name_col`.
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' reads <- igsc::get_bam_reads(bamfile_path, genomic_ranges = cd81_range, revcomp_minus_strand = F)
-#' reads_sub <- dplyr::slice_sample(reads, n = 40)
-#' pattern_df <- purrr::pmap_dfr(list(reads_sub$cigar, reads_sub$start, reads_sub$seq, reads_sub$readName), function(x,y,z,a) igsc::cigar_to_position(cigar = x, start = y, seq = z, name = a))
-#' algnmt_df <- data.frame(seq = strsplit(chr11_cd81, "")[[1]], position = 2378344:2391242, seq.name = "chr11")
-#' algnmt_df <- rbind(algnmt_df, pattern_df)
-#' plot <- algnmt_plot(algnmt = algnmt_df, algnmt_type = "NT", ref = "chr11")
-#' }
+#' # Three matches, two skipped reference positions, then two matches.
+#' cigar_to_position(
+#'   cigar = "3M2N2M",
+#'   start = 100,
+#'   seq = "ACGTT",
+#'   name = "read_1"
+#' )
+#'
+#' # Soft-clipped bases are retained and positioned before the alignment start.
+#' cigar_to_position(cigar = "2S3M", start = 100, seq = "AACGT")
+#'
+#' # They can instead be replaced with the value supplied to skip_as.
+#' cigar_to_position(
+#'   cigar = "2S3M",
+#'   start = 100,
+#'   seq = "AACGT",
+#'   rm_clipped = TRUE,
+#'   skip_as = "N"
+#' )
 cigar_to_position <- function(cigar,
                               start,
                               seq,

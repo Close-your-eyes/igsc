@@ -14,7 +14,7 @@ combine_gtf_and_genome_for_cellranger(
   gtf_header =
     c("##description: made with combine_gtf_and_genome_for_cellranger function from https://github.com/Close-your-eyes/igsc",
     paste0("##sources: ", paste(basename(gtf_files), collapse = ", ")), "##creator: CMS",
-    "##conctact: vonskopnik@pm.me", "##format: gtf", paste0("##date: ", Sys.Date())),
+    "##conctact: vonskopnik_aet_pm.me", "##format: gtf", paste0("##date: ", Sys.Date())),
   verbose = T
 )
 }
@@ -33,6 +33,8 @@ chr1 1 or chrM MT instead of chr1 and chrM only}
 \item{overwrite}{overwrite existing target files?}
 
 \item{gtf_header}{header for gtf}
+
+\item{verbose}{print messages?}
 }
 \description{
 Genome fasta files and gtf files are concatenated respectively and some

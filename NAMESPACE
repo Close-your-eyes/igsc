@@ -11,7 +11,6 @@ export(check_ref_seq_for_matches)
 export(cigar_to_position)
 export(collapse_duplicate_sequences)
 export(combine_gtf_and_genome_for_cellranger)
-export(compare_nonref_r)
 export(compare_seq_df_long)
 export(compare_seq_df_wide)
 export(concat_10X_fastq)
@@ -48,7 +47,6 @@ export(pick_randomNames)
 export(plot_gtf)
 export(plot_sc_reads)
 export(plot_tcren_structures)
-export(prep_ref_genome)
 export(process_gtf_attribute_col)
 export(pwalign_multi)
 export(pwalign_print)
@@ -74,6 +72,7 @@ import(Matrix)
 importFrom(Rcpp,sourceCpp)
 importFrom(rlang,
   "%||%",
+  ":=",
   .data
 )
 importFrom(zeallot,"%<-%")

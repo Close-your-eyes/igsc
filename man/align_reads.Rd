@@ -2,7 +2,7 @@
 % Please edit documentation in R/align_reads.R
 \name{align_reads}
 \alias{align_reads}
-\title{Align reads r1 and r2 to a set of reference sequences}
+\title{Align paired reads to groups of reference sequences}
 \usage{
 align_reads(
   r1,
@@ -16,55 +16,130 @@ align_reads(
 )
 }
 \arguments{
-\item{r1}{vector of r1 reads from paired sequencing, must have same length as r2}
+\item{r1}{Character vector of R1 sequences. It must have the same length and
+ordering as \code{r2}; \code{NA} values are permitted.}
 
-\item{r2}{see r1}
+\item{r2}{Character vector of R2 sequences paired positionally with \code{r1}.
+These reads are matched against reverse-complemented reference sequences.}
 
-\item{r1_table}{optional, table of r1 generated with table(r1, useNA = "no")}
+\item{r1_table}{Optional frequency table of non-missing R1 sequences, such as
+\code{table(r1, useNA = "no")}. When \code{NULL}, it is calculated internally. Its
+number of entries is used to normalize unique-read statistics.}
 
-\item{r2_table}{see r1_table}
+\item{r2_table}{Optional frequency table of non-missing R2 sequences, analogous
+to \code{r1_table}. When \code{NULL}, it is calculated internally.}
 
-\item{ref_seq_list}{named list of vectors of reference sequences to align r1 and r2 to}
+\item{ref_seq_list}{Named list whose elements are character vectors of
+plus-strand reference sequences. Outer list names identify reference groups;
+positions within each vector become \code{ref_seq_ind} values in match results.}
 
-\item{mapply_fun}{which mapply fun to use; go single core (sequential) with
-mapply or multicore (parallel computing) with parallel::mcmapply}
+\item{mapply_fun}{Function, or its name, used to search combinations of
+reference groups and read lengths. Use \code{\link[base:mapply]{base::mapply()}} for sequential
+execution or \code{\link[parallel:mcmapply]{parallel::mcmapply()}} for multicore execution.}
 
-\item{maxmis}{number of maximal mismatches for aligned reads}
+\item{maxmis}{Non-negative numeric mismatch threshold. \code{0} requires exact
+matches; a value strictly between \code{0} and \code{1} allows
+\code{floor(read_length * maxmis)} mismatches; a value of at least \code{1} is treated
+as an absolute mismatch count. The count is capped below the read length.}
 
-\item{...}{arguments passed to mapply_fun; provide mc.cores for parallel
-computation with mcmapply}
+\item{...}{Additional arguments passed to \code{mapply_fun}, such as \code{mc.cores}
+when using \code{\link[parallel:mcmapply]{parallel::mcmapply()}}.}
 }
 \value{
-a list with results describing the input reads and the matches in ref_seq_list
+A named list with two components:
+\describe{
+\item{read_stats}{Overall read statistics in three data-frame layouts:
+\code{wide}, \code{long}, and \code{norm}, where \code{norm} places R1, R2, and paired
+values in separate columns. These report total and distinct read counts
+and frequencies.}
+\item{read_matches}{A list containing:
+\describe{
+\item{match_df_list}{Match data frames for \code{r1}, \code{r2}, and joined
+\code{r1_r2} results, grouped by reference-list name. Rows identify the
+original \code{read_ind}, matching \code{ref_seq_ind}, and read sequence.}
+\item{read_indices}{For each reference group, the paired,
+R1-only, and R2-only matching read indices.}
+\item{match_stats}{Per-reference match statistics in \code{wide}, \code{long},
+and \code{norm} layouts.}
+\item{ref_seq_ind_matches}{Frequency tables of matching reference
+sequence indices for R1, R2, and complete pairs.}
+}
+}
+}
 }
 \description{
-Make sure you know that all sequences in ref_seq_list are on the plus-strand.
-Only in that case it makes sense to align r2 to their reverse complement.
+Find exact or approximate occurrences of paired-end reads within named groups
+of DNA reference sequences. R1 reads are matched to the supplied references;
+R2 reads are matched to their reverse complements. Consequently, all
+sequences in \code{ref_seq_list} must use the plus-strand orientation.
+}
+\details{
+Reads are grouped by length and converted to \code{\link[Biostrings:PDict]{Biostrings::PDict()}} objects.
+Each dictionary is searched against every sequence in each reference group.
+Matches retain the original paired-read index and the index of the matching
+sequence within its reference group. Overall and per-group count summaries
+are calculated after matching.
 }
 \examples{
 \dontrun{
-reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path, fastq_path_r2 = r2_path, min_len = 40, mc.cores = 8)
+reads_paired <- igsc::read_paired_reads(fastq_path_r1 = r1_path,
+                                        fastq_path_r2 = r2_path, min_len = 40,
+                                        mc.cores = 8)
 r1_table <- table(reads_paired[["reads"]][["r1"]][["seq"]], useNA = "no")
 r2_table <- table(reads_paired[["reads"]][["r2"]][["seq"]], useNA = "no")
-read_align_list <- igsc::align_reads(r1 = reads_paired[["reads"]][["r1"]][["seq"]],
+read_align_list <- igsc::align_reads(
+  r1 =reads_paired[["reads"]][["r1"]][["seq"]],
   r2 = reads_paired[["reads"]][["r2"]][["seq"]],
   r1_table = r1_table,
   r2_table = r2_table,
-  ref_seq_list = list(ref1 = c("ATCGTGCTG", "ACTTTTGGGCTTAAA"), ref2 = c("AAAGGTTTCCCGTC", "TTGGCCAA", "GGCTA")),
+  ref_seq_list = list(ref1 = c("ATCGTGCTG", "ACTTTTGGGCTTAAA"),
+                      ref2 = c("AAAGGTTTCCCGTC", "TTGGCCAA", "GGCTA")),
   mc.cores = 2)
 
 # get ref_seq_list from downloaded genomes from NCBI
-local_pathogen_ref <- list.files(file.path(wd, "pathogen_ref_sequences_origin"), full.names = T)
-local_pathogen_ref <- local_pathogen_ref[which(!grepl("\\\\.xlsx|\\\\.fasta", local_pathogen_ref))]
-names(local_pathogen_ref) <- sapply(strsplit(basename(local_pathogen_ref), "__"), "[", 2)
-cds_list_local <- purrr::map(local_pathogen_ref, get_cds_from_local_pathogen_ref, .progress = T)
+local_pathogen_ref <- list.files(file.path(wd, "pathogen_ref_sequences_origin"),
+                                 full.names = T)
+local_pathogen_ref <- local_pathogen_ref[which(!grepl("\\\\.xlsx|\\\\.fasta",
+                                                      local_pathogen_ref))]
+names(local_pathogen_ref) <- sapply(
+  strsplit(basename(local_pathogen_ref), "__"),
+  "[",
+  2
+)
+cds_list_local <- purrr::map(
+  local_pathogen_ref,
+  get_cds_from_local_pathogen_ref,
+  .progress = T
+)
 
 # or get ref_seq from webscraping ncbi using
 ncbi_data <- igsc::webscrape_ncbi(accession = "NC_006273.2")
 # select for certain features
-feat_df <- ncbi_data \%>\% dplyr::filter(Feature == "CDS", Subfeature == "locus_tag")
-feat_sequences <- igsc::get_seqs_from_feature_df(feature_df = feat_df, origin = ncbi_data$origin, return = "sequences", make_revcomp = T)
+feat_df <- ncbi_data |> dplyr::filter(Feature == "CDS", Subfeature == "locus_tag")
+feat_sequences <- igsc::get_seqs_from_feature_df(
+  feature_df = feat_df,
+  origin = ncbi_data$origin,
+  return = "sequences",
+  make_revcomp = T
+)
+r1 <- c("AACCGG", "TTGGCC", "AACCGG")
+r2 <- c("CCGGTT", "GGCCAA", "CCGGTT")
+references <- list(
+  targets = c(
+    gene_a = "TTTAACCGGAAA",
+    gene_b = "CCCTTGGCCGGG"
+  )
+)
 
+aligned <- align_reads(
+  r1 = r1,
+  r2 = r2,
+  ref_seq_list = references,
+  mapply_fun = mapply,
+  maxmis = 0
+)
 
+aligned$read_stats$wide
+aligned$read_matches$match_df_list$r1$targets
 }
 }

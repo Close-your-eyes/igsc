@@ -2,7 +2,7 @@
 % Please edit documentation in R/read_fasta.R
 \name{read_fasta}
 \alias{read_fasta}
-\title{Read sequences from a fasta-formatted file}
+\title{Read sequences from a FASTA file}
 \usage{
 read_fasta(
   file,
@@ -21,32 +21,81 @@ read_fasta(
 )
 }
 \arguments{
-\item{file}{path to a file with fasta-formatted sequences; file may
-be gunzipped (ending with .gz)}
+\item{file}{A single path to a FASTA-formatted text file. Gzip-compressed
+files with a \code{.gz} extension are supported, but \code{.tar.gz} archives are not.}
 
-\item{trimws}{trim leading and trailing whitespaces? disable in case of trustworthy files. may take time for large fasta files}
+\item{trimws}{Logical; trim leading and trailing whitespace from every input
+line before parsing. Disabling this can improve performance for trusted
+files.}
 
-\item{rm_comments}{remove comment lines? this is very slow large files, currently.}
+\item{rm_comments}{Logical; remove lines beginning with any value in
+\code{comment_indicator}. This can be slow for large files.}
 
-\item{comment_indicator}{first characters of a line which indicate a comment}
+\item{comment_indicator}{Character vector of prefixes identifying comment
+lines. Used only when \code{rm_comments = TRUE}.}
 
-\item{rm_leading_arrow}{remove leading arrow in fasta names?}
+\item{rm_leading_arrow}{Logical retained for compatibility. It is currently
+ignored: the leading \code{">"} is always removed from returned record names.}
 
-\item{make_names}{apply make_names to fasta names?}
+\item{make_names}{Logical; transform record names with \code{make_names_fun}.}
 
-\item{start_line}{passed to vroom::vroom_lines}
+\item{make_names_fun}{Function, or its name, used when \code{make_names = TRUE}.
+It must accept the record names through an argument named \code{string}; the
+default is \code{\link[janitor:make_clean_names]{janitor::make_clean_names()}}.}
 
-\item{end_line}{passed to vroom::vroom_lines to determine n_max}
+\item{make_names_args}{Named list of additional arguments passed to
+\code{make_names_fun}.}
+
+\item{start_line}{Numeric first file line to read, using one-based indexing.}
+
+\item{end_line}{Numeric last file line to read, inclusive. Use \code{Inf} to read
+through the end of the file.}
+
+\item{concat}{Logical; concatenate all sequence lines within each FASTA
+record. If \code{FALSE}, retain each record's sequence lines as a character
+vector in a list.}
+
+\item{progress}{Logical; display the progress indicator from
+\code{\link[vroom:vroom_lines]{vroom::vroom_lines()}}.}
+
+\item{seqname}{Optional single record name to read. It may match a complete
+FASTA header, its first whitespace-delimited field, or the chromosome-style
+name prepared by \code{\link[=get_fasta_names]{get_fasta_names()}}. When supplied, it sets \code{start_line}
+to the selected header and, unless it is the final record, sets \code{end_line}
+to the line before the next header.}
 }
 \value{
-a named character vector of sequences
+If \code{concat = TRUE}, a named character vector with one concatenated
+sequence per FASTA record. If \code{concat = FALSE}, a named list of character
+vectors containing the original sequence lines. Names are FASTA headers
+without their leading \code{">"}, optionally transformed by \code{make_names_fun}.
 }
 \description{
-vroom::vroom_lines is used to quickly read lines of a text file (as a fasta file is one).
+Read a plain or gzip-compressed FASTA file with \code{\link[vroom:vroom_lines]{vroom::vroom_lines()}} and
+return sequences named by their headers. Sequence lines belonging to the same
+record are concatenated by default, so wrapped FASTA records are represented
+as single strings.
+}
+\details{
+A subset of the file can be selected with inclusive \code{start_line} and
+\code{end_line} bounds. Alternatively, \code{seqname} uses \code{\link[=get_fasta_names]{get_fasta_names()}} to locate
+one record and adjusts those bounds. Files ending in \code{.tar.gz} are not
+supported. If direct reading fails, the function attempts to decompress the
+input into the session's temporary directory before reading it again.
 }
 \examples{
 \dontrun{
-seqs <- igsc::read_fasta(file = "my/fasta/file.fasta")
-seqs_zipped <- igsc::read_fasta(file = "my/fasta/file.fa.gz")
+fasta <- tempfile(fileext = ".fa")
+writeLines(
+  c(">sequence 1", "ACGT", "TGCA", ">sequence_2", "NNNN"),
+  fasta
+)
+
+read_fasta(fasta, progress = FALSE)
+read_fasta(fasta, concat = FALSE, progress = FALSE)
+read_fasta(fasta, seqname = "sequence_2", progress = FALSE)
+read_fasta(fasta, make_names = TRUE, progress = FALSE)
+
+unlink(fasta)
 }
 }

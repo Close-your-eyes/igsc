@@ -326,10 +326,10 @@ aa_df <- aa_df[which(aa_df$values %in% Peptides::aaList()),] #Biostrings::AA_STA
 unstack(aa_df[,c(2,1)])
 
 Peptides::aIndex(Peptides::aaList()) # aliphaticness
-sort(setNames(Peptides::charge(Peptides::aaList()), Peptides::aaList())) # charge = dist to zero (neg or pos); polar = has charge and nonpolar = has no charge (roughly, not 100 %, e.g. S is polar without charge)
-sort(setNames(Peptides::hydrophobicity(Peptides::aaList(), scale = "Eisenberg"), Peptides::aaList())) # polarity: all negative ones are polar, all positives nonpolar
-setNames(Peptides::pI(Peptides::aaList()), Peptides::aaList()) # low pI = acidic, high pI = basic
-sort(setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly size
+sort(stats::setNames(Peptides::charge(Peptides::aaList()), Peptides::aaList())) # charge = dist to zero (neg or pos); polar = has charge and nonpolar = has no charge (roughly, not 100 %, e.g. S is polar without charge)
+sort(stats::setNames(Peptides::hydrophobicity(Peptides::aaList(), scale = "Eisenberg"), Peptides::aaList())) # polarity: all negative ones are polar, all positives nonpolar
+stats::setNames(Peptides::pI(Peptides::aaList()), Peptides::aaList()) # low pI = acidic, high pI = basic
+sort(stats::setNames(Peptides::mw(Peptides::aaList()), Peptides::aaList())) # roughly size
   '
 
   black <- crayon::make_style("black")

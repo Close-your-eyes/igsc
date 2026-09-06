@@ -2,17 +2,46 @@
 % Please edit documentation in R/get_gene_sequences.R
 \name{get_gene_sequences}
 \alias{get_gene_sequences}
-\title{Title}
+\title{Extract transcript sequences for a gene}
 \usage{
 get_gene_sequences(gtf_path, genome_path, gene_name)
 }
+\arguments{
+\item{gtf_path}{Path to a GTF annotation file accepted by \code{\link[=read_gtf]{read_gtf()}}. The
+selected records must contain \code{transcript_id} and \code{seqname} columns.}
+
+\item{genome_path}{Path to the reference genome FASTA file corresponding to
+\code{gtf_path}. FASTA record names must match the GTF \code{seqname} values and be
+discoverable by \code{\link[=get_fasta_seq_bounds]{get_fasta_seq_bounds()}}.}
+
+\item{gene_name}{A single gene name used to filter the GTF annotations.}
+}
+\value{
+Invisibly, a named list with one element per \code{transcript_id}. Each
+element is the sequence-data object returned by \code{\link[=concat_transcript]{concat_transcript()}} for
+that transcript.
+}
 \description{
-Title
+Read the annotations for one gene from a GTF file, split them by transcript,
+and reconstruct sequence data for each transcript from a reference genome
+FASTA file.
+}
+\details{
+The function locates the FASTA record named by the GTF \code{seqname}, reads that
+record once, and passes each transcript's annotation rows and the reference
+sequence to \code{\link[=concat_transcript]{concat_transcript()}}. All selected transcript annotations are
+therefore expected to refer to the same sequence record. Each individual
+transcript must contain no more than one unique \code{seqname}.
 }
 \examples{
 \dontrun{
-out <- get_gene_sequences(gtf_path = "/Users/chris/Documents/2024_igsc_testing/refdata-gex-GRCh38-2020-A/genes.gtf",
-                          genome_path = "/Users/chris/Documents/2024_igsc_testing/refdata-gex-GRCh38-2020-A/genome.fa",
-                          gene_name = "GZMB")
+transcripts <- get_gene_sequences(
+  gtf_path = "reference/genes.gtf",
+  genome_path = "reference/genome.fa",
+  gene_name = "GZMB"
+)
+
+names(transcripts)
+transcripts[[1]]
 }
 }

@@ -2,10 +2,52 @@
 % Please edit documentation in R/get_fasta_names.R
 \name{get_fasta_names}
 \alias{get_fasta_names}
-\title{Title}
+\title{Extract sequence names from a FASTA file}
 \usage{
 get_fasta_names(file_path, prep_chr = T)
 }
+\arguments{
+\item{file_path}{Path to a FASTA file. Files with a \code{.gz} extension are read
+as gzip-compressed input; all other extensions are read as plain text.}
+
+\item{prep_chr}{Logical; derive chromosome-oriented \code{seqname} and \code{fctname}
+factor columns and order the FASTA names by them.}
+}
+\value{
+A data frame with one row per FASTA header. It always contains
+\code{start_line}, the numeric line number of the header, and \code{fastaname}, the
+complete header without its leading \code{">"}. When \code{prep_chr = TRUE},
+\code{fastaname} is converted to a factor and the result also contains
+\code{seqname}, the first field of the header, and \code{fctname}, the same field with
+\code{"chr"} removed; all three are factors in chromosome-aware order.
+}
 \description{
-intended for
+Find every FASTA header in a plain-text or gzip-compressed file and return
+its line number and header text. The leading \code{">"} is removed from each
+header.
+}
+\details{
+When \code{prep_chr = TRUE}, the first whitespace-delimited field of each header
+is treated as a sequence name. The \code{"chr"} substring is removed to construct
+an ordering key: numeric names are ordered numerically, followed by
+non-numeric names in their input order. This is useful for chromosome FASTA
+files, where lexical ordering would otherwise place \code{chr10} before \code{chr2}.
+
+Header detection uses \code{rg} when available and falls back to \code{grep}. Reading a
+file whose extension is \code{.gz} additionally requires the \code{gunzip} command.
+}
+\examples{
+\dontrun{
+fasta <- tempfile(fileext = ".fa")
+writeLines(
+  c(">chr2 chromosome 2", "ACGT", ">chr10 chromosome 10", "TGCA",
+    ">chrX chromosome X", "AAAA"),
+  fasta
+)
+
+get_fasta_names(fasta)
+get_fasta_names(fasta, prep_chr = FALSE)
+
+unlink(fasta)
+}
 }

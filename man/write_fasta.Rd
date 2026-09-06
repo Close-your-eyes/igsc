@@ -2,7 +2,7 @@
 % Please edit documentation in R/write_fasta.R
 \name{write_fasta}
 \alias{write_fasta}
-\title{Write sequences to a file in fasta format}
+\title{Write sequences to a FASTA file}
 \usage{
 write_fasta(
   seqs,
@@ -14,15 +14,58 @@ write_fasta(
 )
 }
 \arguments{
-\item{seqs}{named character vector or list of sequences; if a list only provide one sequence per index}
+\item{seqs}{Character vector or list containing the sequences to write. If a
+list is supplied, every element must contain no more than one sequence.
+Names, when present, are used as FASTA headers.}
 
-\item{file}{full path to the output file to be written; recommended file extension: .fa or .fasta}
+\item{file}{Output-file path. Extensions such as \code{.fa} or \code{.fasta} are
+recommended but not required.}
 
-\item{linewidth}{number of character per line (only valid for sequence, not names)}
+\item{linewidth}{Positive integer giving the maximum number of sequence
+characters per output line. Header lines are not wrapped.}
+
+\item{mc.cores}{Positive integer giving the number of worker processes used
+by \code{\link[parallel:mcmapply]{parallel::mcmapply()}} while formatting records.}
+
+\item{gzip}{Logical; compress the written file with the external \code{gzip}
+command.}
+
+\item{verbose}{Logical; report the requested output path after writing.}
 }
 \value{
-no return; file written to disk
+\code{NULL}, invisibly. This function is called for its file-writing side
+effect.
 }
 \description{
-Write sequences to a file in fasta format
+Write character sequences as FASTA records, with one header per sequence and
+sequence text wrapped to a configurable line width. Record formatting is
+parallelized across sequences with \code{\link[parallel:mcmapply]{parallel::mcmapply()}}.
+}
+\details{
+Names of \code{seqs} become FASTA headers. If \code{seqs} is unnamed, headers are
+generated as \code{seq_1}, \code{seq_2}, and so on, and a message is emitted. Existing
+files at \code{file} may be replaced by \code{\link[vroom:vroom_write_lines]{vroom::vroom_write_lines()}}. The parent
+directory is not created automatically.
+
+When \code{gzip = TRUE}, the external \code{gzip} command compresses the completed
+file. On success, the original uncompressed file is removed and the output is
+available at \code{paste0(file, ".gz")}.
+}
+\examples{
+sequences <- c(
+  alpha = "AACCGGTTAACCGGTT",
+  beta = "TTTTCCCCAAAAGGGG"
+)
+fasta_file <- tempfile(fileext = ".fa")
+
+write_fasta(
+  seqs = sequences,
+  file = fasta_file,
+  linewidth = 8,
+  mc.cores = 1,
+  verbose = FALSE
+)
+readLines(fasta_file)
+
+unlink(fasta_file)
 }

@@ -2,10 +2,49 @@
 % Please edit documentation in R/revcompDNA.R
 \name{revcompDNA}
 \alias{revcompDNA}
-\title{Title}
+\title{Reverse and/or Complement DNA Sequences}
 \usage{
 revcompDNA(x, fun = c("rcpp", "Biostrings", "r"), rev = T, comp = T)
 }
+\arguments{
+\item{x}{A character vector containing DNA sequences. Sequences are
+converted to uppercase before processing.}
+
+\item{fun}{Character string selecting the implementation. One of
+\code{"rcpp"} (the default), \code{"Biostrings"}, or \code{"r"}.}
+
+\item{rev}{A single logical value indicating whether each sequence should
+be reversed.}
+
+\item{comp}{A single logical value indicating whether each sequence should
+be complemented. The canonical substitutions are \code{A <-> T} and
+\code{C <-> G}.}
+}
+\value{
+A character vector containing the transformed DNA sequences.
+}
 \description{
-Title
+Reverse, complement, or reverse-complement a character vector of DNA
+sequences using an Rcpp, Biostrings, or base R implementation.
+}
+\details{
+When both \code{rev} and \code{comp} are \code{TRUE}, the reverse
+complement is returned. When only \code{rev} is \code{TRUE}, the sequences
+are reversed. When only \code{comp} is \code{TRUE}, the sequences are
+complemented.
+
+The \code{"Biostrings"} implementation requires the Biostrings package.
+Handling of non-canonical nucleotide symbols may differ between
+implementations.
+}
+\examples{
+revcompDNA("ATGC")
+
+revcompDNA(c("ATGC", "AATT"))
+
+# Reverse without complementing
+revcompDNA("ATGC", rev = TRUE, comp = FALSE)
+
+# Complement without reversing
+revcompDNA("ATGC", rev = FALSE, comp = TRUE)
 }

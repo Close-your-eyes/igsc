@@ -170,8 +170,8 @@ concat_transcript <- function(gtf_df,
   # get sequences from refseq
   #seqlist <- mapply(substr, start = stats::setNames(gtf_df$start, gtf_df$feature2), stop = gtf_df$end, x = refseq)
   seqlist <- purrr::map2_chr(.x = stats::setNames(gtf_df$start, gtf_df$feature2), .y = gtf_df$end, substr, x = refseq)
-  pos_gen <- stats::setNames(igsc:::seq2(gtf_df$start, gtf_df$end), gtf_df$feature2)
-  #pos_gen_rel <- stats::setNames(igsc:::seq2(gtf_df$start_transcript, gtf_df$end_transcript), gtf_df$feature2)
+  pos_gen <- stats::setNames(brathering::seq2(gtf_df$start, gtf_df$end), gtf_df$feature2)
+  #pos_gen_rel <- stats::setNames(brathering::seq2(gtf_df$start_transcript, gtf_df$end_transcript), gtf_df$feature2)
 
   # sequences are always derived from plus strand (see above)
   # so if the gene is on minus strand, revcomp or rev is required for sequences and positions, respectively

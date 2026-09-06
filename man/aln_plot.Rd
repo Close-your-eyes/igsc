@@ -2,7 +2,7 @@
 % Please edit documentation in R/algnmt_plot.R
 \name{aln_plot}
 \alias{aln_plot}
-\title{Plot sequence alignments as ggplot object}
+\title{Plot a sequence alignment}
 \usage{
 aln_plot(
   aln,
@@ -45,108 +45,142 @@ aln_plot(
 )
 }
 \arguments{
-\item{aln}{an alignment object returned from (i) igsc::pwalign_multi, (ii) DECIPHER::AlignSeqs or (iii) pwalign::pairwise_alignment;
-in case (i) this is a data.frame, in case (ii) this is a XStringSet, in case (iii) this is a pairwise_alignmentsSingleSubject;
-alternatively provide a custom data frame which has at least to contain pos_col, seq_col, name_col (see other arguments)}
+\item{aln}{An alignment to plot. Supported inputs are a data frame returned
+by \code{\link[=pwalign_multi]{pwalign_multi()}}, a \code{DNAStringSet}, \code{RNAStringSet}, or \code{AAStringSet}
+(for example, from \code{DECIPHER::AlignSeqs()}), a
+\code{pairwise_alignmentsSingleSubject} object returned by
+\code{pwalign::pairwise_alignment()}, or a list of such pairwise alignments. A
+custom data frame must contain the columns named by \code{pos_col}, \code{seq_col},
+and \code{name_col}.}
 
-\item{tile_fill}{a color scale for NTs or AAs (depending on type of aln); provide a named vector of colors where names are NTs or AAs;
-or choose a name from igsc:::scheme_NT or igsc:::scheme_AA; or choose one from names(purrr::flatten(Peptides:::AAdata)); or leave NULL for the default scheme}
+\item{tile_fill}{\code{NULL}, a named color vector, or the name of a nucleotide or
+amino-acid color scheme. Vector names should match the residues in
+\code{seq_col}. When \code{NULL}, a scheme is selected from the inferred \code{aln_type}.}
 
-\item{tile_color}{a color to draw tile borders with; e.g. "black" or a hex code;
-leave NA to have no borders (quicker plotting and advised for long alignments);
-rather suited for short detailed alignments}
+\item{tile_color}{Tile-border color, such as \code{"black"} or a hexadecimal color.
+Use \code{NA} for no borders; this is faster and recommended for long
+alignments.}
 
-\item{tile_color_NA}{logical whether to draw borders on NA positions}
+\item{tile_color_NA}{Logical; if \code{TRUE}, also draw borders around positions
+whose sequence value is \code{NA}. Used only when \code{tile_color} is not \code{NA}.}
 
-\item{tile_text}{logical whether to draw text in tiles (NT or AA identifier); or numeric indicating text size for geom_text()
-advisable only for short alignments}
+\item{tile_text}{Logical or numeric. \code{TRUE} writes the residue identifier in
+each tile at the default text size; a positive number supplies the text
+size to \code{\link[ggplot2:geom_text]{ggplot2::geom_text()}}. Recommended only for short alignments.}
 
-\item{line_args}{arguments for line drawing; passed to geom_segment}
+\item{tile_line}{Logical; draw a horizontal segment spanning each sequence or
+pattern. Segment positions are taken from \code{start_end_col} when available
+and otherwise from the observed minimum and maximum positions.}
 
-\item{base_theme}{ggplot theme to use as basis}
+\item{line_args}{Named list of additional arguments passed to
+\code{\link[ggplot2:geom_segment]{ggplot2::geom_segment()}} when \code{tile_line = TRUE}.}
 
-\item{theme_args}{theme arguments for ggplot}
+\item{base_theme}{A ggplot2 theme function, or its name, used as the plot's
+base theme.}
 
-\item{pattern_lim_size}{numeric; plot annotation of pattern alignment limits; value indicates size;
-set to 0 to omit plotting; only applicable if pa is provided}
+\item{base_theme_args}{Named list of arguments passed to \code{base_theme}.}
 
-\item{pattern_lim_pos}{where to plot the pattern_lims; only if pattern_lim_size > 0}
+\item{theme_args}{Named list of arguments passed to \code{\link[ggplot2:theme]{ggplot2::theme()}}.}
 
-\item{pattern_names}{whether to plot pattern names within the plot}
+\item{pattern_lim_size}{Numeric text size for annotations showing pattern
+alignment limits. Use \code{0} to omit them. Requires \code{pairwise_alignment}.}
 
-\item{pattern_names_fun}{which function to use for plotting pattern_names;
-e.g., ggrepel::geom_text_repel or ggplot2::geom_text}
+\item{pattern_lim_pos}{Position of pattern-limit labels: \code{"inner"} places
+them at each pattern's observed limits and \code{"outer"} places them outside
+the alignment.}
 
-\item{pairwise_alignment}{provide the pairwise_alignment that aln is based on;
-this will enable the use of other function arguments}
+\item{pattern_names}{Numeric text size for pattern-name labels. Use \code{0} to
+omit the labels.}
 
-\item{subject_lim_lines}{logical whether to plot vertical lines of subject alignment limits;
-requires subject_name}
+\item{pattern_names_fun}{Function, or its name, used to draw pattern-name
+labels; for example, \code{\link[ggrepel:geom_text_repel]{ggrepel::geom_text_repel()}} or
+\code{\link[ggplot2:geom_text]{ggplot2::geom_text()}}.}
 
-\item{subject_name}{name of the subject sequence in aln; subject will be plotted
-first (at bottom of plot)}
+\item{pattern_names_fun_args}{Named list of additional arguments passed to
+\code{pattern_names_fun}.}
 
-\item{pos_col}{name of position column in aln (applicable if aln is a data.frame)}
+\item{pairwise_alignment}{Optional \code{pairwise_alignmentsSingleSubject} object
+on which \code{aln} is based. It supplies metadata for pattern-limit labels,
+subject-name detection, and exact sequence lengths.}
 
-\item{seq_col}{name of sequence column in aln (applicable if aln is a data.frame)}
+\item{subject_lim_lines}{Logical; draw dashed vertical lines at the first and
+last aligned, non-gap pattern positions. Requires \code{subject_name} (which may
+be inferred).}
 
-\item{name_col}{name of column which holds sequence names in aln (applicable if aln is a data.frame)}
+\item{subject_name}{Name of the subject sequence in \code{aln}. The subject is
+plotted first, at the bottom of the plot. If \code{NULL}, the function attempts
+to infer it from alignment metadata or sequence ranges.}
 
-\item{start_end_col}{name of column with start and end position of patterns;
-not mandatory, can be derived from position column; but this may be wrong in
-case when the first exon (or first part of a pattern in general) has a later
-position as subsequent ones (think of circular reference sequences);
-(applicable if aln is a data.frame)}
+\item{pos_col, seq_col, name_col}{Column names containing alignment position,
+residue, and sequence name, respectively, when \code{aln} is a data frame.}
 
-\item{y_group_col}{name of column that contains information on which patterns
-to plot in one row (as one group so to say); this argument competes with
-group_on_yaxis (applicable if aln is a data.frame)}
+\item{start_end_col}{Name of the column marking the start and end positions
+of patterns. If absent, limits are derived from \code{pos_col}, which may be
+inaccurate for patterns crossing the origin of a circular reference.}
 
-\item{coord_fixed_ratio}{numeric; fixed aspect ratio of plot; leave NULL to not force a ratio}
+\item{y_group_col}{Optional column whose values identify patterns to plot on
+the same row. This takes precedence over \code{group_on_yaxis} and applies only
+when \code{aln} is a data frame.}
 
-\item{x_breaks}{numeric vector; manually provide breaks (ticks) on x-axis; set NULL to have breaks
-picked automatically}
+\item{coord_fixed_ratio}{Optional numeric aspect ratio passed to
+\code{\link[ggplot2:coord_fixed]{ggplot2::coord_fixed()}}. Use \code{NULL} to retain a free aspect ratio.}
 
-\item{aln_type}{typically 'NT' or 'AA' to influence the tile_fill automatically,
-or any other string like "other" to have other colors;
-only required if aln is a data.frame and only if
-NT or AA cannot be guessed; leave NULL to have it guessed based on data}
+\item{x_breaks}{Optional numeric vector of x-axis breaks. When \code{NULL}, breaks
+are selected automatically.}
 
-\item{add_length_suffix}{whether to add the pattern length as suffix to
-pattern_names}
+\item{y_breaks}{Controls automatic suppression of crowded y-axis labels. The
+sentinel \code{"..auto.."} removes y-axis text and ticks when the plot has more
+than 100 rows; any other value disables that automatic suppression.}
 
-\item{group_on_yaxis}{have an algorithm decide which patterns to plot in one
-row without overlaps; this will use the plot area most efficiently;
-this argument competes with y_group_col; use min_gap to define the minimal
-gap size to other patterns}
+\item{aln_type}{Alignment type used to select \code{tile_fill}, typically \code{"NT"}
+or \code{"AA"}. Other strings use a general discrete palette. For data-frame
+input, \code{NULL} attempts to infer the type from \code{seq_col}.}
 
-\item{min_gap}{minimal gap size between patterns to trigger plotting in
-separate rows; only applies if group_on_yaxis is TRUE}
+\item{add_length_suffix}{Logical; append each sequence length and, for
+nucleotide or amino-acid alignments, its unit to ungrouped y-axis labels.}
 
-\item{ref}{a reference sequence to compare all other sequences to;
-e.g. a consensus sequence or a gene sequence to align reads to;
-should be a name that appears in name_col; passed to compare_seq_df_long}
+\item{group_on_yaxis}{Logical; automatically place non-overlapping patterns
+on shared rows. Ignored when \code{y_group_col} is supplied.}
 
-\item{pos_shift}{how many positions to shift the whole x-axis; e.g. in order
-to make sure that the first part of a pattern comes most left;
-can be a fixed position which becomes the start or a relative shift in form
-of +100 or +2500 or so}
+\item{min_gap}{Minimum number of positions required between patterns for them
+to share an automatically assigned row. Used only when
+\code{group_on_yaxis = TRUE}.}
 
-\item{pos_shift_adjust_axis}{adjust axis labels to maintain true positions}
+\item{ref}{Optional name of a reference sequence in \code{name_col}. Residues in
+other sequences are compared with this reference before colors are
+assigned.}
 
-\item{verbose}{print messages or not}
+\item{pos_shift}{Optional new starting position for the alignment. Supply a
+number for an absolute start, or a string such as \code{"+100"} for a relative
+circular shift.}
 
-\item{focus}{focus on aligned patterns by cutting the subject range;
-a positive integer limiting the range to n positions before the first pattern
-position and n positions after the last pattern position}
+\item{pos_shift_adjust_axis}{Logical; after shifting positions, relabel the
+x-axis to display the original coordinates.}
+
+\item{verbose}{Logical; print informational messages.}
+
+\item{focus}{Optional non-negative number of subject positions to retain
+before the first and after the last aligned pattern position. Requires a
+known \code{subject_name}.}
+
+\item{y_order}{Row ordering: \code{"as_is"} preserves the input order;
+\code{"increasing"} or \code{"decreasing"} orders rows by alignment position (and
+then length). The subject remains first.}
+
+\item{order_numeric_seq_names}{Logical; if all sequence names are numeric,
+order them numerically rather than lexicographically.}
 }
 \value{
-ggplot2 object of alignment
+A \code{ggplot} object representing the alignment.
 }
 \description{
-Plot sequence alignments as ggplot object
+Convert a supported sequence-alignment object to long format and display its
+residues as tiles in a \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object. Alignment rows can be
+ordered or grouped, and pairwise-alignment metadata can be used to annotate
+pattern and subject limits.
 }
 \examples{
+\dontrun{
 granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
 out <- get_sequences_from_biomart(granzymes)
 
@@ -205,7 +239,8 @@ padf2 <- compare_seq_df_long(padf,
 aln_plot(padf2)
 
 # change color of pwalign gaps
-fillcol <- igsc:::scheme_NT[["Chemistry_NT"]
+fillcol <- igsc:::scheme_NT[["Chemistry_NT"]]
 fillcol[which(names(fillcol) == "-")] <- NA # or "white"
 aln_plot(padf2, tile_fill = fillcol)
+}
 }

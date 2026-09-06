@@ -1,30 +1,67 @@
-#' Read sequences from a fasta-formatted file
+#' Read sequences from a FASTA file
 #'
-#' vroom::vroom_lines is used to quickly read lines of a text file (as a fasta file is one).
+#' Read a plain or gzip-compressed FASTA file with [vroom::vroom_lines()] and
+#' return sequences named by their headers. Sequence lines belonging to the same
+#' record are concatenated by default, so wrapped FASTA records are represented
+#' as single strings.
 #'
+#' A subset of the file can be selected with inclusive `start_line` and
+#' `end_line` bounds. Alternatively, `seqname` uses [get_fasta_names()] to locate
+#' one record and adjusts those bounds. Files ending in `.tar.gz` are not
+#' supported. If direct reading fails, the function attempts to decompress the
+#' input into the session's temporary directory before reading it again.
 #'
-#' @param file path to a file with fasta-formatted sequences; file may
-#' be gunzipped (ending with .gz)
-#' @param rm_comments remove comment lines? this is very slow large files, currently.
-#' @param comment_indicator first characters of a line which indicate a comment
-#' @param trimws trim leading and trailing whitespaces? disable in case of trustworthy files. may take time for large fasta files
-#' @param rm_leading_arrow remove leading arrow in fasta names?
-#' @param make_names apply make_names to fasta names?
-#' @param start_line passed to vroom::vroom_lines
-#' @param end_line passed to vroom::vroom_lines to determine n_max
-#' @param make_names_fun
-#' @param make_names_args
-#' @param concat
-#' @param progress
-#' @param seqname
+#' @param file A single path to a FASTA-formatted text file. Gzip-compressed
+#'   files with a `.gz` extension are supported, but `.tar.gz` archives are not.
+#' @param trimws Logical; trim leading and trailing whitespace from every input
+#'   line before parsing. Disabling this can improve performance for trusted
+#'   files.
+#' @param rm_comments Logical; remove lines beginning with any value in
+#'   `comment_indicator`. This can be slow for large files.
+#' @param comment_indicator Character vector of prefixes identifying comment
+#'   lines. Used only when `rm_comments = TRUE`.
+#' @param rm_leading_arrow Logical retained for compatibility. It is currently
+#'   ignored: the leading `">"` is always removed from returned record names.
+#' @param make_names Logical; transform record names with `make_names_fun`.
+#' @param make_names_fun Function, or its name, used when `make_names = TRUE`.
+#'   It must accept the record names through an argument named `string`; the
+#'   default is [janitor::make_clean_names()].
+#' @param make_names_args Named list of additional arguments passed to
+#'   `make_names_fun`.
+#' @param start_line Numeric first file line to read, using one-based indexing.
+#' @param end_line Numeric last file line to read, inclusive. Use `Inf` to read
+#'   through the end of the file.
+#' @param concat Logical; concatenate all sequence lines within each FASTA
+#'   record. If `FALSE`, retain each record's sequence lines as a character
+#'   vector in a list.
+#' @param progress Logical; display the progress indicator from
+#'   [vroom::vroom_lines()].
+#' @param seqname Optional single record name to read. It may match a complete
+#'   FASTA header, its first whitespace-delimited field, or the chromosome-style
+#'   name prepared by [get_fasta_names()]. When supplied, it sets `start_line`
+#'   to the selected header and, unless it is the final record, sets `end_line`
+#'   to the line before the next header.
 #'
-#' @return a named character vector of sequences
+#' @return If `concat = TRUE`, a named character vector with one concatenated
+#'   sequence per FASTA record. If `concat = FALSE`, a named list of character
+#'   vectors containing the original sequence lines. Names are FASTA headers
+#'   without their leading `">"`, optionally transformed by `make_names_fun`.
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' seqs <- igsc::read_fasta(file = "my/fasta/file.fasta")
-#' seqs_zipped <- igsc::read_fasta(file = "my/fasta/file.fa.gz")
+#' fasta <- tempfile(fileext = ".fa")
+#' writeLines(
+#'   c(">sequence 1", "ACGT", "TGCA", ">sequence_2", "NNNN"),
+#'   fasta
+#' )
+#'
+#' read_fasta(fasta, progress = FALSE)
+#' read_fasta(fasta, concat = FALSE, progress = FALSE)
+#' read_fasta(fasta, seqname = "sequence_2", progress = FALSE)
+#' read_fasta(fasta, make_names = TRUE, progress = FALSE)
+#'
+#' unlink(fasta)
 #' }
 read_fasta <- function(file,
                        trimws = F,
@@ -41,7 +78,7 @@ read_fasta <- function(file,
                        seqname = NULL) {
 
   if(!requireNamespace("janitor", quietly = T)) {
-    install.packages("janitor")
+    utils::install.packages("janitor")
   }
 
   if (missing(file)) {

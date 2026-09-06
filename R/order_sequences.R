@@ -9,6 +9,7 @@
 #' @param method Character string specifying the ordering method. `"tsp"`
 #'   uses a TSP solver, while `"treeline"` derives the order from clusters
 #'   produced by a neighbor-joining tree.
+#' @param ... args to seriation::get_order
 #'
 #' @return An integer vector containing the sequence indices in their
 #'   calculated order.
