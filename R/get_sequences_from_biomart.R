@@ -13,9 +13,15 @@
 #' @examples
 #'granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
 #'out <- get_sequences_from_biomart(granzymes)
-get_sequences_from_biomart <- function(hgnc_symbol, dataset = "hsapiens_gene_ensembl") {
+get_sequences_from_biomart <- function(hgnc_symbol,
+                                       dataset = "hsapiens_gene_ensembl") {
 
-  mart <- biomaRt::useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+  if (!requireNamespace("biomaRt", quietly = T)){
+    BiocManager::install("biomaRt")
+  }
+
+  mart <- biomaRt::useEnsembl(biomart = "ensembl",
+                              dataset = "hsapiens_gene_ensembl")
   # attr <- biomaRt::listAttributes(mart)
 
   df <- biomaRt::getBM(

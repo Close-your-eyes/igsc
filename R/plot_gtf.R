@@ -17,6 +17,13 @@ plot_gtf <- function(gtf_df,
                      y = "transcript_id",
                      color = c("strand", "overlapping")) {
 
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+  if (!requireNamespace("colrr", quietly = T)){
+    pak::pak("colrr")
+  }
+
   if ("seqname" %in% names(gtf_df) && length(unique(gtf_df[["seqname"]]))>1) {
     stop("more than one seqname found. makes not sense.")
   }

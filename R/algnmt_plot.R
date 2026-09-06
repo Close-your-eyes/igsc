@@ -207,6 +207,13 @@ aln_plot <- function(aln,
 
   ## check duplicate names
 
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+  if (!requireNamespace("colrr", quietly = T)){
+    pak::pak("colrr")
+  }
+
   pattern_lim_pos <- rlang::arg_match(pattern_lim_pos)
   y_order <- rlang::arg_match(y_order)
   pattern_names_fun <- match.fun(pattern_names_fun)

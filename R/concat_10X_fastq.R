@@ -43,6 +43,11 @@ concat_10X_fastq <- function(
     create_save_path = TRUE,
     verify = TRUE
 ) {
+
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
   existing <- match.arg(existing)
 
   # Argument validation -------------------------------------------------------

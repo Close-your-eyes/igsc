@@ -60,6 +60,9 @@ concat_transcript <- function(gtf_df,
                               run_test = F,
                               ...) {
 
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
 
   # # CD8A - strand
   # gtf_df <- readRDS("/Users/vonskopnik/Documents/2024_igsc_testing/cd8a_gtf.rds")

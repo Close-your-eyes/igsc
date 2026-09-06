@@ -20,6 +20,10 @@ get_sra_ena_aws_links_from_gse <- function(gse_accession,
                                            save_dir = tempdir(),
                                            python_to_PATH = "~/Library/Python/3.13/bin") {
 
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
   fullpath <- path.expand(python_to_PATH)
   if (!grepl(fullpath, Sys.getenv("PATH"), fixed = T)) {
     Sys.setenv(PATH = paste(fullpath, Sys.getenv("PATH"), sep=":"))

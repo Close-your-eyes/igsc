@@ -246,6 +246,13 @@ get_alignment_scores <- function(
     make_unique = F,
     ...) {
 
+  if (!requireNamespace("pwalign", quietly = T)){
+    BiocManager::install("pwalign")
+  }
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
   return <- rlang::arg_match(return)
   return_score <- rlang::arg_match(return_score, multiple = T)
 

@@ -16,6 +16,9 @@ pwalign_to_xstringset <- function(pa,
                                   verbose = T,
                                   subject_width = c("whole", "aligned")) {
 
+  if (!requireNamespace("pwalign", quietly = T)){
+    BiocManager::install("pwalign")
+  }
 
   if (length(pa) > 1) {
     message("pwalign_to_xstringset: Using first pairwiseAlignment only.")
@@ -111,6 +114,13 @@ df_to_xstringset <- function(df,
                              sym_internal_gap = "-",
                              sym_terminal_gap = "-",
                              format = c("long", "wide")) {
+
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
 
   format <- rlang::arg_match(format)
 

@@ -90,6 +90,9 @@ get_bam_reads <- function(bam,
   if (!requireNamespace("Biostrings", quietly = T)) {
     BiocManager::install("Biostrings")
   }
+  if (!requireNamespace("GenomicRanges", quietly = T)){
+    BiocManager::install("GenomicRanges")
+  }
 
   if (missing(bam) || bam == "" || !file.exists(bam)) {
     stop("bam not found or missing.")

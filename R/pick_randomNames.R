@@ -29,6 +29,10 @@ pick_randomNames <- function(n,
                              number_duplicates = F,
                              number_duplicates_pad = T) {
 
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
   if ("which.names" %in% names(randomNames_args)) {
     if (randomNames_args$which.names == "both") {
       if ("name.sep" %in% names(randomNames_args)) {

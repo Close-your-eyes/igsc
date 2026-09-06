@@ -38,6 +38,14 @@ plot_sc_reads <- function(gtf_file,
                           feature,
                           n_reads_sample = 40,
                           ...) {
+
+  if (!requireNamespace("GenomicRanges", quietly = T)){
+    BiocManager::install("GenomicRanges")
+  }
+  if (!requireNamespace("IRanges", quietly = T)){
+    BiocManager::install("IRanges")
+  }
+
   gene_info <-
     read_gtf(file_path = gtf_file,
              seqnames = seqname,

@@ -77,8 +77,8 @@ read_fasta <- function(file,
                        progress = T,
                        seqname = NULL) {
 
-  if(!requireNamespace("janitor", quietly = T)) {
-    utils::install.packages("janitor")
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
   }
 
   if (missing(file)) {

@@ -48,6 +48,10 @@ pwalign_print <- function(pa,
   # position of alignment within the provided sequences
   # use_align_starts = T,
 
+  if (!requireNamespace("pwalign", quietly = T)){
+    BiocManager::install("pwalign")
+  }
+
   if (!is.null(out_file)) {
     if (!grepl("\\.txt", out_file)) {
       print("You may want to save the output to a .txt file. If so, have a file with .txt in the out_file path.")

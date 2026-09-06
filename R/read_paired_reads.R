@@ -42,6 +42,10 @@ read_paired_reads <- function(fastq_path_r1,
                               sample = 1,
                               mc.cores = 1) {
 
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+
   # do not return qual_num - would also allow to make parallel computing easier
 
   if (any(!grepl("\\.fastq$", fastq_path_r1) || !grepl("\\.fastq$", fastq_path_r2)) && any(!grepl("\\.fastq\\.gz$", fastq_path_r1) || !grepl("\\.fastq\\.gz$", fastq_path_r2))) {

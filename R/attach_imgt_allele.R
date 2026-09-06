@@ -80,6 +80,13 @@ attach_imgt_alleles <- function(seq,
                                 J_col = "J_cr",
                                 ...) {
 
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+  if (!requireNamespace("pwalign", quietly = T)){
+    BiocManager::install("pwalign")
+  }
+
   if (missing(seq)) {
     stop("Provide a data frame for seq (e.g. cl_long), preferentially prepared with igsc::read_cellranger_out or a named vector, e.g.
          stats::setNames(object = seq$consensus_seq_cr, nm = paste0(seq$V_cr, '___', seq$J_cr))")

@@ -16,6 +16,10 @@
 concat_exons <- function(gtf_df,
                          refseq) {
 
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
   # check for needed columns start and end
   if (any(!c("exon_number", "seqname", "start", "end", "transcript_id", "feature") %in% names(gtf_df))) {
     stop("gtf_df has to have the columns at least: seqname, exon_number, start, end, transcript_id, feature.")

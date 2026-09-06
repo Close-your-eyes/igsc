@@ -52,11 +52,11 @@ Imports:
     collapse,
     forcats,
     TSP,
-    seriation
+    seriation,
+    knitr,
+    pak
 Suggests: 
     rmarkdown,
-    knitr,
-    tidyverse,
     ggbeeswarm,
     fcexpr,
     DECIPHER,

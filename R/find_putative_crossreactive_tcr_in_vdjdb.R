@@ -78,7 +78,15 @@ find_putative_crossreactive_tcr_in_vdjdb <- function(vdjdb_df,
                                                      max_lvdist = 2,
                                                      nthread = 20,
                                                      substitutionMatrix = "BLOSUM62") {
-  vdjdb_df <- "/Volumes/CMS_SSD_2TB/VDJdb/vdjdb_20260725.tsv.gz"
+
+  if (!requireNamespace("DECIPHER", quietly = T)){
+    BiocManager::install("DECIPHER")
+  }
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
+  # vdjdb_df <- "/Volumes/CMS_SSD_2TB/VDJdb/vdjdb_20260725.tsv.gz"
   vdjdbhs <- read_vdjdb_fixed(vdjdb_df) |>
     dplyr::filter(Info>1) |>
     dplyr::select(chain, CDR3, MHC.class, dplyr::starts_with("Epi")) |>

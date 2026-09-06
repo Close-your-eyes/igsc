@@ -37,8 +37,12 @@
 #' }
 imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
-  if (!"BiocManager" %in% rownames(utils::installed.packages())) {utils::install.packages("BiocManager")}
-  if (!"Biostrings" %in% rownames(utils::installed.packages())) {BiocManager::install("Biostrings")}
+  if (!requireNamespace("Biostrings", quietly = T)){
+    BiocManager::install("Biostrings")
+  }
+  if (!requireNamespace("pwalign", quietly = T)){
+    BiocManager::install("pwalign")
+  }
 
   organism <- match.arg(organism, c("human", "mouse"))
 

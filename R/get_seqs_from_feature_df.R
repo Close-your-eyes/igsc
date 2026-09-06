@@ -26,7 +26,11 @@ get_seqs_from_feature_df <- function(feature_df,
                                      order_features = F,
                                      compare_seq_df_long_args = list()) {
 
-  return <- match.arg(return, c("sequences", "df_wide", "df_long"), several.ok = T)
+  if (!requireNamespace("brathering", quietly = T)){
+    pak::pak("brathering")
+  }
+
+  return <- rlang::arg_match(return, multiple = T)
 
   if (missing(origin)) {
     stop("origin sequence has to be provided.")
