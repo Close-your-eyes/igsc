@@ -87,7 +87,7 @@ get_bam_reads <- function(bam,
                           revcomp_minus_strand = F,
                           revcomp_plus_strand = F) {
 
-  .ensure_packages(c("Biostrings", "GenomicRanges", "Rsamtools"))
+  igsc:::.ensure_packages(c("Biostrings", "GenomicRanges", "Rsamtools"))
 
   if (missing(bam) || bam == "" || !file.exists(bam)) {
     stop("bam not found or missing.")

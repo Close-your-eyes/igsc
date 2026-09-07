@@ -41,7 +41,7 @@ pwalign_print <- function(pa,
                           extend_subject = c(0,0),
                           out_file = NULL) {
 
-  .ensure_packages(c("Peptides", "RColorBrewer", "crayon", "pwalign"))
+  igsc:::.ensure_packages(c("Peptides", "RColorBrewer", "crayon", "pwalign"))
 
   # pa formats
   #http://emboss.sourceforge.net/docs/themes/AlignFormats.html

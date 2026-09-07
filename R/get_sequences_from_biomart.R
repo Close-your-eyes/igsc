@@ -16,7 +16,7 @@
 get_sequences_from_biomart <- function(hgnc_symbol,
                                        dataset = "hsapiens_gene_ensembl") {
 
-  .ensure_package("biomaRt")
+  igsc:::.ensure_package("biomaRt")
 
   mart <- biomaRt::useEnsembl(biomart = "ensembl",
                               dataset = "hsapiens_gene_ensembl")

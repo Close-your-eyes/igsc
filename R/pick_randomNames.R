@@ -29,7 +29,7 @@ pick_randomNames <- function(n,
                              number_duplicates = F,
                              number_duplicates_pad = T) {
 
-  .ensure_packages(c("brathering", "randomNames"))
+  igsc:::.ensure_packages(c("brathering", "randomNames"))
 
   if ("which.names" %in% names(randomNames_args)) {
     if (randomNames_args$which.names == "both") {

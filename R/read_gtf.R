@@ -437,7 +437,7 @@ process_gtf_attribute_col <- function(gtf,
 
   ### this is specifically for viral genomes with overlapping ranges
   if (aggregate_overlapping_exon_ranges) {
-    .ensure_package("igraph")
+    igsc:::.ensure_package("igraph")
 
     # attr_col2 then needs to be filtered by whats left in df
     df <- dplyr::left_join(attr_col2, gtf |>

@@ -39,7 +39,7 @@
 genes_gtf_to_fst <- function(gtf_file,
                              subfolder = "genes_fst",
                              compression = 50) {
-  .ensure_package("fst")
+  igsc:::.ensure_package("fst")
 
   if (missing(gtf_file) || length(gtf_file) == 0) {
     stop("path to gtf_file missing.")

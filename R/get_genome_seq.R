@@ -136,7 +136,7 @@ get_genome_seq <- function(fasta_file = NULL,
   }
 
   if (!is.null(fst_folder)) {
-    .ensure_package("fst")
+    igsc:::.ensure_package("fst")
 
     fst_files <- list.files(fst_folder, pattern = "\\.fst$", full.names = T, ignore.case = T)
     fst_names <- gsub("\\.fst$", "", basename(fst_files))

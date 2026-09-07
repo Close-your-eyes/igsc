@@ -203,7 +203,7 @@ aln_plot <- function(aln,
                      y_order = c("as_is", "increasing", "decreasing"),
                      order_numeric_seq_names = F) {
 
-  .ensure_packages(c(
+  igsc:::.ensure_packages(c(
     "Biostrings", "Peptides", "RColorBrewer", "crayon", "ggplot2",
     "ggrepel", "scales", "brathering", "colrr"
   ))

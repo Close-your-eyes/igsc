@@ -127,7 +127,7 @@ align_reads <- function(r1,
                         maxmis = 0,
                         ...) {
 
-  .ensure_package("Biostrings")
+  igsc:::.ensure_package("Biostrings")
 
   if (missing(r1) || missing(r2)) {
     stop("r1 or r2 missing.")

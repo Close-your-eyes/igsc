@@ -61,7 +61,7 @@ concat_transcript <- function(gtf_df,
                               run_test = F,
                               ...) {
 
-  .ensure_package("brathering")
+  igsc:::.ensure_package("brathering")
 
   # # CD8A - strand
   # gtf_df <- readRDS("/Users/vonskopnik/Documents/2024_igsc_testing/cd8a_gtf.rds")

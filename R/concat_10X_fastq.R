@@ -44,7 +44,7 @@ concat_10X_fastq <- function(
     verify = TRUE
 ) {
 
-  .ensure_package("brathering")
+  igsc:::.ensure_package("brathering")
 
   existing <- match.arg(existing)
 

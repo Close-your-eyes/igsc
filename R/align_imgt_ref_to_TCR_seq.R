@@ -28,7 +28,7 @@ align_imgt_ref_to_TCR_seq <- function(chain,
                                       type = "local",
                                       ...) {
 
-  .ensure_packages(c("Biostrings", "DECIPHER", "ggplot2"))
+  igsc:::.ensure_packages(c("Biostrings", "DECIPHER", "ggplot2"))
 
   chain <- match.arg(chain, c("TRA", "TRB"))
   cl_long <- as.data.frame(cl_long)

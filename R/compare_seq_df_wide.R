@@ -43,7 +43,7 @@ compare_seq_df_wide <- function(df,
                                 return_as_long = F,
                                 rm_pure_NA_non_ref = F) {
 
-  .ensure_package("brathering")
+  igsc:::.ensure_package("brathering")
 
 
   nonref_mismatch_as <- rlang::arg_match(nonref_mismatch_as)

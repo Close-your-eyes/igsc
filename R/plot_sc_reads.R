@@ -39,7 +39,7 @@ plot_sc_reads <- function(gtf_file,
                           n_reads_sample = 40,
                           ...) {
 
-  .ensure_packages(c("GenomicRanges", "IRanges"))
+  igsc:::.ensure_packages(c("GenomicRanges", "IRanges"))
 
   gene_info <-
     read_gtf(file_path = gtf_file,

@@ -42,7 +42,7 @@ revcompDNA <- function(x,
                        rev = T,
                        comp = T) {
 
-  .ensure_package("Biostrings")
+  igsc:::.ensure_package("Biostrings")
 
   if (!is.character(x)) {
     stop("x has to be a character vector of DNA sequences.")

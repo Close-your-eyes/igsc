@@ -42,7 +42,7 @@ read_paired_reads <- function(fastq_path_r1,
                               sample = 1,
                               mc.cores = 1) {
 
-  .ensure_package("Biostrings")
+  igsc:::.ensure_package("Biostrings")
 
   # do not return qual_num - would also allow to make parallel computing easier
 

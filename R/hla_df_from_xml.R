@@ -36,7 +36,7 @@ hla_df_from_xml <- function(file_path,
                             replace_none_pg = TRUE,
                             ...) {
 
-  .ensure_package("xml2")
+  igsc:::.ensure_package("xml2")
 
 
   if (length(file_path) != 1L || is.na(file_path) || !nzchar(file_path)) {
@@ -361,7 +361,7 @@ extract_cds <- function(data,
                         if.fuzzy.codon = "X") {
 
   if (translate) {
-    .ensure_package("Biostrings")
+    igsc:::.ensure_package("Biostrings")
   }
 
   if (!is.data.frame(data)) {
@@ -706,7 +706,7 @@ hla_df_from_xml_legacy <- function(file_path,
                                    replace_none_pg = T,
                                    ...) {
 
-  .ensure_package("xml2")
+  igsc:::.ensure_package("xml2")
 
   if (grepl("zip$", file_path)) {
     utils::unzip(file_path, exdir = tempdir())

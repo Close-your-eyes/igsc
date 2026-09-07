@@ -63,7 +63,7 @@ compare_seq_df_long <- function(df,
                                 insertion_as = "base",
                                 keep_gaps = T) {
 
-  .ensure_package("brathering")
+  igsc:::.ensure_package("brathering")
 
   # insertion_as can be base or any other character, like "x"
 
@@ -117,7 +117,7 @@ compare_seq_df_long <- function(df,
 
 
   idx <- which(names(df) %in% c(pos_col, name_col))
-  .ensure_package("collapse")
+  igsc:::.ensure_package("collapse")
   check_dups <- collapse::fcount(collapse::fselect(df, idx))
   check_dups <- check_dups[check_dups$N > 1L, ]
 

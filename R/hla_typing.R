@@ -104,7 +104,7 @@ hla_typing <- function(hla_ref,
                        strand_col_name = "strand",
                        minus_strand_value = "-",
                        ...) {
-  .ensure_packages(c(
+  igsc:::.ensure_packages(c(
     "Biostrings", "Matrix", "brathering", "ggplot2", "patchwork"
   ))
   if (!is.data.frame(hla_ref) || nrow(hla_ref) == 0L) {

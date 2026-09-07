@@ -2,7 +2,7 @@
 
 
 get_tcrdist_module <- function() {
-  .ensure_package("reticulate")
+  igsc:::.ensure_package("reticulate")
 
   reticulate::py_require(c(
     "pandas",

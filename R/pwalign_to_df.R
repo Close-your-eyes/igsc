@@ -16,7 +16,7 @@ pwalign_to_xstringset <- function(pa,
                                   verbose = T,
                                   subject_width = c("whole", "aligned")) {
 
-  .ensure_packages(c("Biostrings", "pwalign"))
+  igsc:::.ensure_packages(c("Biostrings", "pwalign"))
 
   if (length(pa) > 1) {
     message("pwalign_to_xstringset: Using first pairwiseAlignment only.")
@@ -113,7 +113,7 @@ df_to_xstringset <- function(df,
                              sym_terminal_gap = "-",
                              format = c("long", "wide")) {
 
-  .ensure_packages(c("Biostrings", "brathering"))
+  igsc:::.ensure_packages(c("Biostrings", "brathering"))
 
   format <- rlang::arg_match(format)
 

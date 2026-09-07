@@ -15,7 +15,7 @@
 consecutive_distinct_seq <- function (seq,
                                       seq_type = NULL) {
 
-  .ensure_packages(c("Biostrings", "pwalign"))
+  igsc:::.ensure_packages(c("Biostrings", "pwalign"))
 
   if (length(seq) > 1) {
     stop("Please provide one sequence, XString, XStringSet or character.")

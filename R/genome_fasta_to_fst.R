@@ -68,7 +68,7 @@ genome_fasta_to_fst <- function(genome_file,
   subfolder <- match.arg(subfolder, c("genome_fst", "genome_fagz"), several.ok = T)
 
   if ("genome_fst" %in% subfolder) {
-    .ensure_package("fst")
+    igsc:::.ensure_package("fst")
   }
 
   seq_bounds <- get_fasta_seq_bounds(file_path = genome_file)

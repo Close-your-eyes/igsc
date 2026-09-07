@@ -30,11 +30,11 @@ get_sequence_order <- function(distmat,
   method <- rlang::arg_match(method)
 
   if (method == "tsp") {
-    .ensure_package("TSP")
+    igsc:::.ensure_package("TSP")
   } else if (method == "treeline") {
-    .ensure_package("DECIPHER")
+    igsc:::.ensure_package("DECIPHER")
   } else {
-    .ensure_package("seriation")
+    igsc:::.ensure_package("seriation")
   }
 
   if (method == "tsp") {

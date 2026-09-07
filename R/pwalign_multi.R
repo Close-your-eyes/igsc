@@ -160,7 +160,7 @@ pwalign_multi <- function(subject,
 
   # remove pattern that do not align full length?
 
-  .ensure_packages(c("Biostrings", "brathering", "pwalign"))
+  igsc:::.ensure_packages(c("Biostrings", "brathering", "pwalign"))
 
   '  if (fix_indels) {
     message("fix_indels does not work yet. Set to F.")

@@ -80,7 +80,7 @@ attach_imgt_alleles <- function(seq,
                                 J_col = "J_cr",
                                 ...) {
 
-  .ensure_packages(c("Biostrings", "pwalign"))
+  igsc:::.ensure_packages(c("Biostrings", "pwalign"))
 
   if (missing(seq)) {
     stop("Provide a data frame for seq (e.g. cl_long), preferentially prepared with igsc::read_cellranger_out or a named vector, e.g.

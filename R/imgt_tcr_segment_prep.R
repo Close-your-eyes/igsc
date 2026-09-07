@@ -38,9 +38,9 @@
 imgt_tcr_segment_prep <- function(path, organism = "human", mc = F) {
 
   if (mc) {
-    .ensure_package("pbapply")
+    igsc:::.ensure_package("pbapply")
   }
-  .ensure_packages(c("Biostrings", "pwalign", "openxlsx"))
+  igsc:::.ensure_packages(c("Biostrings", "pwalign", "openxlsx"))
 
   organism <- match.arg(organism, c("human", "mouse"))
 

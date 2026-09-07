@@ -17,7 +17,7 @@ plot_gtf <- function(gtf_df,
                      y = "transcript_id",
                      color = c("strand", "overlapping")) {
 
-  .ensure_packages(c("brathering", "colrr", "forcats", "ggplot2"))
+  igsc:::.ensure_packages(c("brathering", "colrr", "forcats", "ggplot2"))
 
   if ("seqname" %in% names(gtf_df) && length(unique(gtf_df[["seqname"]]))>1) {
     stop("more than one seqname found. makes not sense.")

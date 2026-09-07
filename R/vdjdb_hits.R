@@ -81,7 +81,7 @@ vdjdb_hits <- function(tcrs,
                        lapply_fun = lapply,
                        ...) {
 
-  .ensure_package("stringdist")
+  igsc:::.ensure_package("stringdist")
 
   if (missing(tcrs)) {
     stop("Please provide a tcrs data frame.")
@@ -247,7 +247,7 @@ get_alignment_scores <- function(
     make_unique = F,
     ...) {
 
-  .ensure_packages(c("brathering", "pwalign"))
+  igsc:::.ensure_packages(c("brathering", "pwalign"))
 
   return <- rlang::arg_match(return)
   return_score <- rlang::arg_match(return_score, multiple = T)

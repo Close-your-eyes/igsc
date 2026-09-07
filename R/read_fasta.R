@@ -77,7 +77,7 @@ read_fasta <- function(file,
                        progress = T,
                        seqname = NULL) {
 
-  .ensure_packages(c("brathering", "janitor"))
+  igsc:::.ensure_packages(c("brathering", "janitor"))
 
   if (missing(file)) {
     stop("Please provide a path to a file in 'file'.")

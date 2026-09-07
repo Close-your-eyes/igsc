@@ -26,7 +26,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                      order_features = F,
                                      compare_seq_df_long_args = list()) {
 
-  .ensure_package("brathering")
+  igsc:::.ensure_package("brathering")
 
   return <- rlang::arg_match(return, multiple = T)
 
