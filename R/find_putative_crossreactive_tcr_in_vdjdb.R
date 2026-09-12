@@ -157,18 +157,18 @@ read_vdjdb_fixed <- function(path) {
   }
 
    df |>
-    dplyr::filter(Species == "HomoSapiens") |>
-    dplyr::rename("chain" = Gene) |>
+    dplyr::filter(species == "HomoSapiens") |>
+    dplyr::rename("chain" = gene) |>
     ## suggested fixes
-    dplyr::mutate(Epitope.gene = ifelse(grepl("gag", Epitope.gene, ignore.case = T) , "GAG", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(grepl("synthetic", Epitope.gene, ignore.case = T) , "synthetic", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(grepl("nef", Epitope.gene, ignore.case = T) , "NEF", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(grepl("yeiH", Epitope.gene, ignore.case = T) , "yeiH", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(grepl("gp160", Epitope.gene, ignore.case = T) , "gp160", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(grepl("Mbp", Epitope.gene, ignore.case = T) , "Mbp", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(Epitope.gene == "IE-1", "IE1", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(Epitope.gene == "MART1", "MLANA", Epitope.gene)) |>
-    dplyr::mutate(Epitope.gene = ifelse(Epitope.gene == "INSDRIP", "INS-DRiP", Epitope.gene)) |>
-    dplyr::mutate(Epitope.species = ifelse(grepl("synthetic", Epitope.species, ignore.case = T) , "synthetic", Epitope.species)) |>
-    dplyr::mutate(Epitope.species = ifelse(grepl("HIV", Epitope.species) , "HIV", Epitope.species))
+    dplyr::mutate(antigen.gene = ifelse(grepl("gag", antigen.gene, ignore.case = T) , "GAG", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(grepl("synthetic", antigen.gene, ignore.case = T) , "synthetic", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(grepl("nef", antigen.gene, ignore.case = T) , "NEF", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(grepl("yeiH", antigen.gene, ignore.case = T) , "yeiH", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(grepl("gp160", antigen.gene, ignore.case = T) , "gp160", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(grepl("Mbp", antigen.gene, ignore.case = T) , "Mbp", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(antigen.gene == "IE-1", "IE1", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(antigen.gene == "MART1", "MLANA", antigen.gene)) |>
+    dplyr::mutate(antigen.gene = ifelse(antigen.gene == "INSDRIP", "INS-DRiP", antigen.gene)) |>
+    dplyr::mutate(antigen.species = ifelse(grepl("synthetic", antigen.species, ignore.case = T) , "synthetic", antigen.species)) |>
+    dplyr::mutate(antigen.species = ifelse(grepl("HIV", antigen.species) , "HIV", antigen.species))
 }
