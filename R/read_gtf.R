@@ -12,17 +12,18 @@
 #'   Gzip-compressed files with a \code{.gz} extension are supported.
 #' @param seqnames An optional character vector of sequence names to read, such
 #'   as \code{"chr1"} or \code{c("chr1", "chrX")}. When supplied, matching
-#'   regions are selected before the attribute column is processed.
+#'   records are selected before the attribute column is processed.
 #' @param features An optional character vector of feature types to retain. Each
 #'   value must occur in the file after sequence filtering. Common values include
 #'   \code{"gene"}, \code{"transcript"}, \code{"exon"}, \code{"CDS"},
 #'   \code{"start_codon"}, and \code{"stop_codon"}.
-#' @param gene_names An optional character vector used to filter the raw
-#'   \code{attribute} field before it is parsed. Matching is case-insensitive.
+#' @param gene_names An optional character vector used to filter the
+#'   \code{gene_name} attribute before the attribute column is parsed. Matching
+#'   is case-insensitive.
 #' @param gene_names_full_match Logical. If \code{TRUE}, each value in
-#'   \code{gene_names} is matched as a complete quoted GTF attribute value. If
-#'   \code{FALSE}, values are treated as case-insensitive regular expressions
-#'   and may match substrings.
+#'   \code{gene_names} is matched literally against a complete \code{gene_name}
+#'   value. If \code{FALSE}, values are treated as case-insensitive regular
+#'   expressions and may match substrings of \code{gene_name}.
 #' @param process_attr_col Logical. If \code{TRUE}, parse the GTF attribute field
 #'   with \code{process_gtf_attribute_col()}; if \code{FALSE}, retain the raw
 #'   \code{attribute} column and return \code{NULL} for the parsed attributes.
@@ -124,7 +125,8 @@ read_gtf <- function(
       aggregate_overlapping_exon_ranges = F,
       check_for_rotation = F,
       genome_length = NULL,
-      fill_na = F
+      fill_na = F,
+      unique_gene_names = F
     ),
     process_attr_col_args_repl = list(),
 
@@ -158,13 +160,7 @@ read_gtf <- function(
   }
 
   if (!is.null(seqnames)) {
-    gtf <- do.call(rbind, lapply(
-      seqnames,
-      vroom_gtf,
-      file_path = file_path,
-      col_names = col_names,
-      unpack_fun = unpack_fun
-    ))
+    gtf <- vroom_gtf(file_path, seqnames, col_names)
   } else {
     gtf <- vroom::vroom(
       file = do.call(unpack_fun, args = list(description = file_path)),
@@ -182,21 +178,33 @@ read_gtf <- function(
   }
 
   if (!is.null(gene_names)) {
-    if (gene_names_full_match) {
-      gene_names <- paste0("\"", gene_names, "\"")
+    if (!is.character(gene_names) || length(gene_names) == 0L ||
+        anyNA(gene_names) || any(!nzchar(gene_names))) {
+      stop("`gene_names` must be a non-empty character vector.", call. = FALSE)
     }
-    pattern <- paste(gene_names, collapse="|")
-    gtf <- gtf[stringi::stri_detect_regex(gtf$attribute, pattern, case_insensitive = TRUE), ]
-
-    # data.table::setDT(gtf)
-    # # Extract gene_id once (fast C-level regex)
-    # gtf[, gene_id := stringi::stri_match_first_regex(
-    #   attribute,
-    #   'gene_id "([^"]+)"'
-    # )[,2]]
-    # # Exact matching (very fast hash match)
-    # gtf2 <- gtf[gene_id %in% gene_names]
-
+    if (!is.logical(gene_names_full_match) ||
+        length(gene_names_full_match) != 1L ||
+        is.na(gene_names_full_match)) {
+      stop("`gene_names_full_match` must be TRUE or FALSE.", call. = FALSE)
+    }
+    gene_name_values <- stringi::stri_match_first_regex(
+      gtf$attribute,
+      '(?:^|;)\\s*gene_name\\s+"([^"]*)"',
+      case_insensitive = TRUE
+    )[, 2L]
+    if (gene_names_full_match) {
+      keep <- !is.na(gene_name_values) &
+        toupper(gene_name_values) %in% toupper(gene_names)
+    } else {
+      pattern <- paste0("(?:", paste(gene_names, collapse = "|"), ")")
+      keep <- !is.na(gene_name_values) &
+        stringi::stri_detect_regex(
+          gene_name_values,
+          pattern,
+          case_insensitive = TRUE
+        )
+    }
+    gtf <- gtf[keep, , drop = FALSE]
   }
 
   if (nrow(gtf) == 0) {
@@ -206,9 +214,16 @@ read_gtf <- function(
   if (process_attr_col) {
     # message("processing the attribute column.")
     # use waldo::compare to compare results
-    for (i in names(process_attr_col_args_repl)) {
-      process_attr_col_args[[i]] <-  process_attr_col_args_repl[[i]]
+    if (!is.list(process_attr_col_args_repl) ||
+        (length(process_attr_col_args_repl) > 0L &&
+         (is.null(names(process_attr_col_args_repl)) ||
+          anyNA(names(process_attr_col_args_repl)) ||
+          any(!nzchar(names(process_attr_col_args_repl)))))) {
+      stop("`process_attr_col_args_repl` must be a named list.",
+           call. = FALSE)
     }
+    process_attr_col_args[names(process_attr_col_args_repl)] <-
+      process_attr_col_args_repl
 
     ret_list <- Gmisc::fastDoCall(what = process_gtf_attribute_col,
                                   args = c(list(gtf = gtf),
@@ -304,6 +319,9 @@ read_gtf <- function(
 #' @param fill_na Logical. If \code{TRUE}, fill missing \code{transcript_id}
 #'   from \code{gene_id}, missing \code{transcript_name} from
 #'   \code{gene_name}, and missing retained \code{exon_number} values with 0.
+#' @param unique_gene_names Logical. If \code{TRUE}, append numeric suffixes to
+#'   gene names shared by distinct gene IDs. The default preserves the annotated
+#'   names, including genes represented on multiple contigs.
 #'
 #' @details
 #' Transformations occur in the following order: existing exons are optionally
@@ -383,7 +401,8 @@ process_gtf_attribute_col <- function(gtf,
                                       genome_length = NULL,
                                       rm_entries_wo_matching_exon = F,
                                       verbose = T,
-                                      fill_na = F) {
+                                      fill_na = F,
+                                      unique_gene_names = F) {
 
   attr_as <- rlang::arg_match(attr_as) # kv = key value pair
   use_fun <- rlang::arg_match(use_fun)
@@ -499,25 +518,48 @@ process_gtf_attribute_col <- function(gtf,
     }
 
 
-    if (fill_na) {
-      attr_col2 <- attr_col2 |>
-        dplyr::mutate(transcript_id = ifelse(is.na(transcript_id), gene_id, transcript_id)) |>
-        dplyr::mutate(transcript_name = ifelse(is.na(transcript_name), gene_name, transcript_name))
-      if ("exon_number" %in% names(attr_col2)) {
-        if (any(grepl(";", gtf[["exon_number"]]))) {
-          attr_col2 <- dplyr::mutate(attr_col2, exon_number = ifelse(is.na(exon_number), "0; exon_id 0", exon_number))
-        } else {
-          attr_col2 <- dplyr::mutate(attr_col2, exon_number = ifelse(is.na(exon_number), "0", exon_number))
-        }
-      }
-    }
+  }
 
-    # check for duplicates of pairs of gene_id, gene_name
+  if (fill_na) {
+    if ("gene_id" %in% names(attr_col2)) {
+      if (!"transcript_id" %in% names(attr_col2)) {
+        attr_col2$transcript_id <- NA_character_
+      }
+      attr_col2$transcript_id <- ifelse(
+        is.na(attr_col2$transcript_id),
+        attr_col2$gene_id,
+        attr_col2$transcript_id
+      )
+    }
+    if ("gene_name" %in% names(attr_col2)) {
+      if (!"transcript_name" %in% names(attr_col2)) {
+        attr_col2$transcript_name <- NA_character_
+      }
+      attr_col2$transcript_name <- ifelse(
+        is.na(attr_col2$transcript_name),
+        attr_col2$gene_name,
+        attr_col2$transcript_name
+      )
+    }
+    if ("exon_number" %in% names(attr_col2)) {
+      exon_number <- attr_col2$exon_number
+      missing_exon <- if (any(grepl(";", exon_number), na.rm = TRUE)) {
+        "0; exon_id 0"
+      } else {
+        "0"
+      }
+      attr_col2$exon_number[is.na(exon_number)] <- missing_exon
+    }
+  }
+
+  if ("gene_name" %in% names(attr_col2)) {
+    # Preserve annotated names by default; optional uniquifying is for callers
+    # that need synthetic identifiers, such as custom Cell Ranger references.
     attr_col2 <- fix_duplicates(
       attr_col = attr_col2,
-      verbose = verbose
+      verbose = verbose,
+      unique_gene_names = unique_gene_names
     )
-
   }
 
   ## rotate the circular reference genome
@@ -646,52 +688,54 @@ process_gtf_attribute_col <- function(gtf,
 }
 
 
-get_bounds <- function(x, file_path) {
-  # here we get the first and last line of a seqname to read with vroom
-  # actually though, rg and grep do return the full lines already, not only linenumbers
-  # but, so what
-
-  if (grepl("\\.gz$", file_path)) {
-    file_path <- brathering::ungunzip(
-      file_path,
-      out_dir = tempdir(),
-      out_file = tools::file_path_sans_ext(basename(file_path))
-    )
-    message("unpacking file to: ", file_path)
+vroom_gtf <- function(file_path, seqnames, col_names) {
+  if (!is.character(seqnames) || length(seqnames) == 0L ||
+      anyNA(seqnames) || any(!nzchar(seqnames))) {
+    stop("`seqnames` must be a non-empty character vector.", call. = FALSE)
   }
 
-  out <- tryCatch(
-    {
-      # use ripgrep if possible
-      cmd <- paste0("rg '^", x, "\t' -n ", file_path, " | cut -d: -f1")
-      system(cmd, intern = T)
-    },
-    error = function(err) {
-      # else use grep which is slower but more common
-      cmd <- paste0("grep '^", x, "\t' -n ", file_path, " | cut -d: -f1")
-      system(cmd, intern = T)
+  input <- if (grepl("\\.gz$", file_path, ignore.case = TRUE)) {
+    gzfile(file_path, open = "rt")
+  } else {
+    file(file_path, open = "rt")
+  }
+  filtered_path <- tempfile(fileext = ".gtf")
+  output <- file(filtered_path, open = "wt")
+  output_open <- TRUE
+  on.exit({
+    if (output_open) close(output)
+    close(input)
+    unlink(filtered_path)
+  }, add = TRUE)
+
+  matches <- 0L
+  repeat {
+    lines <- readLines(input, n = 100000L, warn = FALSE)
+    if (length(lines) == 0L) break
+    tab <- regexpr("\t", lines, fixed = TRUE)
+    row_seqnames <- substr(lines, 1L, pmax(tab - 1L, 0L))
+    keep <- tab > 0L & row_seqnames %in% seqnames
+    if (any(keep)) {
+      writeLines(lines[keep], output)
+      matches <- matches + sum(keep)
     }
-  )
-  if (length(out) == 0) {
-    stop("seqname not found in gtf file.")
   }
-  out <- as.numeric(out[c(1, length(out))])
-  return(list(bounds = out, file = file_path))
-}
 
-vroom_gtf <- function(x, file_path, col_names, unpack_fun) {
-  bounds <- get_bounds(x, file_path)
-  file <- bounds[["file"]]
-  bounds <- bounds[["bounds"]]
+  close(output)
+  output_open <- FALSE
+  if (matches == 0L) {
+    stop("No records found for the requested `seqnames`.", call. = FALSE)
+  }
 
-  y <- vroom::vroom(file = file,
-                    col_names = col_names,
-                    skip = bounds[1] - 1,
-                    n_max = bounds[2] - bounds[1] + 1,
-                    comment = "#",
-                    progress = F,
-                    show_col_types = F)
-  return(y)
+  vroom::vroom(
+    file = filtered_path,
+    col_names = col_names,
+    comment = "#",
+    delim = "\t",
+    altrep = FALSE,
+    progress = FALSE,
+    show_col_types = FALSE
+  )
 }
 
 
@@ -1215,7 +1259,7 @@ make_kv_attr_col <- function(gtf_df,
   #
 }
 
-fix_duplicates <- function(attr_col, verbose = T) {
+fix_duplicates <- function(attr_col, verbose = T, unique_gene_names = F) {
 
   ## first gene_id vs gene_name
   dups <- attr_col |>
@@ -1224,7 +1268,7 @@ fix_duplicates <- function(attr_col, verbose = T) {
     dplyr::add_count(gene_id, name = "n_gene_id")
   dups1 <- dups |> dplyr::filter(n_gene_name>1) |> dplyr::arrange(gene_name)
 
-  if (nrow(dups1) > 1) {
+  if (unique_gene_names && nrow(dups1) > 1) {
     if (verbose) {
       message("duplicate gene names made unique:")
       print(dups1)

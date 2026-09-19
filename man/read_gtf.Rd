@@ -2,60 +2,130 @@
 % Please edit documentation in R/read_gtf.R
 \name{read_gtf}
 \alias{read_gtf}
-\title{Read and process a GTF (Gene Transfer Format) file}
+\title{Read and process a GTF file}
 \usage{
 read_gtf(
   file_path,
   seqnames = NULL,
   features = NULL,
   gene_names = NULL,
+  gene_names_full_match = T,
   process_attr_col = T,
   process_attr_col_args = list(attr_keep = c("gene_id", "gene_name", "transcript_id",
     "transcript_name", "exon_number"), attr_rename = NULL, gene_name_prefix = "",
     gene_name_force = NULL, rm_index = T, use_fun = "r", rm_exon = F, exons_only = F,
     features_to_exon = c(""), aggregate_exons = F, aggregate_overlapping_exon_ranges = F,
-    check_for_rotation = F, genome_length = NULL),
+    check_for_rotation = F, genome_length = NULL, fill_na = F,
+    unique_gene_names = F),
+  process_attr_col_args_repl = list(),
   col_names = c("seqname", "source", "feature", "start", "end", "score", "strand",
     "frame", "attribute")
 )
 }
 \arguments{
-\item{file_path}{path to the file; file may be gunzipped (ending with .gz)}
+\item{file_path}{A length-one character string giving the path to a GTF file.
+Gzip-compressed files with a \code{.gz} extension are supported.}
 
-\item{seqnames}{seqnames to filter the gtf file for; will decrease computation time
-required for processing the attribute column}
+\item{seqnames}{An optional character vector of sequence names to read, such
+as \code{"chr1"} or \code{c("chr1", "chrX")}. When supplied, matching
+records are selected before the attribute column is processed.}
 
-\item{features}{features to filter the gtf file for; will decrease computation time
-required for processing the attribute column
-c("gene", "transcript", "exon", "CDS", "start_codon", "stop_codon",
-"five_prime_utr", "three_prime_utr", "Selenocysteine")}
+\item{features}{An optional character vector of feature types to retain. Each
+value must occur in the file after sequence filtering. Common values include
+\code{"gene"}, \code{"transcript"}, \code{"exon"}, \code{"CDS"},
+\code{"start_codon"}, and \code{"stop_codon"}.}
 
-\item{gene_names}{vector of gene names to filter for before attr col processing}
+\item{gene_names}{An optional character vector used to filter the
+\code{gene_name} attribute before the attribute column is parsed. Matching
+is case-insensitive.}
 
-\item{process_attr_col}{convert the attribute column into separate columns}
+\item{process_attr_col}{Logical. If \code{TRUE}, parse the GTF attribute field
+with \code{process_gtf_attribute_col()}; if \code{FALSE}, retain the raw
+\code{attribute} column and return \code{NULL} for the parsed attributes.}
 
-\item{process_attr_col_args}{arguments to process_attr_col_args}
+\item{process_attr_col_args}{A named list of arguments passed to
+\code{process_gtf_attribute_col()}. The default keeps common gene,
+transcript, and exon identifiers.}
 
-\item{col_names}{column names to assign to the gtf data frame;
-changing seqname, feature or attribute will break this function;
-better leave col_names as it is}
+\item{col_names}{A character vector of column names assigned to the nine GTF
+fields. The default follows the GTF specification. Internal processing
+requires columns named \code{seqname}, \code{feature}, and
+\code{attribute}; changing those names will break the function.}
+
+\item{gene_names_full_match}{Logical. If \code{TRUE}, each value in
+\code{gene_names} is matched literally against a complete \code{gene_name}
+value. If \code{FALSE}, values are treated as case-insensitive regular
+expressions and may match substrings of \code{gene_name}.}
+
+\item{process_attr_col_args_repl}{A named list of values that replace entries
+in \code{process_attr_col_args}. Use this to change selected defaults
+without repeating the complete argument list.}
 }
 \value{
-a list with (i) entries of the GTF file including the attribute
-column as list and some attributes as separate columns and
-(ii) the attributes as long data frame
+A named list with components:
+\describe{
+\item{\code{gtf}}{A data frame containing the selected GTF records. If
+\code{process_attr_col = TRUE}, retained attributes are joined as
+separate columns; otherwise the original \code{attribute} column is
+preserved.}
+\item{\code{attr}}{A wide data frame of parsed, retained attributes, or
+\code{NULL} when \code{process_attr_col = FALSE}.}
+}
 }
 \description{
-Since GTF files come in an unhandy format, this function may help
-to easily read them into memory. As a whole or partly by providing
-seqnames and/or features. Processing the attribute column is computationally
-costly. Start/end: In both cases, gene on plus or minus strand, end is larger
-then start. This makes immediate sense for the plus strand but for the minus
-strand, genes actually go from a larger to a smaller position (5'->3').
+Read a Gene Transfer Format (GTF) file into memory, optionally restricting
+the input by sequence name, feature type, or gene name before parsing its
+attribute column. Files may be plain text or gzip-compressed.
 }
 \details{
-See https://www.ensembl.org/info/website/upload/gff.html?redirect=no for
-explanation of GTF file format.
-GTF files and genomic fasta files may be downloaded here https://www.ncbi.nlm.nih.gov/datasets/genome/
-or here https://www.ensembl.org/index.html
+Parsing the attribute column is usually the most expensive step. Applying
+\code{seqnames}, \code{features}, or \code{gene_names} can therefore reduce
+both run time and memory use.
+
+GTF coordinates are one-based and inclusive. For records on either strand,
+\code{start} is numerically less than or equal to \code{end}. Biological
+transcription therefore proceeds from larger to smaller coordinates for a
+feature on the minus strand.
+
+Duplicate rows are removed before the result is returned. If attribute
+processing and its requested transformations remove all rows, the function
+may return \code{NULL}.
+}
+\examples{
+\dontrun{
+# Read selected feature types and parse common attributes.
+x <- read_gtf(
+  "genes.gtf.gz",
+  features = c("gene", "exon")
+)
+head(x$gtf)
+head(x$attr)
+
+# Read one sequence while preserving the raw attribute field.
+chr1 <- read_gtf(
+  "genes.gtf",
+  seqnames = "chr1",
+  process_attr_col = FALSE
+)
+head(chr1$gtf$attribute)
+
+# Override selected attribute-processing defaults.
+exons <- read_gtf(
+  "genes.gtf",
+  process_attr_col_args_repl = list(
+    exons_only = TRUE,
+    attr_keep = c("gene_id", "gene_name", "transcript_id", "exon_number")
+  )
+)
+}
+}
+\references{
+Ensembl, "GFF/GTF File Format":
+\url{https://www.ensembl.org/info/website/upload/gff.html}
+\url{https://www.ensembl.org/info/website/upload/gff.html?redirect=no}
+\url{https://www.ncbi.nlm.nih.gov/datasets/genome/}
+\url{https://www.ensembl.org/index.html}
+}
+\seealso{
+\code{process_gtf_attribute_col()}
 }
