@@ -118,6 +118,8 @@ summarized by P group because typing at greater resolution may be uncertain.
 }
 \examples{
 \dontrun{
+# see docs of hla_typing_from_bam
+
 # get hla refs
 hla_ref <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz",
                            lapply_fun = parallel::mclapply, mc.cores = 8)

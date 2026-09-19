@@ -15,8 +15,7 @@ read_gtf(
     "transcript_name", "exon_number"), attr_rename = NULL, gene_name_prefix = "",
     gene_name_force = NULL, rm_index = T, use_fun = "r", rm_exon = F, exons_only = F,
     features_to_exon = c(""), aggregate_exons = F, aggregate_overlapping_exon_ranges = F,
-    check_for_rotation = F, genome_length = NULL, fill_na = F,
-    unique_gene_names = F),
+    check_for_rotation = F, genome_length = NULL, fill_na = F, unique_gene_names = F),
   process_attr_col_args_repl = list(),
   col_names = c("seqname", "source", "feature", "start", "end", "score", "strand",
     "frame", "attribute")
@@ -39,6 +38,11 @@ value must occur in the file after sequence filtering. Common values include
 \code{gene_name} attribute before the attribute column is parsed. Matching
 is case-insensitive.}
 
+\item{gene_names_full_match}{Logical. If \code{TRUE}, each value in
+\code{gene_names} is matched literally against a complete \code{gene_name}
+value. If \code{FALSE}, values are treated as case-insensitive regular
+expressions and may match substrings of \code{gene_name}.}
+
 \item{process_attr_col}{Logical. If \code{TRUE}, parse the GTF attribute field
 with \code{process_gtf_attribute_col()}; if \code{FALSE}, retain the raw
 \code{attribute} column and return \code{NULL} for the parsed attributes.}
@@ -47,19 +51,14 @@ with \code{process_gtf_attribute_col()}; if \code{FALSE}, retain the raw
 \code{process_gtf_attribute_col()}. The default keeps common gene,
 transcript, and exon identifiers.}
 
+\item{process_attr_col_args_repl}{A named list of values that replace entries
+in \code{process_attr_col_args}. Use this to change selected defaults
+without repeating the complete argument list.}
+
 \item{col_names}{A character vector of column names assigned to the nine GTF
 fields. The default follows the GTF specification. Internal processing
 requires columns named \code{seqname}, \code{feature}, and
 \code{attribute}; changing those names will break the function.}
-
-\item{gene_names_full_match}{Logical. If \code{TRUE}, each value in
-\code{gene_names} is matched literally against a complete \code{gene_name}
-value. If \code{FALSE}, values are treated as case-insensitive regular
-expressions and may match substrings of \code{gene_name}.}
-
-\item{process_attr_col_args_repl}{A named list of values that replace entries
-in \code{process_attr_col_args}. Use this to change selected defaults
-without repeating the complete argument list.}
 }
 \value{
 A named list with components:

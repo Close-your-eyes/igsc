@@ -28,7 +28,7 @@ hla_typing_from_bam(
   p_group_col_name = "p_group",
   g_group_col_name = "g_group",
   lapply_fun = lapply,
-  maxmis = 0,
+  maxmis = 3,
   make_reads_distinct = FALSE,
   ...
 )
@@ -124,8 +124,114 @@ result <- hla_typing_from_bam(
   hla_ref = hla_ref,
   reference_gtf = "reference/genes/genes.gtf",
   genes = c("A", "B", "C"),
-  maxmis = 1
-)
-result$typing$A$pair_res1_df
+  maxmis = 1)
+
+# check strandness of HLA genes
+gtf <- read_gtf(".../refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+                gene_names = "HLA-",
+                gene_names_full_match = F,
+                features = "gene")$gtf |>
+  dplyr::select(gene_name, start, end, strand) |>
+  dplyr::filter(!grepl("AS", gene_name)) |>
+  dplyr::arrange(gene_name)
+# genes on (-) Strand: revcomp the reference as reads from BAM file are always
+# mapped to (+) Strand but reference give sequence from (-) Strand
+#   |gene_name |    start|      end|strand |
+#   |:---------|--------:|--------:|:------|
+#   |HLA-A     | 29941260| 29945884|+      |
+#   |HLA-B     | 31269491| 31357188|-      |
+#   |HLA-C     | 31268749| 31272130|-      |
+#   |HLA-DMA   | 32948613| 32969094|-      |
+#   |HLA-DMB   | 32934629| 32941028|-      |
+#   |HLA-DOA   | 33004182| 33009591|-      |
+#   |HLA-DOB   | 32812763| 32820466|-      |
+#   |HLA-DPA1  | 33064569| 33080775|-      |
+#   |HLA-DPB1  | 33075990| 33089696|+      |
+#   |HLA-DQA1  | 32628179| 32647062|+      |
+#   |HLA-DQA2  | 32741391| 32747198|+      |
+#   |HLA-DQB1  | 32659467| 32668383|-      |
+#   |HLA-DQB2  | 32756098| 32763532|-      |
+#   |HLA-DRA   | 32439878| 32445046|+      |
+#   |HLA-DRB1  | 32578769| 32589848|-      |
+#   |HLA-DRB5  | 32517353| 32530287|-      |
+#   |HLA-E     | 30489509| 30494194|+      |
+#   |HLA-F     | 29722775| 29738528|+      |
+#   |HLA-G     | 29826967| 29831125|+      |
+
+
+library(igsc)
+hla <- hla_df_from_xml(
+  "/Volumes/CMS_SSD_2TB/hla.xml.gz",
+  lapply_fun = parallel::mclapply,
+  mc.cores = 8)
+
+hlaA <- hla |>
+  dplyr::filter(grepl("^HLA-A", allele)) |>
+  dplyr::filter(seq_length == max(seq_length), .by = allele_protein)
+
+hlaresA <- hla_typing_from_bam(
+  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+  hla_ref = hlaA,
+  genes = "A",
+  lapply_fun = parallel::mclapply,
+  make_reads_distinct = T,
+  mc.cores = 4,
+  maxmis = 3,
+  allele_diff = 4)
+hlaresA$typing$B$plot_pair_res2
+
+## HLA-B and HLA-C are on (-) Strand but all bam reads are returned as on (+) Strand
+## hence revcomp the reference: (-) --> (+)
+hlaB <- hla |>
+  dplyr::filter(grepl("^HLA-B", allele)) |>
+  dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
+  dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
+
+hlaresB <- hla_typing_from_bam(
+  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+  hla_ref = hlaB,
+  genes = "B",
+  lapply_fun = parallel::mclapply,
+  make_reads_distinct = T,
+  mc.cores = 4,
+  maxmis = 3,
+  allele_diff = 4)
+hlaresB$typing$B$plot_pair_res2
+
+hlaC <- hla |>
+  dplyr::filter(grepl("^HLA-C", allele)) |>
+  dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
+  dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
+
+hlaresC <- hla_typing_from_bam(
+  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+  hla_ref = hlaC,
+  genes = "C",
+  lapply_fun = parallel::mclapply,
+  make_reads_distinct = T,
+  mc.cores = 4,
+  maxmis = 3,
+  allele_diff = 4)
+hlaresC$typing$C$plot_pair_res2
+
+hlaDPA1 <- hla |>
+  dplyr::filter(grepl("^HLA-DPA1", allele)) |>
+  dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
+  dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
+
+hlaresDPA1 <- hla_typing_from_bam(
+  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+  hla_ref = hlaDPA1,
+  genes = "DPA1",
+  lapply_fun = parallel::mclapply,
+  make_reads_distinct = T,
+  mc.cores = 4,
+  maxmis = 3,
+  allele_diff = 2)
+hlaresDPA1$typing$DPA1$plot_pair_res2
 }
 }
