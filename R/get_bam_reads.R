@@ -1,82 +1,79 @@
-#' Get reads from a bam file
+#' Read BAM alignments overlapping genomic ranges
 #'
-#' This is basically a wrapper around Rsamtools::ScanBamParam and Rsamtools::scanBam. The output from scanBam is processed to a data frame and additional columns
-#' are attached. Providing an exact range has been found to not always work as expected. E.g. there were reads in chr6 outside the exonic regions of HLA-A
-#' that could be mapped to HLA-A. This may be an individual problem of the underlying BAM file (mapping). In order to not miss any relevant reads, one may pass
-#' a wider genomic range for reads to return (e.g. whole chr6 if HLA loci are of interest, see example). When the purpose is to align
-#' reads to a gene from the plus strand (e.g. HLA-A), set revcomp_minus_strand and revcomp_plus_strand to FALSE. For a gene
-#' from the minus strand, set both to TRUE.
+#' Extract alignments with [Rsamtools::scanBam()] and return one data-frame row
+#' per alignment found in each requested range. The function does not filter by
+#' mapping quality, alignment flag, or cell barcode.
 #'
-#' Read scores: https://support.illumina.com/help/BaseSpace_OLH_009008/Content/Source/Informatics/BS/QualityScoreEncoding_swBS.htm
-#' CellRanger tags: Cell barcode (CR), error-corrected Cell barcode (CB), Cell barcode read quality (CY), Alignment score (AS), UMI (UR),
-#' UMI read quality (UY), Query hit index (HI), Number of reported alignments for query (NH), Number of mismatches per pair (nM),
-#' Region type (E = exonic, N = intronic, I = intergenic) (RE)
+#' @details
+#' A coordinate-sorted, indexed BAM is needed for range queries. The sequence
+#' names in `granges` must match those in the BAM header (for example, `chr6`
+#' and `6` are different names). If `granges` is omitted, only the first 10,000
+#' bases of the BAM reference sequence with the most mapped reads are queried;
+#' this is not a whole-BAM extraction. Range coordinates are one-based and
+#' inclusive. The strand stored in `granges` does not restrict alignments.
 #'
-#' @param bam path to a position-sorted bam file; index file (.bai) has to be in the same directory
-#' @param granges GRanges object with n genomic ranges. Setting the strand information to + or - does
-#' not influence the reads returned by this function.
-#' @param tags tags to extract from bam file, passed to Rsamtools::ScanBamParam(); character(0) for nothing; missing tags do not seem to matter
-#' @param scores calculate read scores from PhredQuality
-#' @param revcomp_minus_strand passed as reverseComplement to Rsamtools::ScanBamParam. If FALSE, then all reads
-#' are returned as if they mapped to the plus strand (which is the convention for BAM files). Having all reads projected
-#' to the plus strand may be useful for subsequent alignment of reads to a reference sequence (e.g. a gene) from the plus strand (e.g. HLA-A).
-#' @param revcomp_plus_strand If TRUE then all reads mapped to minus strand are projected to the plus strand:
-#' seq is reverseComplemented and qual is reversed.
-#' Useful for subsequent alignment of reads to a reference sequence (e.g. a gene) from the minus strand (e.g. HLA-B or -C).
+#' A read overlapping two input ranges can appear twice. Paired ends and
+#' secondary or supplementary alignments can also share a `qname`. This function
+#' does not deduplicate or create unique read names. For HLA-specific extraction
+#' with additional filtering, see [get_hla_reads()]. Tight gene or exon ranges
+#' may miss reads aligned nearby or to a related locus.
 #'
-#' @return a data frame of reads
+#' The default tags include `CR`/`CB` (raw/corrected cell barcode), `UR`/`UB`
+#' (raw/corrected UMI), `AS` (alignment score), and `NH` (number of reported
+#' alignments), among others. Tag columns are present only when the BAM provides
+#' them.
+#'
+#' BAM stores sequences aligned to the minus strand in reference orientation.
+#' With both reverse-complement options `FALSE`, `seq` and `qual` remain in that
+#' BAM orientation. `revcomp_minus_strand = TRUE` asks Rsamtools to return
+#' minus-strand reads in sequenced orientation. `revcomp_plus_strand = TRUE`
+#' additionally reverse-complements plus-strand read sequences and reverses
+#' their quality strings. Setting both to `TRUE` puts returned sequences in the
+#' orientation opposite to the reference plus strand, which can be useful when
+#' comparing with a minus-strand reference sequence.
+#'
+#' @param bam Path to a coordinate-sorted BAM file with an index accessible to
+#'   Rsamtools.
+#' @param granges A [GenomicRanges::GRanges()] object specifying the ranges to
+#'   query. Its strand is ignored when selecting alignments. The default queries
+#'   bases 1 through 10,000 of the reference sequence with the highest mapped
+#'   read count in the BAM index.
+#' @param tags Character vector of BAM tag names passed to
+#'   [Rsamtools::ScanBamParam()]. Use `character(0)` to request no tags. The
+#'   default requests common Cell Ranger barcode, UMI, and alignment tags;
+#'   unavailable tags are omitted from the result and reported in a message.
+#' @param scores Logical; if `TRUE`, calculate per-read Phred-quality summaries
+#'   from `qual`.
+#' @param revcomp_minus_strand Logical; passed as `reverseComplement` to
+#'   [Rsamtools::ScanBamParam()]. If `TRUE`, reverse-complement `seq` and reverse
+#'   `qual` for alignments on the minus strand.
+#' @param revcomp_plus_strand Logical; if `TRUE`, reverse-complement `seq` and
+#'   reverse `qual` for alignments on the plus strand after reading the BAM.
+#'
+#' @return A data frame containing fields returned by
+#'   [Rsamtools::scanBamWhat()], including `qname`, `flag`, `rname`, `strand`,
+#'   `pos`, `mapq`, `cigar`, `seq`, and `qual`. `genomic_range` is the character
+#'   form of the one-based queried-range index. Requested tags present in the BAM are
+#'   added as columns. When `scores = TRUE`, four more columns are added:
+#'   `readQualNum` (a list of per-base Phred scores), `minQual`, `meanQual`, and
+#'   `n_belowQ30` (the number of bases with Phred score below 30).
+#' @seealso [get_hla_reads()]
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' # inspect content
-#' header <- Rsamtools::scanBamHeader(bam)
-#' idxstats <- Rsamtools::idxstatsBam(bam)
-#' The seqnames of different BAM file may require different formats:
-#' GenomicRanges::GRanges(seqnames = "chr1", strand = "+", ranges = IRanges::IRanges(start = start, end = end)) or
-#' GenomicRanges::GRanges(seqnames = "1", strand = "+", ranges = IRanges::IRanges(start = start, end = end))
+#' bam <- "path/to/possorted_genome_bam.bam"
+#' reference_names <- names(Rsamtools::scanBamHeader(bam)[[1]]$targets)
+#' chr6 <- intersect(c("chr6", "6"), reference_names)[1]
+#' stopifnot(!is.na(chr6))
 #'
-#' # genomic range over part of chromosome 6 (or whole)
-#' chr6 <- GenomicRanges::GRanges(seqnames = "6", strand = "+",
-#' ranges = IRanges::IRanges(start = 29000000, end = 35000000))
-#' # ranges = IRanges::IRanges(start = 1, end = 536870912))
-#'
-#' # alternatively multiple regions of HLA-A exons (in hg19)
-#' # these may have to be obtained from the BAM file, e.g. IGV browser; or the reference genome
-#' hlaa <- GenomicRanges::GRanges(
-#'   seqnames = "6", strand = "+",
-#'   ranges = IRanges::IRanges(
-#'     start = c(29910247, 29910534, 29911045, 29911899, 29912277, 29912836, 29913011, 29913228),
-#'     end = c(29910403, 29910803, 29911320, 29912174, 29912393, 29912868, 29913058, 29913661)
-#'   )
+#' mhc <- GenomicRanges::GRanges(
+#'   seqnames = chr6,
+#'   ranges = IRanges::IRanges(start = 29000000L, end = 35000000L)
 #' )
-#'
-#' reads <- igsc::get_bam_reads(
-#'   bam = "my_bam_path",
-#'   granges = chr6,
-#'   lapply_fun = parallel::mclapply, mc.cores = parallel::detectCores()
-#' )
-#'
-#' # passing multiple regions may return reads twice or multiple times
-#' # if these reads overlap two or more of the regions (see ?scanBam and ?ScanBamParam)
-#' reads <- igsc::get_bam_reads(
-#'   bam = "my_bam_path",
-#'   granges = hlaa,
-#'   lapply_fun = parallel::mclapply, mc.cores = parallel::detectCores()
-#' )
-#'
-#' # filter and process reads
-#' reads <- reads[which(reads$minQual >= 27), ]
-#' reads <- reads[which(reads$n_belowQ30 <= 3), ]
-#' # filter duplicate reads
-#' # if additional flags like exons have been passed
-#' # these columns will prevent dplyr::distinct from filtering
-#' reads <- dplyr::distinct(reads, start, seq, .keep_all = T)
-#' # only reads with standard nucleotides
-#' reads <- reads[which(!grepl("[^ACTGU]", reads[,"seq",drop=T])),]
-#' # readNames were found to be not unique in any case
-#' # (same name for reads with different start and different seq)
-#' reads$readName <- make.unique(reads$readName)
+#' reads <- get_bam_reads(bam, granges = mhc, tags = c("CB", "UB"))
+#' reads <- reads[!is.na(reads$mapq) & reads$mapq >= 20, , drop = FALSE]
+#' head(reads[, c("qname", "rname", "pos", "mapq", "seq")])
 #' }
 get_bam_reads <- function(bam,
                           granges = GenomicRanges::GRanges(seqnames = as.character(Rsamtools::idxstatsBam(bam)[which.max(Rsamtools::idxstatsBam(bam)[["mapped"]]),"seqnames"]),
