@@ -22,6 +22,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// countOccurrencesSparseCpp
+IntegerMatrix countOccurrencesSparseCpp(S4 mat, IntegerMatrix cols);
+RcppExport SEXP _igsc_countOccurrencesSparseCpp(SEXP matSEXP, SEXP colsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< S4 >::type mat(matSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type cols(colsSEXP);
+    rcpp_result_gen = Rcpp::wrap(countOccurrencesSparseCpp(mat, cols));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compare_nonref_cpp
 DataFrame compare_nonref_cpp(DataFrame df, std::string ref, std::string pos_col, std::string seq_col, std::string name_col, std::string match_symbol, std::string mismatch_symbol, bool keep_gaps, std::string nonref_mismatch_as);
 RcppExport SEXP _igsc_compare_nonref_cpp(SEXP dfSEXP, SEXP refSEXP, SEXP pos_colSEXP, SEXP seq_colSEXP, SEXP name_colSEXP, SEXP match_symbolSEXP, SEXP mismatch_symbolSEXP, SEXP keep_gapsSEXP, SEXP nonref_mismatch_asSEXP) {
@@ -127,6 +139,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_igsc_countOccurrencesInCpp", (DL_FUNC) &_igsc_countOccurrencesInCpp, 2},
+    {"_igsc_countOccurrencesSparseCpp", (DL_FUNC) &_igsc_countOccurrencesSparseCpp, 2},
     {"_igsc_compare_nonref_cpp", (DL_FUNC) &_igsc_compare_nonref_cpp, 9},
     {"_igsc_mutate_value_cpp", (DL_FUNC) &_igsc_mutate_value_cpp, 6},
     {"_igsc_orderAndConcatenateStrings", (DL_FUNC) &_igsc_orderAndConcatenateStrings, 1},

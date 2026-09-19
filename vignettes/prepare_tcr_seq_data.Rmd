@@ -206,7 +206,7 @@ Similar CDR3s are found by simple string matching with the levensthein algorithm
 can be expressed more continuously by similarity based on the PAM30 substitution matrix, taking into account chemical properties of amino acids.
 ```{r, fig.width=10, fig.height=6}
 vdjdb <-
-  readRDS(system.file("extdata", "vdjdb.tsv.rds", package = "igsc")) %>%
+  vroom::vroom(system.file("extdata", "vdjdb.tsv.gz", package = "igsc")) %>%
   dplyr::filter(Species == "HomoSapiens")
 
 # filter for highly expanded clonotypes

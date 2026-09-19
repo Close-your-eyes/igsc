@@ -22,7 +22,7 @@ library(magrittr)
 # or download from https://vdjdb.cdr3.net
 # or here https://github.com/antigenomics/vdjdb-db/releases/tag/2022-03-30
 vdjdb <-
-  readRDS(system.file("extdata", "vdjdb.tsv.rds", package = "igsc")) %>%
+  vroom::vroom(system.file("extdata", "vdjdb.tsv.gz", package = "igsc")) %>%
   dplyr::filter(Species == "HomoSapiens")
 
 # run example on one epitope from CMV IE1

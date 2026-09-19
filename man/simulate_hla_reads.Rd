@@ -54,7 +54,7 @@ sampling.}
 \value{
 A data frame with \code{n} rows and the following columns:
 \describe{
-\item{readName}{A unique synthetic read identifier.}
+\item{qname}{A unique synthetic read identifier.}
 \item{seq}{The simulated DNA sequence, including inserted SNPs.}
 \item{strand}{The strand label \code{"+"}, included for compatibility with
 \code{\link[=hla_typing]{hla_typing()}}.}

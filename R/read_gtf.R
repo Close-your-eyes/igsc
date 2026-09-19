@@ -1,33 +1,70 @@
-#' Read and process a GTF (Gene Transfer Format) file
+#' Read and process a GTF file
 #'
-#' Since GTF files come in an unhandy format, this function may help
-#' to easily read them into memory. As a whole or partly by providing
-#' seqnames and/or features. Processing the attribute column is computationally
-#' costly. Start/end: In both cases, gene on plus or minus strand, end is larger
-#' then start. This makes immediate sense for the plus strand but for the minus
-#' strand, genes actually go from a larger to a smaller position (5'->3').
+#' Read a Gene Transfer Format (GTF) file into memory, optionally restricting
+#' the input by sequence name, feature type, or gene name before parsing its
+#' attribute column. Files may be plain text or gzip-compressed.
 #'
-#' See https://www.ensembl.org/info/website/upload/gff.html?redirect=no for
-#' explanation of GTF file format.
-#' GTF files and genomic fasta files may be downloaded here https://www.ncbi.nlm.nih.gov/datasets/genome/
-#' or here https://www.ensembl.org/index.html
+#' Parsing the attribute column is usually the most expensive step. Applying
+#' \code{seqnames}, \code{features}, or \code{gene_names} can therefore reduce
+#' both run time and memory use.
 #'
-#' @param file_path path to the file; file may be gunzipped (ending with .gz)
-#' @param seqnames seqnames to filter the gtf file for; will decrease computation time
-#' required for processing the attribute column
-#' @param features features to filter the gtf file for; will decrease computation time
-#' required for processing the attribute column
-#' c("gene", "transcript", "exon", "CDS", "start_codon", "stop_codon",
-#' "five_prime_utr", "three_prime_utr", "Selenocysteine")
-#' @param process_attr_col convert the attribute column into separate columns
-#' @param col_names column names to assign to the gtf data frame;
-#' changing seqname, feature or attribute will break this function;
-#' better leave col_names as it is
-#' @return a list with (i) entries of the GTF file including the attribute
-#' column as list and some attributes as separate columns and
-#' (ii) the attributes as long data frame
-#' @param gene_names vector of gene names to filter for before attr col processing
-#' @param process_attr_col_args arguments to process_attr_col_args
+#' @param file_path A length-one character string giving the path to a GTF file.
+#'   Gzip-compressed files with a \code{.gz} extension are supported.
+#' @param seqnames An optional character vector of sequence names to read, such
+#'   as \code{"chr1"} or \code{c("chr1", "chrX")}. When supplied, matching
+#'   regions are selected before the attribute column is processed.
+#' @param features An optional character vector of feature types to retain. Each
+#'   value must occur in the file after sequence filtering. Common values include
+#'   \code{"gene"}, \code{"transcript"}, \code{"exon"}, \code{"CDS"},
+#'   \code{"start_codon"}, and \code{"stop_codon"}.
+#' @param gene_names An optional character vector used to filter the raw
+#'   \code{attribute} field before it is parsed. Matching is case-insensitive.
+#' @param gene_names_full_match Logical. If \code{TRUE}, each value in
+#'   \code{gene_names} is matched as a complete quoted GTF attribute value. If
+#'   \code{FALSE}, values are treated as case-insensitive regular expressions
+#'   and may match substrings.
+#' @param process_attr_col Logical. If \code{TRUE}, parse the GTF attribute field
+#'   with \code{process_gtf_attribute_col()}; if \code{FALSE}, retain the raw
+#'   \code{attribute} column and return \code{NULL} for the parsed attributes.
+#' @param process_attr_col_args A named list of arguments passed to
+#'   \code{process_gtf_attribute_col()}. The default keeps common gene,
+#'   transcript, and exon identifiers.
+#' @param process_attr_col_args_repl A named list of values that replace entries
+#'   in \code{process_attr_col_args}. Use this to change selected defaults
+#'   without repeating the complete argument list.
+#' @param col_names A character vector of column names assigned to the nine GTF
+#'   fields. The default follows the GTF specification. Internal processing
+#'   requires columns named \code{seqname}, \code{feature}, and
+#'   \code{attribute}; changing those names will break the function.
+#'
+#' @details
+#' GTF coordinates are one-based and inclusive. For records on either strand,
+#' \code{start} is numerically less than or equal to \code{end}. Biological
+#' transcription therefore proceeds from larger to smaller coordinates for a
+#' feature on the minus strand.
+#'
+#' Duplicate rows are removed before the result is returned. If attribute
+#' processing and its requested transformations remove all rows, the function
+#' may return \code{NULL}.
+#'
+#' @return A named list with components:
+#' \describe{
+#'   \item{\code{gtf}}{A data frame containing the selected GTF records. If
+#'     \code{process_attr_col = TRUE}, retained attributes are joined as
+#'     separate columns; otherwise the original \code{attribute} column is
+#'     preserved.}
+#'   \item{\code{attr}}{A wide data frame of parsed, retained attributes, or
+#'     \code{NULL} when \code{process_attr_col = FALSE}.}
+#' }
+#'
+#' @references
+#' Ensembl, "GFF/GTF File Format":
+#' \url{https://www.ensembl.org/info/website/upload/gff.html}
+#' \url{https://www.ensembl.org/info/website/upload/gff.html?redirect=no}
+#' \url{https://www.ncbi.nlm.nih.gov/datasets/genome/}
+#' \url{https://www.ensembl.org/index.html}
+#'
+#' @seealso \code{process_gtf_attribute_col()}
 #'
 #' @export
 #'
@@ -35,33 +72,37 @@
 #'
 #' @examples
 #' \dontrun{
-#' gtf <- read_gtf(your_path, attr_col_as_list = F)
-#' # when attr_col_as_list = F attributes are split into names and values columns
-#' # this is how to expand the attributes names and values columns
-#' # tidyr unnest over two columns matches the list indices
-#' gtf2 <-
-#' gtf[["gtf"]] |>
-#' dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
-#'                attribute_values = I(strsplit(attribute_values, ","))) |>
-#'                tidyr::unnest(cols = c(attribute_names, attribute_values))
+#' # Read selected feature types and parse common attributes.
+#' x <- read_gtf(
+#'   "genes.gtf.gz",
+#'   features = c("gene", "exon")
+#' )
+#' head(x$gtf)
+#' head(x$attr)
 #'
-#' # this is how to make a named list from separate names and values columns
-#' # this is returned when attr_col_as_list = T
-#' gtf2 <-
-#' gtf[["gtf"]] |>
-#' dplyr::mutate(attribute_names = I(strsplit(attribute_names, ",")),
-#' attribute_values = I(strsplit(attribute_values, ","))) |>
-#' dplyr::rowwise() |>
-#' dplyr::mutate(attr = I(list(stats::setNames(attribute_names, attribute_values))))
+#' # Read one sequence while preserving the raw attribute field.
+#' chr1 <- read_gtf(
+#'   "genes.gtf",
+#'   seqnames = "chr1",
+#'   process_attr_col = FALSE
+#' )
+#' head(chr1$gtf$attribute)
 #'
-#' # you may want to use the fst package to write the data frames to disk
-#' # this allows quick reading and random access
-#' # see function: genes_gtf_to_fst
+#' # Override selected attribute-processing defaults.
+#' exons <- read_gtf(
+#'   "genes.gtf",
+#'   process_attr_col_args_repl = list(
+#'     exons_only = TRUE,
+#'     attr_keep = c("gene_id", "gene_name", "transcript_id", "exon_number")
+#'   )
+#' )
+#' }
 read_gtf <- function(
     file_path,
     seqnames = NULL,
     features = NULL,
     gene_names = NULL,
+    gene_names_full_match = T,
     process_attr_col = T,
     process_attr_col_args = list(
       attr_keep = c(
@@ -82,8 +123,10 @@ read_gtf <- function(
       aggregate_exons = F,
       aggregate_overlapping_exon_ranges = F,
       check_for_rotation = F,
-      genome_length = NULL
+      genome_length = NULL,
+      fill_na = F
     ),
+    process_attr_col_args_repl = list(),
 
     col_names = c(
       "seqname",
@@ -139,10 +182,10 @@ read_gtf <- function(
   }
 
   if (!is.null(gene_names)) {
-    gene_names <- paste0("\"", gene_names, "\"")
+    if (gene_names_full_match) {
+      gene_names <- paste0("\"", gene_names, "\"")
+    }
     pattern <- paste(gene_names, collapse="|")
-
-    #gtf2 <- gtf[which(grepl(paste(gene_names, collapse = "|"), gtf$attribute, ignore.case = T)),]
     gtf <- gtf[stringi::stri_detect_regex(gtf$attribute, pattern, case_insensitive = TRUE), ]
 
     # data.table::setDT(gtf)
@@ -163,6 +206,10 @@ read_gtf <- function(
   if (process_attr_col) {
     # message("processing the attribute column.")
     # use waldo::compare to compare results
+    for (i in names(process_attr_col_args_repl)) {
+      process_attr_col_args[[i]] <-  process_attr_col_args_repl[[i]]
+    }
+
     ret_list <- Gmisc::fastDoCall(what = process_gtf_attribute_col,
                                   args = c(list(gtf = gtf),
                                            process_attr_col_args))
@@ -185,76 +232,136 @@ read_gtf <- function(
 
 }
 
-#' Process attribute column of gtf file
+#' Parse and transform a GTF attribute column
 #'
-#' @param gtf gtf file as read with read_gtf
-#' @param attr_keep which attributes to keep from attribute column; NULL to keep all;
-#' e.g. attr_keep = c("gene_id", "transcript_id", "gene_name", "gene_type")
-#' @param attr_rename key value pairs how to rename attributes; will append to attr_keep;
-#' e.g. attr_rename = c("product" = "gene_name", "gene_biotype" = "gene_type")
-#' @param attr_as how to return attributes; kv is key value pairs
-#' @param gene_name_prefix prefix to add to gene_name?; e.g. "EBV"
-#' @param gene_name_force if is.na(gene_name) which attribute to use instead for
-#' gene_name; NULL to not do it; e.g. "gene_id"
-#' @param use_fun which function to use for processing the attr_col; only r
-#' is working and is fast
-#' @param rm_index remove index column?
-#' @param rename_replace remove old entries from attr_rename
-#' @param gene_name_fix fix names: like replace all non-alphanumeric by dashes
-#' @param gene_name_replace e.g. c("glycopeotein" = "")
-#' @param rm_exon remove original exon entries from gtf, done first
-#' @param features_to_exon features to become exons, e.g. "CDS"; done second
-#' @param exons_only only retain exons entries; done third
-#' @param aggregate_exons aggregate exons of one transcript_id to one entry;
-#' probably necessary for aggregate_overlapping_exon_ranges; information on intronic
-#' regions lost; done fourth; may be relevant for mapping reads
-#' @param aggregate_overlapping_exon_ranges check for overlap between transcripts;
-#' when overlap: transcripts are joined to one entry; when both on same strand,
-#' then this info is retained, when on different strands then (+)strand is assigned;
-#' may be relevant for mapping reads
-#' @param check_for_rotation check if any gene spans the artificial origin
-#' (start) of a circular genome; if so, another cut position is chosen and
-#' start end coordinates are adjusted; genome_length needed then
-#' @param genome_length length of associated genome or refseq; only needed
-#' for rotation
-#' @param rm_entries_wo_matching_exon this has to done to meet mkref requirements
-#' @param verbose print messages?
+#' Parse the ninth GTF field into separate attributes and optionally normalize
+#' identifiers, reshape exon records, merge overlapping ranges, or rotate
+#' coordinates for a circular reference. The result can retain attributes as
+#' columns or reconstruct a standard GTF key-value attribute field.
 #'
-#' @returns
+#' @param gtf A data frame containing the nine standard GTF fields, including
+#'   \code{seqname}, \code{feature}, \code{start}, \code{end},
+#'   \code{strand}, and \code{attribute}. This is typically
+#'   \code{read_gtf(..., process_attr_col = FALSE)$gtf}.
+#' @param attr_keep A character vector of attribute names to retain, for example
+#'   \code{c("gene_id", "transcript_id", "gene_name", "gene_type")}.
+#'   Use \code{NULL} to retain every parsed attribute. Destination names in
+#'   \code{attr_rename} are retained automatically.
+#' @param attr_rename An optional named character vector mapping source attribute
+#'   names to destination names, for example
+#'   \code{c(product = "gene_name", gene_biotype = "gene_type")}.
+#' @param rename_replace Logical. If \code{FALSE}, mapped attributes are copied
+#'   under their destination names and the source attributes are retained. If
+#'   \code{TRUE}, source names are replaced. Pre-existing destination
+#'   attributes are removed before the mapping is applied.
+#' @param attr_as Output representation for attributes. \code{"cols"} adds one
+#'   column per retained attribute to \code{gtf}; \code{"kv"} reconstructs
+#'   the GTF \code{attribute} field as quoted key-value pairs.
+#' @param gene_name_prefix A character string prepended to non-missing
+#'   \code{gene_name} values. It is ignored when \code{gene_name_force = NULL}.
+#' @param gene_name_force The name of an attribute used when \code{gene_name}
+#'   is missing. The named attribute must be retained and present. Set to
+#'   \code{NULL} to disable fallback; a non-empty \code{gene_name_prefix} is
+#'   then reset to an empty string.
+#' @param gene_name_fix Logical. If \code{TRUE}, replace each run of
+#'   non-alphanumeric characters in \code{gene_name} with \code{"-"}, then
+#'   remove leading and trailing hyphens.
+#' @param gene_name_replace An optional named character vector or list of
+#'   regular-expression replacements applied sequentially to \code{gene_name}.
+#'   Names are patterns and values are replacements, for example
+#'   \code{c("hypothetical protein" = "HYPPROT")}.
+#' @param use_fun Attribute parser to use. Only \code{"r"} is currently
+#'   supported.
+#' @param rm_index Logical. If \code{TRUE}, remove the temporary row-linkage
+#'   \code{index} column from the returned \code{gtf} component.
+#' @param rm_exon Logical. If \code{TRUE}, remove existing exon records before
+#'   applying \code{features_to_exon}.
+#' @param features_to_exon A character vector of feature types to relabel as
+#'   \code{"exon"}, such as \code{"CDS"}.
+#' @param exons_only Logical. If \code{TRUE}, retain only exon records after
+#'   removal and relabeling. The function returns \code{NULL} if none remain.
+#' @param aggregate_exons Logical. If \code{TRUE}, collapse all exons belonging
+#'   to each \code{transcript_id} to its minimum start and maximum end. This
+#'   discards intron boundaries and sets \code{exon_number} to 1.
+#' @param aggregate_overlapping_exon_ranges Logical. If \code{TRUE}, merge
+#'   connected overlapping exon ranges within each sequence. Same-strand ranges
+#'   retain their strand; a merged range containing opposing strands is assigned
+#'   \code{"+"}. Using \code{aggregate_exons = TRUE} first is strongly
+#'   recommended so individual exons from different genes are not joined into
+#'   an invalid annotation. Requires the \pkg{igraph} package.
+#' @param check_for_rotation Logical. For a circular reference, detect a gene
+#'   spanning the artificial origin, choose a cut in an intergenic gap, and
+#'   rotate GTF coordinates. The corresponding genome sequence must be rotated
+#'   separately using the cut position reported in the message.
+#' @param genome_length A positive numeric value giving the reference sequence
+#'   length. Required when \code{check_for_rotation = TRUE}.
+#' @param rm_entries_wo_matching_exon Logical. If \code{TRUE}, retain records
+#'   whose \code{transcript_id} occurs in an exon record, plus gene records with
+#'   a matching \code{gene_name}. This can be used to satisfy Cell Ranger
+#'   \code{mkref} requirements.
+#' @param verbose Logical. If \code{TRUE}, emit informational messages where
+#'   supported.
+#' @param fill_na Logical. If \code{TRUE}, fill missing \code{transcript_id}
+#'   from \code{gene_id}, missing \code{transcript_name} from
+#'   \code{gene_name}, and missing retained \code{exon_number} values with 0.
+#'
+#' @details
+#' Transformations occur in the following order: existing exons are optionally
+#' removed; selected feature types are relabeled as exons; non-exons are
+#' optionally discarded; attributes are parsed, selected, and renamed; gene
+#' names and duplicate identifiers are normalized; circular coordinates are
+#' optionally rotated; exons and overlapping ranges are optionally aggregated;
+#' entries without matching exons are optionally removed; and the requested
+#' attribute representation is produced.
+#'
+#' The parser expects conventional GTF attributes of the form
+#' \code{key "value";} separated by a semicolon and a space. Repeated values
+#' for the same attribute and input row are joined with \code{"__"}.
+#'
+#' @return A named list with components:
+#' \describe{
+#'   \item{\code{gtf}}{The processed annotation data frame. Attributes are
+#'     returned as individual columns when \code{attr_as = "cols"}, or in a
+#'     reconstructed \code{attribute} column when \code{attr_as = "kv"}.}
+#'   \item{\code{attr}}{A wide data frame of the parsed attributes selected by
+#'     \code{attr_keep}, keyed by the temporary input-row index. This component
+#'     reflects parsing and renaming but not later coordinate or exon
+#'     transformations.}
+#' }
+#' The function returns \code{NULL} instead if \code{exons_only = TRUE} and
+#' no exon records remain.
+#'
+#' @seealso \code{read_gtf()}, \code{make_kv_attr_col()}
+#'
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' # suggestion for viral genome prep as cellranger ref
-#' gtf <- read_gtf(viral_gtf[[x]], process_attr_col = F)[["gtf"]]
-#' process_gtf_attribute_col(gtf,
-#'                           attr_keep = NULL,
-#'                           attr_rename = y,
-#'                           attr_as = "kv",
-#'                           gene_name_prefix = paste0(x, "_"),
-#'                           gene_name_force = "gene_id",
-#'                           gene_name_replace = c("glycoprotein" = "",
-#'                                                 "helicase-primase primase subunit" = "",
-#'                                                 "helicase-primase subunit" = "",
-#'                                                 "single-stranded DNA binding protein" = "ssDNAbp",
-#'                                                 "hypothetical protein" = "HYPPROT"),
-#'                           rm_index = T,
-#'                           rm_exon = T,
-#'                           exons_only = T,
-#'                           aggregate_overlapping_exon_ranges = T,
-#'                           aggregate_exons = T,
-#'                           check_for_rotation = T,
-#'                           genome_length = z,
-#'                           features_to_exon = c("CDS"))
-#' # then optional:
-#' igsc:::ebvgenomerot <- rotate_genome_string(ebvgenome, cut = 144792)
-#' igsc::write_fasta(ebvgenomerot, file = "ebv_rotated.fa")
-#' # later:
-#' combine_gtf_and_genome_for_cellranger(genome_files = viral_genomes[-3],
-#'                                       gtf_files = viral_gtf_new_path,
-#'                                       save_path = wd,
-#'                                       save_names = c("genome5.fa", "genes5.gtf"),
-#'                                       overwrite = T)
+#' # Parse selected attributes into columns.
+#' raw_gtf <- read_gtf("genes.gtf", process_attr_col = FALSE)$gtf
+#' parsed <- process_gtf_attribute_col(
+#'   raw_gtf,
+#'   attr_keep = c("gene_id", "gene_name", "transcript_id", "exon_number")
+#' )
+#' head(parsed$gtf)
+#'
+#' # Copy gene_biotype to gene_type and reconstruct a valid attribute field.
+#' renamed <- process_gtf_attribute_col(
+#'   raw_gtf,
+#'   attr_rename = c(gene_biotype = "gene_type"),
+#'   rename_replace = FALSE,
+#'   attr_as = "kv"
+#' )
+#'
+#' # Build exon-only records from CDS features.
+#' cds_exons <- process_gtf_attribute_col(
+#'   raw_gtf,
+#'   attr_keep = c("gene_id", "gene_name", "transcript_id", "exon_number"),
+#'   rm_exon = TRUE,
+#'   features_to_exon = "CDS",
+#'   exons_only = TRUE,
+#'   attr_as = "kv"
+#' )
 #' }
 process_gtf_attribute_col <- function(gtf,
                                       attr_keep = NULL,
@@ -275,7 +382,8 @@ process_gtf_attribute_col <- function(gtf,
                                       check_for_rotation = F,
                                       genome_length = NULL,
                                       rm_entries_wo_matching_exon = F,
-                                      verbose = T) {
+                                      verbose = T,
+                                      fill_na = F) {
 
   attr_as <- rlang::arg_match(attr_as) # kv = key value pair
   use_fun <- rlang::arg_match(use_fun)
@@ -390,8 +498,25 @@ process_gtf_attribute_col <- function(gtf,
       attr_col2$gene_name <- gsub("^-|-$", "", attr_col2$gene_name)
     }
 
+
+    if (fill_na) {
+      attr_col2 <- attr_col2 |>
+        dplyr::mutate(transcript_id = ifelse(is.na(transcript_id), gene_id, transcript_id)) |>
+        dplyr::mutate(transcript_name = ifelse(is.na(transcript_name), gene_name, transcript_name))
+      if ("exon_number" %in% names(attr_col2)) {
+        if (any(grepl(";", gtf[["exon_number"]]))) {
+          attr_col2 <- dplyr::mutate(attr_col2, exon_number = ifelse(is.na(exon_number), "0; exon_id 0", exon_number))
+        } else {
+          attr_col2 <- dplyr::mutate(attr_col2, exon_number = ifelse(is.na(exon_number), "0", exon_number))
+        }
+      }
+    }
+
     # check for duplicates of pairs of gene_id, gene_name
-    attr_col2 <- fix_duplicates(attr_col = attr_col2, verbose = verbose)
+    attr_col2 <- fix_duplicates(
+      attr_col = attr_col2,
+      verbose = verbose
+    )
 
   }
 
@@ -407,7 +532,6 @@ process_gtf_attribute_col <- function(gtf,
       attr_col2 <- df |> dplyr::select(dplyr::all_of(names(df)[which(!names(df) %in% names(gtf))]), index)
     }
   }
-
 
   ## highly advisable for when aggregate_overlapping_exon_ranges is done
   # if genes are not aggregated, then single exons from different genes may be joined

@@ -58,16 +58,23 @@ plot_sc_reads <- function(gtf_file,
   # gene info should have one line only
 
   seq_bounds <- get_fasta_seq_bounds(genome_file)
-  if (!seqname %in% seq_bounds$name) {
+  if (!seqname %in% seq_bounds$seqname) {
     stop("seqname not found in genome file.")
   }
   refseq <- read_fasta(genome_file,
                        start_line = seq_bounds[which(seq_bounds$name == seqname), "start_line"],
                        end_line = seq_bounds[which(seq_bounds$name == seqname), "end_line"])
 
-  refseq_range <- GenomicRanges::GRanges(seqnames = seqname, strand = gene_info$strand[1],
-                                         ranges = IRanges::IRanges(start = gene_info$start[1], end = gene_info$end[1]))
-  reads <- igsc::get_bam_reads(file_path = bam_file, genomic_ranges = refseq_range, revcomp_minus_strand = F)
+  refseq_range <- GenomicRanges::GRanges(
+    seqnames = seqname,
+    strand = gene_info$strand[1],
+    ranges = IRanges::IRanges(start = gene_info$start[1], end = gene_info$end[1])
+  )
+  reads <- get_bam_reads(
+    bam = bam_file,
+    granges = refseq_range,
+    revcomp_minus_strand = F
+  )
   reads_sub <- dplyr::slice_sample(reads, n = n_reads_sample)
 
   pattern_df <- purrr::pmap_dfr(list(reads_sub$cigar,

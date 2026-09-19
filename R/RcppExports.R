@@ -5,6 +5,10 @@ countOccurrencesInCpp <- function(mat, cols) {
     .Call(`_igsc_countOccurrencesInCpp`, mat, cols)
 }
 
+countOccurrencesSparseCpp <- function(mat, cols) {
+    .Call(`_igsc_countOccurrencesSparseCpp`, mat, cols)
+}
+
 compare_nonref_cpp <- function(df, ref, pos_col = "position", seq_col = "seq", name_col = "seq.name", match_symbol = ".", mismatch_symbol = "x", keep_gaps = TRUE, nonref_mismatch_as = "base") {
     .Call(`_igsc_compare_nonref_cpp`, df, ref, pos_col, seq_col, name_col, match_symbol, mismatch_symbol, keep_gaps, nonref_mismatch_as)
 }

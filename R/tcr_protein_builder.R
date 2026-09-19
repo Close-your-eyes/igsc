@@ -501,6 +501,17 @@ build_tcr_protein <- function(ref, v_gene, j_gene, cdr3, d_gene = NULL,
   result
 }
 
+#' Print a reconstructed TCR protein
+#'
+#' Print a compact summary and the complete amino-acid sequence of an object
+#' returned by [build_tcr_protein()].
+#'
+#' @param x An object of class `tcr_protein`.
+#' @param ... Additional arguments reserved for compatibility with
+#'   [base::print()].
+#'
+#' @return `x`, invisibly.
+#' @export
 print.tcr_protein <- function(x, ...) {
   cat("Full ", x$chain, " TCR protein: ", x$length_aa, " aa\n", sep = "")
   cat("Segments: ", paste(names(x$segments), x$segments,
@@ -510,8 +521,23 @@ print.tcr_protein <- function(x, ...) {
   invisible(x)
 }
 
+#' Convert an object to FASTA text
+#'
+#' Convert a supported sequence object to a single FASTA-formatted character
+#' string. Methods can provide object-specific headers and sequence wrapping.
+#'
+#' @param x An object to convert to FASTA text.
+#' @param ... Additional arguments passed to the object's S3 method.
+#'
+#' @return A single FASTA-formatted character string.
+#' @export
 as_fasta <- function(x, ...) UseMethod("as_fasta")
 
+#' @param header Optional FASTA header. When `NULL`, a header is constructed
+#'   from the TCR chain, inferred segment alleles, and CDR3 sequence.
+#' @param width Positive integer giving the maximum sequence-line width.
+#' @rdname as_fasta
+#' @export
 as_fasta.tcr_protein <- function(x, header = NULL, width = 80L, ...) {
   width <- as.integer(width)
   if (length(width) != 1L || is.na(width) || width < 1L) {

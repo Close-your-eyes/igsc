@@ -12,7 +12,7 @@ hla_typing(
   hla_seq_col_name = "seq_Exon2_3",
   read_seq_col_name = "seq",
   hla_allele_col_name = "allele",
-  read_name_col_name = "readName",
+  read_name_col_name = "qname",
   p_group_col_name = "p_group",
   g_group_col_name = "g_group",
   lapply_fun = lapply,
