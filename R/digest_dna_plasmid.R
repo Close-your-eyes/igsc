@@ -14,10 +14,22 @@
 #'   orientation. Each element is treated as a separate circular molecule.
 #'   Sequence names are preserved.
 #' @param type Output type: \code{"fragments"} (the default) or
-#'   \code{"positions"}. Unambiguous abbreviations are accepted.
+#'   \code{"positions"}.
 #' @param strand Strand or strands to digest: \code{"both"} (the default),
 #'   \code{"top"}, or \code{"bottom"}. The bottom strand is the reverse
-#'   complement of the top strand. Unambiguous abbreviations are accepted.
+#'   complement of the top strand.
+#' @param join_fragments A single logical value. If \code{TRUE}, join the
+#'   last and first fragments on each strand to reconstruct the fragment
+#'   spanning the artificial sequence boundary. Defaults to \code{FALSE},
+#'   which keeps the terminal fragments separate.
+#'   Ignored when \code{type = "positions"}.
+#' @param reverse_bottom A single logical value, defaulting to \code{TRUE}.
+#'   Reverse the nucleotide order within each bottom-strand fragment so it
+#'   is displayed in the 3' to 5' direction alongside the top strand.
+#'   This reverses the sequence without complementing it. If \code{FALSE},
+#'   bottom fragments retain their 5' to 3' sequence orientation.
+#'   Bottom-fragment ordering is adjusted in either case. Ignored for
+#'   position output and when \code{strand = "top"}.
 #'
 #' @details
 #' Cut positions from rotated sequences are mapped back to the original
@@ -35,17 +47,41 @@
 #' cuts are found but the checked rotations omit other cuts, further
 #' rotations are searched until a suitable orientation is found.
 #'
-#' The final result is returned directly from \code{DECIPHER::DigestDNA}.
-#' Its linear digestion behavior is preserved: terminal fragments are not
-#' joined across the artificial boundary. Returned positions refer to the
-#' orientation used for the final digest; they are not mapped back when a
-#' sequence has been rotated.
+#' When \code{type = "fragments"} and \code{join_fragments = TRUE}, the
+#' last and first linear fragments from
+#' \code{DECIPHER::DigestDNA} are joined, in that order, to reconstruct the
+#' fragment spanning the artificial sequence boundary. Joining is performed
+#' separately for each sequence and strand, only when that strand has more
+#' than one fragment. This applies to both original and rotated sequences.
+#' With \code{join_fragments = FALSE}, terminal fragments remain separate.
+#'
+#' Bottom fragments are ordered along the top strand: their order from
+#' \code{DECIPHER::DigestDNA} is reversed. If terminal fragments have been
+#' joined, the joined boundary fragment remains first on both strands and
+#' only the internal bottom fragments are reordered. The first bottom
+#' fragment therefore corresponds to the first top fragment, and so on
+#' for digests with corresponding cuts on both strands. Sticky ends can
+#' give corresponding fragments different lengths; no padding is added.
+#' The \code{reverse_bottom} argument controls nucleotide order within
+#' bottom fragments independently of this fragment ordering.
+#'
+#' Position output is returned directly from \code{DECIPHER::DigestDNA}.
+#' Positions refer to the orientation used for the final digest; they are
+#' not mapped back when a sequence has been rotated.
 #'
 #' @return
-#' For \code{type = "fragments"}, a \code{DNAStringSetList} with one element
-#' per input sequence. Each element contains fragments named \code{"top"}
-#' and/or \code{"bottom"}, according to \code{strand}. An uncut strand is
-#' returned as its full sequence in the orientation used for digestion.
+#' For \code{type = "fragments"}, an ordinary R list with one
+#' \code{Biostrings::DNAStringSet} per input sequence, preserving input
+#' order and sequence names. Within each set, all \code{"top"} fragments
+#' precede all \code{"bottom"} fragments, according to \code{strand}.
+#' The bottom fragments follow the corresponding top-fragment order.
+#' When joining is
+#' enabled, the joined boundary fragment is placed first within each strand,
+#' followed by any internal fragments in their original order. A strand cut
+#' once then yields one full-length linear fragment beginning immediately
+#' after the cut on that strand, before any bottom-sequence reversal. An
+#' uncut strand is returned once as its full sequence, with bottom-strand
+#' nucleotide order controlled by \code{reverse_bottom}.
 #'
 #' For \code{type = "positions"}, a list with one element per input sequence.
 #' Each element is a named list containing numeric cut-position vectors
@@ -56,8 +92,14 @@
 #' @section Messages and errors:
 #' A message identifies each rotated sequence and its leftward shift in
 #' bases. For position output, the message also states that coordinates
-#' refer to the rotated sequence. Messages can be silenced with
-#' \code{suppressMessages()}.
+#' refer to the rotated sequence.
+#'
+#' When fragment joining is enabled and a strand has exactly one cut, a
+#' message identifies the sequence and affected strand or strands. The
+#' joined fragment has the full sequence length even though a cut occurred,
+#' so the result may otherwise appear unchanged. No such message is emitted
+#' for uncut strands, when joining is disabled, or for position output.
+#' Messages can be silenced with \code{suppressMessages()}.
 #'
 #' Each plasmid must be longer than the region spanning every supplied
 #' recognition sequence and its associated cuts. The function stops with
@@ -69,7 +111,16 @@
 #'
 #' @examples
 #' # An internal EcoRI site: retain the original orientation.
-#' digest_dna_plasmid("G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"))
+#' tt <- digest_dna_plasmid("G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"))
+#'
+#' # print the cut sites
+#' dna_double_strand_print(tt[1], tt[3])
+#' dna_double_strand_print(tt[2], tt[4], align = "right")
+#'
+#' # Join the ends: one cut yields a full-length fragment and a message.
+#' digest_dna_plasmid(
+#'   "G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"), join_fragments = TRUE
+#' )
 #'
 #' # An EcoRI site spanning the boundary: rotate and report the shift.
 #' seqs <- c(plasmid = "AATTCAAAAAAAAAAAAAAG")
@@ -86,14 +137,28 @@
 #'   "G/AATTC", Biostrings::DNAStringSet(seqs), strand = "top"
 #' )
 #'
+#' # Keep bottom sequences in 5' to 3' orientation, but align fragment order.
+#' fragments <- digest_dna_plasmid("G/AATTC", seqs, reverse_bottom = FALSE)
+#' fragments[[1L]]
+#'
 #' @export
 digest_dna_plasmid <- function(sites,
                                seqs,
                                type = c("fragments", "positions"),
-                               strand = c("both", "top", "bottom")) {
+                               strand = c("both", "top", "bottom"),
+                               join_fragments = FALSE,
+                               reverse_bottom = TRUE) {
 
   type <- rlang::arg_match(type)
   strand <- rlang::arg_match(strand)
+  if (!is.logical(join_fragments) || length(join_fragments) != 1L ||
+      is.na(join_fragments)) {
+    stop("join_fragments must be a single TRUE or FALSE.")
+  }
+  if (!is.logical(reverse_bottom) || length(reverse_bottom) != 1L ||
+      is.na(reverse_bottom)) {
+    stop("reverse_bottom must be a single TRUE or FALSE.")
+  }
 
   if (is.character(seqs)) seqs <- Biostrings::DNAStringSet(seqs)
   if (!methods::is(seqs, "DNAStringSet")) {
@@ -196,6 +261,69 @@ digest_dna_plasmid <- function(sites,
   }
   names(adjusted) <- names(seqs)
   result <- DECIPHER::DigestDNA(sites, adjusted, type, strand)
+  if (type == "fragments" && join_fragments) {
+    joined <- vector("list", length(result))
+    names(joined) <- names(result)
+    for (i in seq_along(result)) {
+      fragments <- result[[i]]
+      strand_names <- unique(names(fragments))
+      single_cut <- strand_names[vapply(strand_names, function(s) {
+        sum(names(fragments) == s) == 2L
+      }, logical(1))]
+      if (length(single_cut)) {
+        label <- if (is.null(names(seqs))) as.character(i) else
+          paste0(i, " ('", names(seqs)[i], "')")
+        notices <- c(notices, paste0(
+          "Sequence ", label, ": exactly one cut on each listed strand (",
+          paste(single_cut, collapse = ", "), "). Joining the end fragments ",
+          "returns one full-length fragment per listed strand. The strands ",
+          "were cut, even though their lengths are unchanged."
+        ))
+      }
+      strands <- lapply(strand_names, function(s) {
+        pieces <- fragments[names(fragments) == s]
+        if (length(pieces) > 1L) {
+          last <- length(pieces)
+          boundary <- Biostrings::DNAStringSet(paste0(
+            as.character(pieces[c(last, 1L)]), collapse = ""
+          ))
+          pieces <- c(boundary, pieces[-c(1L, last)])
+          names(pieces) <- rep(s, length(pieces))
+        }
+        pieces
+      })
+      joined[[i]] <- do.call(c, strands)
+    }
+    result <- joined
+  }
+  if (type == "fragments") {
+    result <- lapply(result, function(fragments) {
+      top <- fragments[names(fragments) == "top"]
+      bottom <- fragments[names(fragments) == "bottom"]
+      if (join_fragments && length(bottom) > 1L) {
+        # Both joined boundary fragments must remain first in their groups.
+        bottom <- c(bottom[1L], rev(bottom[-1L]))
+      } else {
+        bottom <- rev(bottom)
+      }
+      if (reverse_bottom) bottom <- Biostrings::reverse(bottom)
+      names(top) <- make.unique(names(top))
+      names(bottom) <- make.unique(names(bottom))
+      c(top, bottom)
+    })
+  }
   for (notice in notices) message(notice)
   result
 }
+
+# An internal EcoRI site: retain the original orientation.
+# tt <- digest_dna_plasmid("G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"), reverse_bottom = T)[[1]]
+# tt
+# dna_double_strand_print(tt[1],tt[3])
+# dna_double_strand_print(tt[2],tt[4], align = "right")
+#
+# tt <- digest_dna_plasmid("G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"), reverse_bottom = F)[[1]]
+# tt
+# dna_double_strand_print(tt[1],tt[3])
+
+
