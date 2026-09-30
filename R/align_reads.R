@@ -486,7 +486,7 @@ plot_aligned_reads <- function(match_df_list, # r1 and r2 need to be there
         dplyr::summarise(n = dplyr::n(), .groups = "drop")
 
       # make r2 rev comp
-      temp$read_seq_r2[which(!is.na(temp$read_seq_r2))] <- revcompDNA(temp$read_seq_r2[which(!is.na(temp$read_seq_r2))])
+      temp$read_seq_r2[which(!is.na(temp$read_seq_r2))] <- revcomp_dna(temp$read_seq_r2[which(!is.na(temp$read_seq_r2))])
       reads_groups <- apply(temp, 1, function(z) c(z["read_seq_r1"], z["read_seq_r2"]), simplify = F)
       names(reads_groups) <- as.character(seq(1, length(reads_groups), 1))
       ## assign names to reads groups based on if any read is NA

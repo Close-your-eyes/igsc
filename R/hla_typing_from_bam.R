@@ -1,3 +1,283 @@
+#' Type HLA genes directly from an RNA-seq BAM file
+#'
+#' A convenience workflow that first calls [get_hla_reads()] and then calls
+#' [hla_typing()] separately for each requested HLA gene.
+#'
+#' @inheritParams get_hla_reads
+#' @param hla_ref HLA allele reference data frame, preferably created by
+#'   [hla_df_from_xml()].
+#' @param genes Character vector of genes to type, for example `c("A", "B",
+#'   "C")`. An optional `HLA-` prefix is ignored. Use `NULL` to type every gene
+#'   represented in `hla_ref`. When `reference_gtf` is supplied, the same genes
+#'   determine which annotated gene boundaries are queried.
+#' @param hla_gene_col_name Column in `hla_ref` containing HLA gene names.
+#' @param allele_diff Maximum fold difference used to retain candidate alleles;
+#'   passed to [hla_typing()].
+#' @param top_n_pairwise_results Number of leading allele pairs to plot; passed
+#'   to [hla_typing()].
+#' @param hla_seq_col_name Name of the HLA sequence column in `hla_ref`.
+#' @param hla_allele_col_name Name of the allele identifier column in
+#'   `hla_ref`.
+#' @param p_group_col_name Name of the P-group column in `hla_ref`.
+#' @param g_group_col_name Name of the G-group column in `hla_ref`.
+#' @param lapply_fun Apply function used for allele matching; passed to
+#'   [hla_typing()].
+#' @param maxmis Maximum mismatches allowed per read match; passed to
+#'   [hla_typing()].
+#' @param make_reads_distinct Logical; remove duplicate read sequences before
+#'   matching; passed to [hla_typing()].
+#' @param pairwise_method Pairwise search procedure, `"exhaustive"` or
+#'   `"heuristic"`; passed to [hla_typing()].
+#' @param pairwise_anchor_n Number of anchor allele groups used by the
+#'   heuristic; passed to [hla_typing()].
+#' @param pairwise_partner_n Maximum partners shortlisted per anchor by the
+#'   heuristic; passed to [hla_typing()].
+#' @param ... Additional arguments passed to `lapply_fun` by [hla_typing()],
+#'   such as `mc.cores` for [parallel::mclapply()].
+#'
+#' @return A list with `reads`, the candidate HLA read data frame; `typing`, a
+#'   named list of [hla_typing()] results; and `regions`, the queried genomic
+#'   ranges.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' result <- hla_typing_from_bam(
+#'   bam = "outs/possorted_genome_bam.bam",
+#'   hla_ref = hla_ref,
+#'   reference_gtf = "reference/genes/genes.gtf",
+#'   genes = c("A", "B", "C"),
+#'   maxmis = 1)
+#'
+#' # check strandness of HLA genes
+#' gtf <- read_gtf(".../refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+#'                 gene_names = "HLA-",
+#'                 gene_names_full_match = F,
+#'                 features = "gene")$gtf |>
+#'   dplyr::select(gene_name, start, end, strand) |>
+#'   dplyr::filter(!grepl("AS", gene_name)) |>
+#'   dplyr::arrange(gene_name)
+#' # genes on (-) Strand: revcomp the reference as reads from BAM file are always
+#' # mapped to (+) Strand but reference give sequence from (-) Strand
+#' #   |gene_name |    start|      end|strand |
+#' #   |:---------|--------:|--------:|:------|
+#' #   |HLA-A     | 29941260| 29945884|+      |
+#' #   |HLA-B     | 31269491| 31357188|-      |
+#' #   |HLA-C     | 31268749| 31272130|-      |
+#' #   |HLA-DMA   | 32948613| 32969094|-      |
+#' #   |HLA-DMB   | 32934629| 32941028|-      |
+#' #   |HLA-DOA   | 33004182| 33009591|-      |
+#' #   |HLA-DOB   | 32812763| 32820466|-      |
+#' #   |HLA-DPA1  | 33064569| 33080775|-      |
+#' #   |HLA-DPB1  | 33075990| 33089696|+      |
+#' #   |HLA-DQA1  | 32628179| 32647062|+      |
+#' #   |HLA-DQA2  | 32741391| 32747198|+      |
+#' #   |HLA-DQB1  | 32659467| 32668383|-      |
+#' #   |HLA-DQB2  | 32756098| 32763532|-      |
+#' #   |HLA-DRA   | 32439878| 32445046|+      |
+#' #   |HLA-DRB1  | 32578769| 32589848|-      |
+#' #   |HLA-DRB5  | 32517353| 32530287|-      |
+#' #   |HLA-E     | 30489509| 30494194|+      |
+#' #   |HLA-F     | 29722775| 29738528|+      |
+#' #   |HLA-G     | 29826967| 29831125|+      |
+#'
+#'
+#' library(igsc)
+#' hla <- hla_df_from_xml(
+#'   "/Volumes/CMS_SSD_2TB/hla.xml.gz",
+#'   lapply_fun = parallel::mclapply,
+#'   mc.cores = 8)
+#'
+#' hlaA <- hla |>
+#'   dplyr::filter(grepl("^HLA-A", allele)) |>
+#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein)
+#'
+#' hlaresA <- hla_typing_from_bam(
+#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+#'   hla_ref = hlaA,
+#'   genes = "A",
+#'   lapply_fun = parallel::mclapply,
+#'   make_reads_distinct = T,
+#'   mc.cores = 4,
+#'   maxmis = 3,
+#'   allele_diff = 4)
+#' hlaresA$typing$B$plot_pair_res2
+#'
+#' ## HLA-B and HLA-C are on (-) Strand but all bam reads are returned as on (+) Strand
+#' ## hence revcomp the reference: (-) --> (+)
+#' hlaB <- hla |>
+#'   dplyr::filter(grepl("^HLA-B", allele)) |>
+#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
+#'   dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
+#'
+#' hlaresB <- hla_typing_from_bam(
+#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+#'   hla_ref = hlaB,
+#'   genes = "B",
+#'   lapply_fun = parallel::mclapply,
+#'   make_reads_distinct = T,
+#'   mc.cores = 4,
+#'   maxmis = 3,
+#'   allele_diff = 4)
+#' hlaresB$typing$B$plot_pair_res2
+#'
+#' hlaC <- hla |>
+#'   dplyr::filter(grepl("^HLA-C", allele)) |>
+#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
+#'   dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
+#'
+#' hlaresC <- hla_typing_from_bam(
+#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+#'   hla_ref = hlaC,
+#'   genes = "C",
+#'   lapply_fun = parallel::mclapply,
+#'   make_reads_distinct = T,
+#'   mc.cores = 4,
+#'   maxmis = 3,
+#'   allele_diff = 4)
+#' hlaresC$typing$C$plot_pair_res2
+#'
+#' hlaDPA1 <- hla |>
+#'   dplyr::filter(grepl("^HLA-DPA1", allele)) |>
+#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
+#'   dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
+#'
+#' hlaresDPA1 <- hla_typing_from_bam(
+#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+#'   hla_ref = hlaDPA1,
+#'   genes = "DPA1",
+#'   lapply_fun = parallel::mclapply,
+#'   make_reads_distinct = T,
+#'   mc.cores = 4,
+#'   maxmis = 3,
+#'   allele_diff = 2)
+#' hlaresDPA1$typing$DPA1$plot_pair_res2
+#' }
+hla_typing_from_bam <- function(
+    bam,
+    hla_ref,
+    reference_genome = NULL,
+    reference_gtf = NULL,
+    regions = NULL,
+    genes = c("A", "B", "C"),
+    hla_gene_col_name = "gene",
+    mhc_start = 28000000L,
+    mhc_end = 34000000L,
+    include_alt_contigs = TRUE,
+    tags = c("CR", "CB", "CY", "AS", "UR", "UB", "UY", "HI", "NH",
+             "nM", "RE"),
+    scores = TRUE,
+    min_mapq = 0L,
+    primary_only = TRUE,
+    cell_barcodes = NULL,
+    cell_barcode_tag = "CB",
+    allele_diff = 5,
+    top_n_pairwise_results = 50,
+    hla_seq_col_name = "seq_Exon2_3",
+    hla_allele_col_name = "allele",
+    p_group_col_name = "p_group",
+    g_group_col_name = "g_group",
+    lapply_fun = lapply,
+    maxmis = 3,
+    make_reads_distinct = FALSE,
+    pairwise_method = c("exhaustive", "heuristic"),
+    pairwise_anchor_n = 25L,
+    pairwise_partner_n = 25L,
+    ...) {
+
+  if (!is.data.frame(hla_ref) || nrow(hla_ref) == 0L) {
+    stop("`hla_ref` must be a non-empty data frame.", call. = FALSE)
+  }
+  if (length(hla_gene_col_name) != 1L || !is.character(hla_gene_col_name) ||
+      is.na(hla_gene_col_name) || !nzchar(hla_gene_col_name) ||
+      !hla_gene_col_name %in% names(hla_ref)) {
+    stop("`hla_gene_col_name` must name a column in `hla_ref`.",
+         call. = FALSE)
+  }
+
+  ref_genes <- normalize_hla_gene(hla_ref[[hla_gene_col_name]])
+  if (is.null(genes)) {
+    genes <- unique(ref_genes[!is.na(ref_genes) & nzchar(ref_genes)])
+  } else {
+    if (!is.character(genes) || length(genes) == 0L || anyNA(genes)) {
+      stop("`genes` must be NULL or a non-empty character vector.",
+           call. = FALSE)
+    }
+    genes <- unique(normalize_hla_gene(genes))
+  }
+
+  missing_genes <- setdiff(genes, unique(ref_genes))
+  if (length(missing_genes) > 0L) {
+    stop(
+      "No reference alleles were found for: ",
+      paste(paste0("HLA-", missing_genes), collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  pairwise_method <- rlang::arg_match(pairwise_method)
+
+  reads <- get_hla_reads(
+    bam = bam,
+    reference_genome = reference_genome,
+    reference_gtf = reference_gtf,
+    regions = regions,
+    genes = genes,
+    mhc_start = mhc_start,
+    mhc_end = mhc_end,
+    include_alt_contigs = include_alt_contigs,
+    tags = tags,
+    scores = scores,
+    min_mapq = min_mapq,
+    primary_only = primary_only,
+    cell_barcodes = cell_barcodes,
+    cell_barcode_tag = cell_barcode_tag
+  )
+  if (nrow(reads) == 0L) {
+    warning("No candidate HLA reads were found in the selected regions.",
+            call. = FALSE)
+    return(list(reads = reads, typing = stats::setNames(vector("list", length(genes)), genes),
+                regions = attr(reads, "hla_regions")))
+  }
+
+  typing <- stats::setNames(vector("list", length(genes)), genes)
+  for (gene in genes) {
+    message("Typing HLA-", gene, ".")
+    gene_ref <- hla_ref[ref_genes == gene & !is.na(ref_genes), , drop = FALSE]
+    typing[[gene]] <- hla_typing(
+      hla_ref = gene_ref,
+      reads = reads,
+      allele_diff = allele_diff,
+      top_n_pairwise_results = top_n_pairwise_results,
+      hla_seq_col_name = hla_seq_col_name,
+      read_seq_col_name = "seq",
+      hla_allele_col_name = hla_allele_col_name,
+      read_name_col_name = "readName",
+      p_group_col_name = p_group_col_name,
+      g_group_col_name = g_group_col_name,
+      lapply_fun = lapply_fun,
+      maxmis = maxmis,
+      make_reads_distinct = make_reads_distinct,
+      pairwise_method = pairwise_method,
+      pairwise_anchor_n = pairwise_anchor_n,
+      pairwise_partner_n = pairwise_partner_n,
+      rev_comp_minus = FALSE,
+      strand_col_name = "strand",
+      ...
+    )
+  }
+
+  list(
+    reads = reads,
+    typing = typing,
+    regions = attr(reads, "hla_regions")
+  )
+}
+
 #' Extract candidate HLA reads from an RNA-seq BAM file
 #'
 #' Extract alignments from the chromosome 6 major histocompatibility complex
@@ -249,273 +529,6 @@ get_hla_reads <- function(
 }
 
 
-#' Type HLA genes directly from an RNA-seq BAM file
-#'
-#' A convenience workflow that first calls [get_hla_reads()] and then calls
-#' [hla_typing()] separately for each requested HLA gene.
-#'
-#' @inheritParams get_hla_reads
-#' @param hla_ref HLA allele reference data frame, preferably created by
-#'   [hla_df_from_xml()].
-#' @param genes Character vector of genes to type, for example `c("A", "B",
-#'   "C")`. An optional `HLA-` prefix is ignored. Use `NULL` to type every gene
-#'   represented in `hla_ref`. When `reference_gtf` is supplied, the same genes
-#'   determine which annotated gene boundaries are queried.
-#' @param hla_gene_col_name Column in `hla_ref` containing HLA gene names.
-#' @param allele_diff Maximum fold difference used to retain candidate alleles;
-#'   passed to [hla_typing()].
-#' @param top_n_pairwise_results Number of leading allele pairs to plot; passed
-#'   to [hla_typing()].
-#' @param hla_seq_col_name Name of the HLA sequence column in `hla_ref`.
-#' @param hla_allele_col_name Name of the allele identifier column in
-#'   `hla_ref`.
-#' @param p_group_col_name Name of the P-group column in `hla_ref`.
-#' @param g_group_col_name Name of the G-group column in `hla_ref`.
-#' @param lapply_fun Apply function used for allele matching; passed to
-#'   [hla_typing()].
-#' @param maxmis Maximum mismatches allowed per read match; passed to
-#'   [hla_typing()].
-#' @param make_reads_distinct Logical; remove duplicate read sequences before
-#'   matching; passed to [hla_typing()].
-#' @param ... Additional arguments passed to `lapply_fun` by [hla_typing()],
-#'   such as `mc.cores` for [parallel::mclapply()].
-#'
-#' @return A list with `reads`, the candidate HLA read data frame; `typing`, a
-#'   named list of [hla_typing()] results; and `regions`, the queried genomic
-#'   ranges.
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' result <- hla_typing_from_bam(
-#'   bam = "outs/possorted_genome_bam.bam",
-#'   hla_ref = hla_ref,
-#'   reference_gtf = "reference/genes/genes.gtf",
-#'   genes = c("A", "B", "C"),
-#'   maxmis = 1)
-#'
-#' # check strandness of HLA genes
-#' gtf <- read_gtf(".../refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-#'                 gene_names = "HLA-",
-#'                 gene_names_full_match = F,
-#'                 features = "gene")$gtf |>
-#'   dplyr::select(gene_name, start, end, strand) |>
-#'   dplyr::filter(!grepl("AS", gene_name)) |>
-#'   dplyr::arrange(gene_name)
-#' # genes on (-) Strand: revcomp the reference as reads from BAM file are always
-#' # mapped to (+) Strand but reference give sequence from (-) Strand
-#' #   |gene_name |    start|      end|strand |
-#' #   |:---------|--------:|--------:|:------|
-#' #   |HLA-A     | 29941260| 29945884|+      |
-#' #   |HLA-B     | 31269491| 31357188|-      |
-#' #   |HLA-C     | 31268749| 31272130|-      |
-#' #   |HLA-DMA   | 32948613| 32969094|-      |
-#' #   |HLA-DMB   | 32934629| 32941028|-      |
-#' #   |HLA-DOA   | 33004182| 33009591|-      |
-#' #   |HLA-DOB   | 32812763| 32820466|-      |
-#' #   |HLA-DPA1  | 33064569| 33080775|-      |
-#' #   |HLA-DPB1  | 33075990| 33089696|+      |
-#' #   |HLA-DQA1  | 32628179| 32647062|+      |
-#' #   |HLA-DQA2  | 32741391| 32747198|+      |
-#' #   |HLA-DQB1  | 32659467| 32668383|-      |
-#' #   |HLA-DQB2  | 32756098| 32763532|-      |
-#' #   |HLA-DRA   | 32439878| 32445046|+      |
-#' #   |HLA-DRB1  | 32578769| 32589848|-      |
-#' #   |HLA-DRB5  | 32517353| 32530287|-      |
-#' #   |HLA-E     | 30489509| 30494194|+      |
-#' #   |HLA-F     | 29722775| 29738528|+      |
-#' #   |HLA-G     | 29826967| 29831125|+      |
-#'
-#'
-#' library(igsc)
-#' hla <- hla_df_from_xml(
-#'   "/Volumes/CMS_SSD_2TB/hla.xml.gz",
-#'   lapply_fun = parallel::mclapply,
-#'   mc.cores = 8)
-#'
-#' hlaA <- hla |>
-#'   dplyr::filter(grepl("^HLA-A", allele)) |>
-#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein)
-#'
-#' hlaresA <- hla_typing_from_bam(
-#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-#'   hla_ref = hlaA,
-#'   genes = "A",
-#'   lapply_fun = parallel::mclapply,
-#'   make_reads_distinct = T,
-#'   mc.cores = 4,
-#'   maxmis = 3,
-#'   allele_diff = 4)
-#' hlaresA$typing$B$plot_pair_res2
-#'
-#' ## HLA-B and HLA-C are on (-) Strand but all bam reads are returned as on (+) Strand
-#' ## hence revcomp the reference: (-) --> (+)
-#' hlaB <- hla |>
-#'   dplyr::filter(grepl("^HLA-B", allele)) |>
-#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-#'   dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
-#'
-#' hlaresB <- hla_typing_from_bam(
-#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-#'   hla_ref = hlaB,
-#'   genes = "B",
-#'   lapply_fun = parallel::mclapply,
-#'   make_reads_distinct = T,
-#'   mc.cores = 4,
-#'   maxmis = 3,
-#'   allele_diff = 4)
-#' hlaresB$typing$B$plot_pair_res2
-#'
-#' hlaC <- hla |>
-#'   dplyr::filter(grepl("^HLA-C", allele)) |>
-#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-#'   dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
-#'
-#' hlaresC <- hla_typing_from_bam(
-#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-#'   hla_ref = hlaC,
-#'   genes = "C",
-#'   lapply_fun = parallel::mclapply,
-#'   make_reads_distinct = T,
-#'   mc.cores = 4,
-#'   maxmis = 3,
-#'   allele_diff = 4)
-#' hlaresC$typing$C$plot_pair_res2
-#'
-#' hlaDPA1 <- hla |>
-#'   dplyr::filter(grepl("^HLA-DPA1", allele)) |>
-#'   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-#'   dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
-#'
-#' hlaresDPA1 <- hla_typing_from_bam(
-#'   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-#'   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-#'   hla_ref = hlaDPA1,
-#'   genes = "DPA1",
-#'   lapply_fun = parallel::mclapply,
-#'   make_reads_distinct = T,
-#'   mc.cores = 4,
-#'   maxmis = 3,
-#'   allele_diff = 2)
-#' hlaresDPA1$typing$DPA1$plot_pair_res2
-#' }
-hla_typing_from_bam <- function(
-    bam,
-    hla_ref,
-    reference_genome = NULL,
-    reference_gtf = NULL,
-    regions = NULL,
-    genes = c("A", "B", "C"),
-    hla_gene_col_name = "gene",
-    mhc_start = 28000000L,
-    mhc_end = 34000000L,
-    include_alt_contigs = TRUE,
-    tags = c("CR", "CB", "CY", "AS", "UR", "UB", "UY", "HI", "NH",
-             "nM", "RE"),
-    scores = TRUE,
-    min_mapq = 0L,
-    primary_only = TRUE,
-    cell_barcodes = NULL,
-    cell_barcode_tag = "CB",
-    allele_diff = 5,
-    top_n_pairwise_results = 50,
-    hla_seq_col_name = "seq_Exon2_3",
-    hla_allele_col_name = "allele",
-    p_group_col_name = "p_group",
-    g_group_col_name = "g_group",
-    lapply_fun = lapply,
-    maxmis = 3,
-    make_reads_distinct = FALSE,
-    ...) {
-
-  if (!is.data.frame(hla_ref) || nrow(hla_ref) == 0L) {
-    stop("`hla_ref` must be a non-empty data frame.", call. = FALSE)
-  }
-  if (length(hla_gene_col_name) != 1L || !is.character(hla_gene_col_name) ||
-      is.na(hla_gene_col_name) || !nzchar(hla_gene_col_name) ||
-      !hla_gene_col_name %in% names(hla_ref)) {
-    stop("`hla_gene_col_name` must name a column in `hla_ref`.",
-         call. = FALSE)
-  }
-
-  ref_genes <- normalize_hla_gene(hla_ref[[hla_gene_col_name]])
-  if (is.null(genes)) {
-    genes <- unique(ref_genes[!is.na(ref_genes) & nzchar(ref_genes)])
-  } else {
-    if (!is.character(genes) || length(genes) == 0L || anyNA(genes)) {
-      stop("`genes` must be NULL or a non-empty character vector.",
-           call. = FALSE)
-    }
-    genes <- unique(normalize_hla_gene(genes))
-  }
-
-  missing_genes <- setdiff(genes, unique(ref_genes))
-  if (length(missing_genes) > 0L) {
-    stop(
-      "No reference alleles were found for: ",
-      paste(paste0("HLA-", missing_genes), collapse = ", "),
-      call. = FALSE
-    )
-  }
-
-  reads <- get_hla_reads(
-    bam = bam,
-    reference_genome = reference_genome,
-    reference_gtf = reference_gtf,
-    regions = regions,
-    genes = genes,
-    mhc_start = mhc_start,
-    mhc_end = mhc_end,
-    include_alt_contigs = include_alt_contigs,
-    tags = tags,
-    scores = scores,
-    min_mapq = min_mapq,
-    primary_only = primary_only,
-    cell_barcodes = cell_barcodes,
-    cell_barcode_tag = cell_barcode_tag
-  )
-  if (nrow(reads) == 0L) {
-    warning("No candidate HLA reads were found in the selected regions.",
-            call. = FALSE)
-    return(list(reads = reads, typing = stats::setNames(vector("list", length(genes)), genes),
-                regions = attr(reads, "hla_regions")))
-  }
-
-  typing <- stats::setNames(vector("list", length(genes)), genes)
-  for (gene in genes) {
-    message("Typing HLA-", gene, ".")
-    gene_ref <- hla_ref[ref_genes == gene & !is.na(ref_genes), , drop = FALSE]
-    typing[[gene]] <- hla_typing(
-      hla_ref = gene_ref,
-      reads = reads,
-      allele_diff = allele_diff,
-      top_n_pairwise_results = top_n_pairwise_results,
-      hla_seq_col_name = hla_seq_col_name,
-      read_seq_col_name = "seq",
-      hla_allele_col_name = hla_allele_col_name,
-      read_name_col_name = "readName",
-      p_group_col_name = p_group_col_name,
-      g_group_col_name = g_group_col_name,
-      lapply_fun = lapply_fun,
-      maxmis = maxmis,
-      make_reads_distinct = make_reads_distinct,
-      rev_comp_minus = FALSE,
-      strand_col_name = "strand",
-      ...
-    )
-  }
-
-  list(
-    reads = reads,
-    typing = typing,
-    regions = attr(reads, "hla_regions")
-  )
-}
-
-
 normalize_hla_gene <- function(x) {
   x <- toupper(trimws(as.character(x)))
   sub("^HLA-", "", x)
@@ -730,3 +743,4 @@ validate_hla_reference_genome <- function(reference_genome, bam_stats) {
   }
   invisible(TRUE)
 }
+

@@ -4,12 +4,18 @@
 \alias{get_sequences_from_biomart}
 \title{Get gene, transcript, amino acid sequences from biomaRt}
 \usage{
-get_sequences_from_biomart(hgnc_symbol, dataset = "hsapiens_gene_ensembl")
+get_sequences_from_biomart(
+  hgnc_symbol,
+  useEnsembl_args = list(biomart = "ensembl", dataset = "hsapiens_gene_ensembl"),
+  canonical = T
+)
 }
 \arguments{
 \item{hgnc_symbol}{gene symbol}
 
-\item{dataset}{passed to biomaRt::useEnsembl}
+\item{useEnsembl_args}{arguments to biomaRt::useEnsembl}
+
+\item{canonical}{filter canonical == 1 ?}
 }
 \value{
 data frame

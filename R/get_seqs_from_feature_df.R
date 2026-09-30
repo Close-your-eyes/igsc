@@ -89,7 +89,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                       }
                                     }))'
                                     if (revcomp && make_revcomp) {
-                                      seq <- revcompDNA(seq)
+                                      seq <- revcomp_dna(seq)
                                       seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
                                     }
                                     if (concat) {
@@ -122,7 +122,7 @@ get_seqs_from_feature_df <- function(feature_df,
                                  value = feature_df$value, range = feature_df$range), function(x,revcomp,value,range) {
                                    seq <- unlist(lapply(x, function(y) substr(origin, y[1], y[2])))
                                    if (revcomp && make_revcomp) {
-                                     seq <- revcompDNA(seq)
+                                     seq <- revcomp_dna(seq)
                                      seq <- rev(seq) # if no pasting above, separate seq have to be reversed here
                                    }
                                    seq <- paste(seq, collapse = "")

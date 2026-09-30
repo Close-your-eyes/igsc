@@ -113,7 +113,7 @@ concat_transcript <- function(gtf_df,
   # always pull sequences from the plus strand, as start and end refer to that strand
   # if one applies revcomp to the plus strand to have the minus strand, positions do no longer match
   if (refseq_strand == "-") {
-    refseq <- revcompDNA(refseq, fun = "rcpp")
+    refseq <- revcomp_dna(refseq, fun = "rcpp")
   }
 
   gtf_df$exon_number <- as.numeric(gtf_df$exon_number)
@@ -178,7 +178,7 @@ concat_transcript <- function(gtf_df,
   # sequences are always derived from plus strand (see above)
   # so if the gene is on minus strand, revcomp or rev is required for sequences and positions, respectively
   if (strand == "-") {
-    seqlist <- revcompDNA(seqlist, fun = "rcpp")
+    seqlist <- revcomp_dna(seqlist, fun = "rcpp")
     pos_gen <- lapply(pos_gen, rev)
     #pos_gen_rel <- lapply(pos_gen_rel, rev)
   }
@@ -188,7 +188,7 @@ concat_transcript <- function(gtf_df,
 
   ## add seq for plus and minus strand
   transcript_df <- data.frame(seq1 = strsplit(seqlist[["transcript"]], "")[[1]],
-                              #seq2 = strsplit(revcompDNA(seqlist[["transcript"]], rev = F), "")[[1]],
+                              #seq2 = strsplit(revcomp_dna(seqlist[["transcript"]], rev = F), "")[[1]],
                               position_genome = pos_gen[["transcript"]],
                               position = sort(pos_gen[["transcript"]] - min(pos_gen[["transcript"]]) + 1)) # , decreasing = decr_pos_gen
   names(transcript_df)[1] <-
@@ -201,7 +201,7 @@ concat_transcript <- function(gtf_df,
     }
   strand_coding <- names(transcript_df)[1]
   gtf_df[[names(transcript_df)[1]]] <- seqlist
-  #gtf_df[[names(transcript_df)[2]]] <- revcompDNA(seqlist)
+  #gtf_df[[names(transcript_df)[2]]] <- revcomp_dna(seqlist)
 
   pos_gen_stack <- make_pos_gen_stack(pos_gen)
 
@@ -430,7 +430,7 @@ concat_transcript <- function(gtf_df,
                                end = trans_range[2],
                                ...)
     if (strand == "-") {
-      test_seq <- revcompDNA(test_seq)
+      test_seq <- revcomp_dna(test_seq)
     }
 
     out <-

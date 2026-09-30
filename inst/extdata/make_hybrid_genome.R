@@ -61,7 +61,7 @@ viral_gtf <- purrr::pmap(
 
 
 ## rotate EBV genome
-ebvgenome <- rotate_genome_string(igsc::read_fasta(genomes[["EBV"]]), cut = 144792)
+ebvgenome <- rotate_seq(igsc::read_fasta(genomes[["EBV"]]), cut = 144792)
 igsc::write_fasta(ebvgenome, file = file.path("/Volumes/CMS_SSD_2TB/reference_genomes/viral_ref_genomes/20260319_modified_data/EBV",
                                               basename(genomes[["EBV"]])))
 

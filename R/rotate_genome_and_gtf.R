@@ -34,7 +34,7 @@ rotate_genome_and_gtf <- function(genome,
   if (!is.null(cut)) {
     gtf <- igsc:::rotate_coords(gtf, cut = cut$cut_position, genome_length = genome_length)
     # gtf <- fix_duplicate_rows(gtf) # done in rotate_coords
-    genome <- igsc:::rotate_genome_string(genome = genome, cut = cut$cut_position)
+    genome <- igsc:::rotate_seq(genome = genome, cut = cut$cut_position)
   }
 
   gtf <- igsc:::make_kv_attr_col(gtf, verbose = verbose)

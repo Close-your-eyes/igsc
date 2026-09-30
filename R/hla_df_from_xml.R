@@ -36,7 +36,7 @@ hla_df_from_xml <- function(file_path,
                             replace_none_pg = TRUE,
                             ...) {
 
-  igsc:::.ensure_package("xml2")
+  igsc:::.ensure_packages("xml2")
 
 
   if (length(file_path) != 1L || is.na(file_path) || !nzchar(file_path)) {

@@ -61,21 +61,6 @@ IntegerMatrix countOccurrencesSparseCpp(
   const int ncalc = cols.nrow();
   const int nsel  = cols.ncol();
 
-  IntegerVector row_weights;
-  SEXP row_weights_attr = mat.attr("read_weights");
-  const bool has_row_weights = !Rf_isNull(row_weights_attr);
-  if (has_row_weights) {
-    row_weights = as<IntegerVector>(row_weights_attr);
-    if (row_weights.size() != nrow) {
-      stop("read_weights must have one value per matrix row");
-    }
-    for (int r = 0; r < nrow; ++r) {
-      if (IntegerVector::is_na(row_weights[r]) || row_weights[r] < 1) {
-        stop("read_weights must contain positive integers");
-      }
-    }
-  }
-
   IntegerMatrix counts(ncalc, 2);
 
   // Reused between calculations
@@ -115,11 +100,10 @@ IntegerMatrix countOccurrencesSparseCpp(
 
     // Untouched rows have sum zero and cannot count as 1 or 2
     for (int r : touched) {
-      const int weight = has_row_weights ? row_weights[r] : 1;
       if (sums[r] == 1.0) {
-        count1 += weight;
+        ++count1;
       } else if (sums[r] == 2.0) {
-        count2 += weight;
+        ++count2;
       }
 
       // Reset only rows used in this calculation

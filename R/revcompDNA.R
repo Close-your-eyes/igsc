@@ -28,16 +28,16 @@
 #' @export
 #'
 #' @examples
-#' revcompDNA("ATGC")
+#' revcomp_dna("ATGC")
 #'
-#' revcompDNA(c("ATGC", "AATT"))
+#' revcomp_dna(c("ATGC", "AATT"))
 #'
 #' # Reverse without complementing
-#' revcompDNA("ATGC", rev = TRUE, comp = FALSE)
+#' revcomp_dna("ATGC", rev = TRUE, comp = FALSE)
 #'
 #' # Complement without reversing
-#' revcompDNA("ATGC", rev = FALSE, comp = TRUE)
-revcompDNA <- function(x,
+#' revcomp_dna("ATGC", rev = FALSE, comp = TRUE)
+revcomp_dna <- function(x,
                        fun = c("rcpp", "Biostrings", "r"),
                        rev = T,
                        comp = T) {
@@ -100,8 +100,8 @@ revcompDNA <- function(x,
   # examples:
   # https://github.com/r-lib/bench/issues/59
   # random_dna <- generate_random_dna(n = 5, length = 10000)
-  # bench::mark(bio = revcompDNA(random_dna, fun = "Biostrings"),
-  #             R = revcompDNA(random_dna, fun = "r"),
-  #             Rcpp = revcompDNA(random_dna, fun = "rcpp"), iterations = 200, check = F)
+  # bench::mark(bio = revcomp_dna(random_dna, fun = "Biostrings"),
+  #             R = revcomp_dna(random_dna, fun = "r"),
+  #             Rcpp = revcomp_dna(random_dna, fun = "rcpp"), iterations = 200, check = F)
 
 }

@@ -30,6 +30,9 @@ hla_typing_from_bam(
   lapply_fun = lapply,
   maxmis = 3,
   make_reads_distinct = FALSE,
+  pairwise_method = c("exhaustive", "heuristic"),
+  pairwise_anchor_n = 25L,
+  pairwise_partner_n = 25L,
   ...
 )
 }
@@ -104,6 +107,15 @@ to \code{\link[=hla_typing]{hla_typing()}}.}
 
 \item{make_reads_distinct}{Logical; remove duplicate read sequences before
 matching; passed to \code{\link[=hla_typing]{hla_typing()}}.}
+
+\item{pairwise_method}{Pairwise search procedure, \code{"exhaustive"} or
+\code{"heuristic"}; passed to \code{\link[=hla_typing]{hla_typing()}}.}
+
+\item{pairwise_anchor_n}{Number of anchor allele groups used by the
+heuristic; passed to \code{\link[=hla_typing]{hla_typing()}}.}
+
+\item{pairwise_partner_n}{Maximum partners shortlisted per anchor by the
+heuristic; passed to \code{\link[=hla_typing]{hla_typing()}}.}
 
 \item{...}{Additional arguments passed to \code{lapply_fun} by \code{\link[=hla_typing]{hla_typing()}},
 such as \code{mc.cores} for \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
@@ -186,7 +198,7 @@ hlaresA$typing$B$plot_pair_res2
 hlaB <- hla |>
   dplyr::filter(grepl("^HLA-B", allele)) |>
   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-  dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
+  dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
 
 hlaresB <- hla_typing_from_bam(
   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
@@ -203,7 +215,7 @@ hlaresB$typing$B$plot_pair_res2
 hlaC <- hla |>
   dplyr::filter(grepl("^HLA-C", allele)) |>
   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-  dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
+  dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
 
 hlaresC <- hla_typing_from_bam(
   bam = "/Users/chris/Documents/possorted_genome_bam.bam",
@@ -220,7 +232,7 @@ hlaresC$typing$C$plot_pair_res2
 hlaDPA1 <- hla |>
   dplyr::filter(grepl("^HLA-DPA1", allele)) |>
   dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-  dplyr::mutate(seq_Exon2_3 = revcompDNA(seq_Exon2_3))
+  dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
 
 hlaresDPA1 <- hla_typing_from_bam(
   bam = "/Users/chris/Documents/possorted_genome_bam.bam",

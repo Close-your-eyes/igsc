@@ -36,9 +36,9 @@ concat_exons <- function(gtf_df,
       message("name of refseq and seqname in gtf_df are unequal: ", names(refseq), " vs. ", unique(gtf_df[["seqname"]]), ".")
     }
   }
-  # print message if strand is minus; then alignment against sequences from ncbi requires revcompDNA
+  # print message if strand is minus; then alignment against sequences from ncbi requires revcomp_dna
   # if ("strand" %in% names(gtf_df) && unique(gtf_df[["strand"]]) == "-") {
-  #   message("gene is on minus strand. for alignment against sequences from e.g. NCBI, the reverse complement is require, e.g. with revcompDNA.")
+  #   message("gene is on minus strand. for alignment against sequences from e.g. NCBI, the reverse complement is require, e.g. with revcomp_dna.")
   # }
 
   # check diffs on - and + strand, name utrs by 3' and 5', label seqlist or attribute with 3' and 5' end

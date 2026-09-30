@@ -568,7 +568,7 @@ process_gtf_attribute_col <- function(gtf,
     cut <- pick_best_cut(df, genome_length = genome_length)
     if (!is.null(cut)) {
       df <- rotate_coords(df, cut = cut$cut_position, genome_length = genome_length)
-      message("gtf coords have been rotated. use igsc:::rotate_genome_string with cut = ", cut$cut_position, " to rotate the genome. then save to fasta.")
+      message("gtf coords have been rotated. use igsc:::rotate_seq with cut = ", cut$cut_position, " to rotate the genome. then save to fasta.")
       ## separate gtf cols and attr cols so that code below works
       gtf <- df |> dplyr::select(dplyr::all_of(names(gtf)[which(names(gtf) %in% names(df))]))
       attr_col2 <- df |> dplyr::select(dplyr::all_of(names(df)[which(!names(df) %in% names(gtf))]), index)
@@ -1145,24 +1145,6 @@ fix_duplicate_rows <- function(df) {
     dplyr::arrange(row) |>
     dplyr::select(-row)
   return(df)
-}
-
-rotate_genome_string <- function(genome, cut) {
-
-  L <- nchar(genome)
-
-  if (cut < 1 || cut > L) {
-    stop("cut must be between 1 and genome length")
-  }
-
-  if (cut == 1) {
-    return(genome)  # no rotation needed
-  }
-
-  part1 <- substr(genome, cut, L)
-  part2 <- substr(genome, 1, cut - 1)
-
-  return(stats::setNames(paste0(part1, part2), names(genome)))
 }
 
 

@@ -4,8 +4,9 @@
 #' transcript_exon_intron = introns+exons, gene_exon_intron = full genomic span,
 #' gene_exon = exons in genomic order, not revcomp
 #'
+#' @param useEnsembl_args arguments to biomaRt::useEnsembl
+#' @param canonical filter canonical == 1 ?
 #' @param hgnc_symbol gene symbol
-#' @param dataset passed to biomaRt::useEnsembl
 #'
 #' @returns data frame
 #' @export
@@ -14,12 +15,16 @@
 #'granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
 #'out <- get_sequences_from_biomart(granzymes)
 get_sequences_from_biomart <- function(hgnc_symbol,
-                                       dataset = "hsapiens_gene_ensembl") {
+                                       useEnsembl_args = list(biomart = "ensembl",
+                                                              dataset = "hsapiens_gene_ensembl"),
+                                       canonical = T) {
 
   igsc:::.ensure_package("biomaRt")
 
-  mart <- biomaRt::useEnsembl(biomart = "ensembl",
-                              dataset = dataset)
+  message("If biomaRt fails, just try again. Server request are unstable.")
+
+  mart <- do.call(biomaRt::useEnsembl, args = useEnsembl_args)
+
   # attr <- biomaRt::listAttributes(mart)
 
   df <- biomaRt::getBM(
@@ -33,9 +38,20 @@ get_sequences_from_biomart <- function(hgnc_symbol,
     ),
     filters = "hgnc_symbol",
     values = hgnc_symbol,
-    mart = mart
-  ) |>
-    dplyr::filter(transcript_is_canonical == 1)
+    mart = mart)
+
+  if (nrow(df) == 0) {
+    stop("none of hgnc_symbols found.")
+  }
+
+  if (canonical) {
+    df <- dplyr::filter(df, transcript_is_canonical == 1)
+  }
+
+  if (nrow(df) == 0) {
+    stop("none of results was canonical.")
+  }
+
 
   seq_types <- c(
     cds       = "coding", # CDS (coding DNA sequence)

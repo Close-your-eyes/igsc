@@ -21,6 +21,9 @@ hla_typing(
   rev_comp_minus = FALSE,
   strand_col_name = "strand",
   minus_strand_value = "-",
+  pairwise_method = c("exhaustive", "heuristic"),
+  pairwise_anchor_n = 25L,
+  pairwise_partner_n = 25L,
   ...
 )
 }
@@ -66,7 +69,10 @@ matching operation. Suggested values are \code{\link[base:lapply]{base::lapply()
 allowed per read match.}
 
 \item{make_reads_distinct}{A logical value indicating whether duplicated read
-sequences should be removed before matching.}
+sequences should be removed before matching. When \code{FALSE}, each distinct
+sequence is matched once and duplicate multiplicity is retained as row
+weights, so duplicates contribute separately to counts and reporting
+without expanding the sparse matrix.}
 
 \item{rev_comp_minus}{A logical value indicating whether sequences whose
 strand equals \code{minus_strand_value} should be reverse-complemented before
@@ -80,6 +86,16 @@ for strand-specific match summaries when present.}
 \item{minus_strand_value}{The value in \code{strand_col_name} identifying
 minus-strand reads.}
 
+\item{pairwise_method}{Either \code{"exhaustive"} (the default, score every pair
+of distinct allele match patterns) or \code{"heuristic"} (score a shortlist).}
+
+\item{pairwise_anchor_n}{Number of highest-support allele groups used as
+anchors by the heuristic.}
+
+\item{pairwise_partner_n}{Maximum number of partners shortlisted per anchor
+by the heuristic, ranked by combined read coverage and then uniquely
+explained reads.}
+
 \item{...}{Additional arguments passed to \code{lapply_fun}, such as \code{mc.cores}
 when \code{\link[parallel:mclapply]{parallel::mclapply()}} is used.}
 }
@@ -89,8 +105,9 @@ containing:
 \describe{
 \item{top_sin_res_df}{A data frame of retained alleles and their
 explained-read counts.}
-\item{top_sin_res_mat}{The read-by-allele match matrix for retained
-alleles.}
+\item{top_sin_res_mat}{The unique-read-sequence-by-allele match matrix
+for retained alleles. Its \code{read_weights} attribute gives the number of
+input reads represented by each row.}
 \item{pair_res_df}{A data frame of all scored allele pairs.}
 \item{pair_res1_df}{Pairwise results reduced to the best result per
 P-group pair.}
@@ -112,9 +129,12 @@ Supply reference alleles for one HLA gene at a time, for example HLA-A,
 HLA-B, or HLA-C, and run the function separately for each gene. Reads are
 matched against every reference allele (or against a selected region such as
 exons 2 and 3). Candidate alleles are retained according to
-\code{allele_diff}, and all retained allele pairs are scored by the number of
-reads they explain uniquely, redundantly, and in total. Pairwise results are
-summarized by P group because typing at greater resolution may be uncertain.
+\code{allele_diff}. Alleles with identical read-match patterns are grouped. By
+default, all pairs of group representatives are scored by the number of
+reads they explain uniquely, redundantly, and in total. The optional
+heuristic scores a shortlist of pairs and may miss the best pair.
+Pairwise results are summarized by P group because typing at greater
+resolution may be uncertain.
 }
 \examples{
 \dontrun{

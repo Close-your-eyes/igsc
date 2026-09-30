@@ -8,9 +8,12 @@
 #' HLA-B, or HLA-C, and run the function separately for each gene. Reads are
 #' matched against every reference allele (or against a selected region such as
 #' exons 2 and 3). Candidate alleles are retained according to
-#' `allele_diff`, and all retained allele pairs are scored by the number of
-#' reads they explain uniquely, redundantly, and in total. Pairwise results are
-#' summarized by P group because typing at greater resolution may be uncertain.
+#' `allele_diff`. Alleles with identical read-match patterns are grouped. By
+#' default, all pairs of group representatives are scored by the number of
+#' reads they explain uniquely, redundantly, and in total. The optional
+#' heuristic scores a shortlist of pairs and may miss the best pair.
+#' Pairwise results are summarized by P group because typing at greater
+#' resolution may be uncertain.
 #'
 #'
 #' @param hla_ref A data frame of HLA reference alleles, preferably created by
@@ -42,7 +45,10 @@
 #' @param maxmis A non-negative integer giving the maximum number of mismatches
 #'   allowed per read match.
 #' @param make_reads_distinct A logical value indicating whether duplicated read
-#'   sequences should be removed before matching.
+#'   sequences should be removed before matching. When `FALSE`, each distinct
+#'   sequence is matched once and duplicate multiplicity is retained as row
+#'   weights, so duplicates contribute separately to counts and reporting
+#'   without expanding the sparse matrix.
 #' @param rev_comp_minus A logical value indicating whether sequences whose
 #'   strand equals `minus_strand_value` should be reverse-complemented before
 #'   matching. This is useful when minus-strand reads are stored in their
@@ -52,6 +58,13 @@
 #'   for strand-specific match summaries when present.
 #' @param minus_strand_value The value in `strand_col_name` identifying
 #'   minus-strand reads.
+#' @param pairwise_method Either `"exhaustive"` (the default, score every pair
+#'   of distinct allele match patterns) or `"heuristic"` (score a shortlist).
+#' @param pairwise_anchor_n Number of highest-support allele groups used as
+#'   anchors by the heuristic.
+#' @param pairwise_partner_n Maximum number of partners shortlisted per anchor
+#'   by the heuristic, ranked by combined read coverage and then uniquely
+#'   explained reads.
 #' @param ... Additional arguments passed to `lapply_fun`, such as `mc.cores`
 #'   when [parallel::mclapply()] is used.
 #'
@@ -61,8 +74,9 @@
 #'   \describe{
 #'     \item{top_sin_res_df}{A data frame of retained alleles and their
 #'       explained-read counts.}
-#'     \item{top_sin_res_mat}{The read-by-allele match matrix for retained
-#'       alleles.}
+#'     \item{top_sin_res_mat}{The unique-read-sequence-by-allele match matrix
+#'       for retained alleles. Its `read_weights` attribute gives the number of
+#'       input reads represented by each row.}
 #'     \item{pair_res_df}{A data frame of all scored allele pairs.}
 #'     \item{pair_res1_df}{Pairwise results reduced to the best result per
 #'       P-group pair.}
@@ -105,6 +119,9 @@ hla_typing <- function(hla_ref,
                        rev_comp_minus = FALSE,
                        strand_col_name = "strand",
                        minus_strand_value = "-",
+                       pairwise_method = c("exhaustive", "heuristic"),
+                       pairwise_anchor_n = 25L,
+                       pairwise_partner_n = 25L,
                        ...) {
   igsc:::.ensure_packages(c(
     "Biostrings", "Matrix", "brathering", "ggplot2", "patchwork"
@@ -138,6 +155,15 @@ hla_typing <- function(hla_ref,
   if (length(rev_comp_minus) != 1L || is.na(rev_comp_minus) ||
       !is.logical(rev_comp_minus)) {
     stop("rev_comp_minus must be TRUE or FALSE.")
+  }
+  pairwise_method <- rlang::arg_match(pairwise_method)
+  for (shortlist_arg in c("pairwise_anchor_n", "pairwise_partner_n")) {
+    value <- get(shortlist_arg)
+    if (length(value) != 1L || !is.numeric(value) || is.na(value) ||
+        !is.finite(value) || value < 1L || value != floor(value) ||
+        value > .Machine$integer.max) {
+      stop(shortlist_arg, " must be a positive integer.")
+    }
   }
 
   column_arguments <- list(
@@ -255,16 +281,19 @@ hla_typing <- function(hla_ref,
   }
 
 
+  n_before <- nrow(reads)
   if (make_reads_distinct) {
-    n_before <- nrow(reads)
     reads <- dplyr::distinct(reads, !!rlang::sym(read_seq_col_name), .keep_all = TRUE)
     n_after <- nrow(reads)
-    if (n_after < n_before) {
-      message(n_after, " of ", n_before, " (", round(n_after / n_before * 100), " %) reads are unique. Matching will use only those reads.")
-    } else {
-      message("No duplicated reads found.")
-    }
+  } else {
+    n_after <- nrow(dplyr::distinct(reads, !!rlang::sym(read_seq_col_name), .keep_all = TRUE))
   }
+  if (n_after < n_before) {
+    message(n_after, " of ", n_before, " (", round(n_after / n_before * 100), " %) reads are unique. Matching will use only those reads.")
+  } else {
+    message("No duplicated reads found.")
+  }
+
 
   first_round_results <- run_read_matching_and_report_results(hla_ref = hla_ref,
                                                               reads = reads,
@@ -280,6 +309,9 @@ hla_typing <- function(hla_ref,
                                                               maxmis = maxmis,
                                                               arg_list = arg_list,
                                                               strand_col_name = strand_col_name,
+                                                              pairwise_method = pairwise_method,
+                                                              pairwise_anchor_n = pairwise_anchor_n,
+                                                              pairwise_partner_n = pairwise_partner_n,
                                                               ...)
   if (is.null(first_round_results)) {
     return(NULL)
@@ -303,6 +335,9 @@ run_read_matching_and_report_results <- function(hla_ref,
                                                  maxmis = 0,
                                                  arg_list = list(),
                                                  strand_col_name = "strand",
+                                                 pairwise_method = "exhaustive",
+                                                 pairwise_anchor_n = 25L,
+                                                 pairwise_partner_n = 25L,
                                                  ...) {
 
   message("Calculating single matches.")
@@ -315,42 +350,18 @@ run_read_matching_and_report_results <- function(hla_ref,
     hla_allele_col_name = hla_allele_col_name,
     read_name_col_name = read_name_col_name,
     read_seq_col_name = read_seq_col_name,
-    ...
-  )
+    ...)
+  # dim(single_res)
+  # attributes(single_res)
 
-  if (strand_col_name %in% names(reads)) {
-    strand <- as.character(reads[[strand_col_name]])
-    strand[is.na(strand)] <- "<NA>"
-    for (strand_value in unique(strand)) {
-      strand_rows <- strand == strand_value
-      strand_res <- single_res[strand_rows, , drop = FALSE]
-      strand_matched <- sum(Matrix::rowSums(strand_res) > 0)
-      strand_unmatched <- nrow(strand_res) - strand_matched
-      message("Strand (", strand_value, "):")
-      message("  ", strand_matched, " reads with at least one match/hit (",
-              round(strand_matched / nrow(strand_res) * 100), " %)")
-      message("  ", strand_unmatched, " reads with no match/hit (",
-              round(strand_unmatched / nrow(strand_res) * 100), " %)")
-    }
-  }
-
-  reads_w_min_one_match <- Matrix::rowSums(single_res) > 0
-  expl_reads_per_allele <- Matrix::colSums(single_res)
-
-  reads_w_no_match_sum <- sum(Matrix::rowSums(single_res) == 0)
-  reads_w_min_one_match_sum <- sum(reads_w_min_one_match)
-
-  message("Total:")
-  if (reads_w_min_one_match_sum == 0) {
-    message("No matches/hits determined.")
+  single_stats <- print_single_res(single_res, reads, strand_col_name)
+  if (is.null(single_stats)) {
     return(NULL)
   }
-  total_reads <- reads_w_min_one_match_sum + reads_w_no_match_sum
-  message("  ", reads_w_min_one_match_sum,
-          " reads with at least one match/hit (",
-          round(reads_w_min_one_match_sum / total_reads * 100), " %)")
-  message("  ", reads_w_no_match_sum, " reads with no match/hit (",
-          round(reads_w_no_match_sum / total_reads * 100), " %)")
+  reads_w_min_one_match <- single_stats$reads_w_min_one_match
+  expl_reads_per_allele <- single_stats$expl_reads_per_allele
+  reads_w_no_match_sum <- single_stats$reads_w_no_match_sum
+  reads_w_min_one_match_sum <- single_stats$reads_w_min_one_match_sum
 
   retained_alleles <- which(expl_reads_per_allele >= max(expl_reads_per_allele) / allele_diff)
   if (length(retained_alleles) < 2L) {
@@ -358,57 +369,48 @@ run_read_matching_and_report_results <- function(hla_ref,
       "Fewer than two alleles passed the allele_diff filter; ",
       "pairwise matching cannot be performed."
     )
-  }
-
-  top_single_res <- single_res[reads_w_min_one_match, retained_alleles, drop = FALSE]
-  rm(single_res)
-  groups <- group_equal_binary_columns(top_single_res)
-  names(groups) <- seq_along(groups)
-  groups <- tibble::enframe(groups, value = "allele", name = "read_group") |>
-    tidyr::unnest(allele)
-  top_sin_res_df <-
-    data.frame(expl_reads = Matrix::colSums(top_single_res)) |>
-    tibble::rownames_to_column(hla_allele_col_name) |>
-    dplyr::left_join(hla_ref, by = hla_allele_col_name) |>
-    dplyr::mutate(rank = dplyr::dense_rank(-expl_reads)) |>
-    dplyr::left_join(groups, by = "allele")
-  top_sin_res_df$allele_group <- stringr::str_extract(
-    top_sin_res_df[[hla_allele_col_name]],
-    "[[:alpha:]]+\\*[[:digit:]]{2}"
-  )
-
-  groups2 <- groups |> dplyr::distinct(read_group, .keep_all = T)
-  group_grid <- t(combn(groups2$allele, 2))
-  group_grid <- cbind(pmin(group_grid[, 1], group_grid[, 2]), pmax(group_grid[, 1], group_grid[, 2]))
-  group_grid <- group_grid |>
-    as.data.frame() |>
-    dplyr::distinct()
-  col.combs <- cbind(match(group_grid[,1], colnames(top_single_res)), match(group_grid[,2], colnames(top_single_res)))
-  #col.combs <- t(utils::combn(seq_len(ncol(top_single_res)), 2L))
-  message("Calculating pairwise matches. Combinations: ", nrow(col.combs), ".")
-
-  #col.combs <- col.combs[1:200,]
-  # doing this in R was too slow. other packages did not have the functionality
-  # so, written in c++
-  if (identical(lapply_fun, parallel::mclapply) && "mc.cores" %in% names(arg_list)) {
-    # Split the matrix into chunks for multithreading
-    split_factor <- cut(
-      seq_len(nrow(col.combs)),
-      breaks = arg_list[["mc.cores"]],
-      labels = FALSE
-    )
-
-    pairwise_results <- lapply_fun(brathering::split_mat(
-      col.combs,
-      f = split_factor,
-      byrow = TRUE
-    ), function(x) {
-      igsc:::countOccurrencesSparseCpp(top_single_res, x)
-    }, ...)
-    pairwise_results <- pairwise_rbind(pairwise_results)
   } else {
-    pairwise_results <- igsc:::countOccurrencesSparseCpp(top_single_res, col.combs)
+    message("retained alleles according to allele_diff: ", length(retained_alleles), " from ", length(expl_reads_per_allele))
+    plot(sort(expl_reads_per_allele))
+    abline(h = max(expl_reads_per_allele) / allele_diff)
   }
+
+
+  unique_reads_w_min_one_match <- single_stats$unique_reads_w_min_one_match
+  top_single_res <- single_res[
+    unique_reads_w_min_one_match,
+    retained_alleles,
+    drop = FALSE]
+
+  attr(top_single_res, "read_weights") <- single_match_weights(single_res)[unique_reads_w_min_one_match]
+  rm(single_res)
+
+  if (pairwise_method == "heuristic") {
+    pairwise_res <- pairwise_matching_heuristic(
+      top_single_res = top_single_res,
+      hla_ref = hla_ref,
+      hla_allele_col_name = hla_allele_col_name,
+      lapply_fun = lapply_fun,
+      arg_list = arg_list,
+      anchor_n = pairwise_anchor_n,
+      partner_n = pairwise_partner_n,
+      ...
+    )
+  } else {
+    pairwise_res <- pairwise_matching(
+      top_single_res = top_single_res,
+      hla_ref = hla_ref,
+      hla_allele_col_name = hla_allele_col_name,
+      lapply_fun = lapply_fun,
+      arg_list = arg_list,
+      ...
+    )
+  }
+  groups <- pairwise_res$groups
+  top_sin_res_df <- pairwise_res$top_sin_res_df
+  col.combs <- pairwise_res$col.combs
+  pairwise_results <- pairwise_res$pairwise_results
+  rm(pairwise_res)
 
   pair_res_df <-
     data.frame(uni_expl_reads = pairwise_results[,1], # sapply(pairwise_results, "[", 1),
@@ -577,6 +579,246 @@ run_read_matching_and_report_results <- function(hla_ref,
 }
 
 
+single_match_weights <- function(single_res) {
+  weights <- attr(single_res, "read_weights", exact = TRUE)
+  if (is.null(weights)) {
+    weights <- rep.int(1L, nrow(single_res))
+  }
+  if (length(weights) != nrow(single_res) || anyNA(weights) ||
+      any(weights < 1)) {
+    stop("Invalid read_weights attribute on the single-match matrix.")
+  }
+  weights
+}
+
+
+weighted_col_sums <- function(single_res) {
+  # calculates how many original reads support each HLA allele without expanding duplicate sequences into separate matrix rows.
+  stats::setNames(
+    as.numeric(Matrix::crossprod(single_res, single_match_weights(single_res))),
+    colnames(single_res)
+  )
+}
+
+
+print_single_res <- function(single_res, reads, strand_col_name = "strand") {
+
+  unique_reads_w_min_one_match <- Matrix::rowSums(single_res) > 0
+  read_to_unique <- attr(single_res, "read_to_unique", exact = TRUE)
+  if (is.null(read_to_unique)) {
+    read_to_unique <- seq_len(nrow(single_res))
+  }
+  if (length(read_to_unique) != nrow(reads)) {
+    stop("The single-match read mapping does not match the reads data frame.")
+  }
+  reads_w_min_one_match <- unique_reads_w_min_one_match[read_to_unique]
+  expl_reads_per_allele <- weighted_col_sums(single_res)
+
+  if (strand_col_name %in% names(reads)) {
+    strand <- as.character(reads[[strand_col_name]])
+    strand[is.na(strand)] <- "<NA>"
+    for (strand_value in unique(strand)) {
+      strand_rows <- strand == strand_value
+      strand_total <- sum(strand_rows)
+      strand_matched <- sum(reads_w_min_one_match[strand_rows])
+      strand_unmatched <- strand_total - strand_matched
+      message("Strand (", strand_value, "):")
+      message("  ", strand_matched, " reads with at least one match/hit (",
+              round(strand_matched / strand_total * 100), " %)")
+      message("  ", strand_unmatched, " reads with no match/hit (",
+              round(strand_unmatched / strand_total * 100), " %)")
+    }
+  }
+
+  reads_w_min_one_match_sum <- sum(reads_w_min_one_match)
+  reads_w_no_match_sum <- length(reads_w_min_one_match) - reads_w_min_one_match_sum
+
+  message("Total:")
+  if (reads_w_min_one_match_sum == 0) {
+    message("No matches/hits determined.")
+    return(NULL)
+  }
+  total_reads <- length(reads_w_min_one_match)
+  message("  ", reads_w_min_one_match_sum,
+          " reads with at least one match/hit (",
+          round(reads_w_min_one_match_sum / total_reads * 100), " %)")
+  message("  ", reads_w_no_match_sum, " reads with no match/hit (",
+          round(reads_w_no_match_sum / total_reads * 100), " %)")
+
+  invisible(list(
+    reads_w_min_one_match = reads_w_min_one_match,
+    unique_reads_w_min_one_match = unique_reads_w_min_one_match,
+    expl_reads_per_allele = expl_reads_per_allele,
+    reads_w_no_match_sum = reads_w_no_match_sum,
+    reads_w_min_one_match_sum = reads_w_min_one_match_sum
+  ))
+}
+
+
+pairwise_matching <- function(top_single_res,
+                              hla_ref,
+                              hla_allele_col_name,
+                              lapply_fun,
+                              arg_list,
+                              ...) {
+
+  groups <- group_equal_binary_columns(top_single_res)
+  names(groups) <- seq_along(groups)
+  groups <- tibble::enframe(groups, value = "allele", name = "read_group") |>
+    tidyr::unnest(allele)
+  top_sin_res_df <-
+    data.frame(expl_reads = weighted_col_sums(top_single_res)) |>
+    tibble::rownames_to_column(hla_allele_col_name) |>
+    dplyr::left_join(hla_ref, by = hla_allele_col_name) |>
+    dplyr::mutate(rank = dplyr::dense_rank(-expl_reads)) |>
+    dplyr::left_join(groups, by = "allele")
+
+  top_sin_res_df$allele_group <- stringr::str_extract(
+    top_sin_res_df[[hla_allele_col_name]],
+    "[[:alpha:]]+\\*[[:digit:]]{2}")
+
+  groups2 <- groups |> dplyr::distinct(read_group, .keep_all = TRUE)
+  group_grid <- t(utils::combn(groups2$allele, 2))
+  group_grid <- cbind(
+    pmin(group_grid[, 1], group_grid[, 2]),
+    pmax(group_grid[, 1], group_grid[, 2])
+  )
+  group_grid <- group_grid |>
+    as.data.frame() |>
+    dplyr::distinct()
+  col.combs <- cbind(
+    match(group_grid[, 1], colnames(top_single_res)),
+    match(group_grid[, 2], colnames(top_single_res))
+  )
+  message("Calculating pairwise matches. Combinations: ",
+          format(nrow(col.combs), big.mark = ","), ".")
+
+  if (identical(lapply_fun, parallel::mclapply) && "mc.cores" %in% names(arg_list)) {
+    split_factor <- cut(
+      seq_len(nrow(col.combs)),
+      breaks = arg_list[["mc.cores"]],
+      labels = FALSE
+    )
+    pairwise_results <- lapply_fun(brathering::split_mat(
+      col.combs,
+      f = split_factor,
+      byrow = TRUE
+    ), function(x) {
+      igsc:::countOccurrencesSparseCpp(top_single_res, x)
+    }, ...)
+    pairwise_results <- pairwise_rbind(pairwise_results)
+  } else {
+    pairwise_results <- igsc:::countOccurrencesSparseCpp(top_single_res, col.combs)
+  }
+
+  list(
+    groups = groups,
+    top_sin_res_df = top_sin_res_df,
+    col.combs = col.combs,
+    pairwise_results = pairwise_results
+  )
+}
+
+
+pairwise_matching_heuristic <- function(top_single_res,
+                                        hla_ref,
+                                        hla_allele_col_name,
+                                        lapply_fun,
+                                        arg_list,
+                                        anchor_n,
+                                        partner_n,
+                                        ...) {
+
+  groups <- group_equal_binary_columns(top_single_res)
+  names(groups) <- seq_along(groups)
+  groups <- tibble::enframe(groups, value = "allele", name = "read_group") |>
+    tidyr::unnest(allele)
+  top_sin_res_df <-
+    data.frame(expl_reads = weighted_col_sums(top_single_res)) |>
+    tibble::rownames_to_column(hla_allele_col_name) |>
+    dplyr::left_join(hla_ref, by = hla_allele_col_name) |>
+    dplyr::mutate(rank = dplyr::dense_rank(-expl_reads)) |>
+    dplyr::left_join(groups, by = "allele")
+  top_sin_res_df$allele_group <- stringr::str_extract(
+    top_sin_res_df[[hla_allele_col_name]],
+    "[[:alpha:]]+\\*[[:digit:]]{2}")
+
+  # One representative per identical read-match pattern, as in the exhaustive
+  # matcher. Use its single-read support to choose anchor groups.
+  group_reps <- groups |> dplyr::distinct(read_group, .keep_all = TRUE)
+  n_groups <- nrow(group_reps)
+  if (n_groups < 2L) {
+    stop("At least two distinct allele match patterns are needed for pairwise matching.")
+  }
+  rep_cols <- match(group_reps$allele, colnames(top_single_res))
+  rep_mat <- top_single_res[, rep_cols, drop = FALSE]
+  read_weights <- single_match_weights(top_single_res)
+  attr(rep_mat, "read_weights") <- read_weights
+  support <- weighted_col_sums(rep_mat)
+  anchors <- head(order(-support, group_reps$allele), anchor_n)
+
+  # Cross-products count shared reads for each anchor/partner. Rank partners
+  # by union coverage, then by reads matching exactly one member of the pair.
+  weighted_rep_mat <- rep_mat
+  weighted_rep_mat@x <- weighted_rep_mat@x *
+    read_weights[weighted_rep_mat@i + 1L]
+  shared_reads <- Matrix::crossprod(
+    rep_mat[, anchors, drop = FALSE],
+    weighted_rep_mat
+  )
+  group_pairs <- lapply(seq_along(anchors), function(k) {
+    anchor <- anchors[k]
+    partners <- seq_len(n_groups)[-anchor]
+    shared <- as.numeric(shared_reads[k, partners])
+    union_reads <- support[anchor] + support[partners] - shared
+    unique_reads <- support[anchor] + support[partners] - 2 * shared
+    ranked <- order(-union_reads, -unique_reads, -support[partners],
+                    group_reps$allele[partners])
+    selected <- partners[head(ranked, partner_n)]
+    cbind(rep.int(anchor, length(selected)), selected)
+  })
+  group_pairs <- do.call(rbind, group_pairs)
+  col.combs <- matrix(rep_cols[group_pairs], ncol = 2L)
+
+  # Canonicalize unordered pairs and remove pairs proposed by both anchors.
+  allele_names <- colnames(top_single_res)
+  swap <- allele_names[col.combs[, 1]] > allele_names[col.combs[, 2]]
+  if (any(swap)) {
+    col.combs[swap, ] <- col.combs[swap, 2:1, drop = FALSE]
+  }
+  pair_keys <- paste(col.combs[, 1], col.combs[, 2], sep = ":")
+  col.combs <- col.combs[!duplicated(pair_keys), , drop = FALSE]
+  message("Calculating pairwise matches (heuristic): ",
+          format(nrow(col.combs), big.mark = ","), " of ",
+          format(choose(n_groups, 2L), big.mark = ","),
+          " distinct-pattern combinations.")
+
+  if (identical(lapply_fun, parallel::mclapply) && "mc.cores" %in% names(arg_list)) {
+    split_factor <- cut(
+      seq_len(nrow(col.combs)),
+      breaks = arg_list[["mc.cores"]],
+      labels = FALSE
+    )
+    pairwise_results <- lapply_fun(brathering::split_mat(
+      col.combs,
+      f = split_factor,
+      byrow = TRUE
+    ), function(x) {
+      igsc:::countOccurrencesSparseCpp(top_single_res, x)
+    }, ...)
+    pairwise_results <- pairwise_rbind(pairwise_results)
+  } else {
+    pairwise_results <- igsc:::countOccurrencesSparseCpp(top_single_res, col.combs)
+  }
+
+  list(
+    groups = groups,
+    top_sin_res_df = top_sin_res_df,
+    col.combs = col.combs,
+    pairwise_results = pairwise_results
+  )
+}
+
 
 single_matching <- function(reads,
                             lapply_fun,
@@ -588,50 +830,116 @@ single_matching <- function(reads,
                             read_seq_col_name,
                             ...) {
 
-  read_sequences <- stats::setNames(
-    reads[[read_seq_col_name]],
-    reads[[read_name_col_name]]
-  )
+  read_sequences <- reads[[read_seq_col_name]]
+  unique_sequences <- unique(read_sequences)
+  read_to_unique <- match(read_sequences, unique_sequences)
+  read_weights <- tabulate(read_to_unique, nbins = length(unique_sequences))
+  ref_sequences <- Biostrings::DNAStringSet(hla_ref[[hla_seq_col_name]])
 
-  # PDict requires equal-width patterns. Split first by read width and then
-  # into bounded chunks to support variable-length read data without excessive
-  # peak memory use.
-  width_groups <- split(read_sequences, nchar(read_sequences))
+  # Match each distinct sequence only once. Indices in the chunks refer to
+  # unique_sequences; duplicate read rows are restored after matching.
+  width_groups <- split(seq_along(unique_sequences), nchar(unique_sequences))
   read_chunks <- unlist(
-    lapply(width_groups, function(x) brathering::split_chunks(x, size = 5000)),
+    lapply(width_groups, function(idx) {
+      brathering::split_chunks(idx, size = 5000)
+    }),
     recursive = FALSE,
     use.names = FALSE
   )
 
-  single_res <- lapply_fun(read_chunks, function(read_chunk) {
-    hit_matrix <- Biostrings::vwhichPDict(
-      subject = Biostrings::DNAStringSet(hla_ref[[hla_seq_col_name]]),
-      pdict = Biostrings::PDict(read_chunk, max.mismatch = maxmis),
+  hit_chunks <- lapply_fun(read_chunks, function(read_idx) {
+    hits <- Biostrings::vwhichPDict(
+      subject = ref_sequences,
+      pdict = Biostrings::PDict(
+        unique_sequences[read_idx],
+        max.mismatch = maxmis
+      ),
       max.mismatch = maxmis
     )
 
-    hit_matrix <- lapply(
-      hit_matrix,
-      function(hit_indices) {
-        replace(integer(length(read_chunk)), hit_indices, 1L)
-      }
+    # hits[[allele]] contains positions within this unique-sequence chunk.
+    chunk_positions <- as.integer(unlist(hits, use.names = FALSE))
+
+    list(
+      i = read_idx[chunk_positions],                 # unique-sequence rows
+      j = rep.int(seq_along(hits), lengths(hits))     # allele columns
     )
-    # Coercing a square symmetric result directly to "sparseMatrix" can create
-    # a symmetric Matrix class. Such matrices share row and column names, which
-    # corrupts read identifiers when allele names are assigned to the columns.
-    hit_matrix <- methods::as(
-      methods::as(do.call(cbind, hit_matrix), "generalMatrix"),
-      "CsparseMatrix"
-    )
-    colnames(hit_matrix) <- hla_ref[[hla_allele_col_name]]
-    rownames(hit_matrix) <- names(read_chunk)
-    return(hit_matrix)
   }, ...)
 
+  i <- as.integer(unlist(lapply(hit_chunks, `[[`, "i"), use.names = FALSE))
+  j <- as.integer(unlist(lapply(hit_chunks, `[[`, "j"), use.names = FALSE))
+  rm(hit_chunks)
 
-  single_res <- pairwise_rbind(single_res)
-  single_res[match(names(read_sequences), rownames(single_res)), , drop = FALSE]
+  single_res <- Matrix::sparseMatrix(
+    i = i,
+    j = j,
+    x = rep.int(1L, length(i)),
+    dims = c(length(unique_sequences), length(ref_sequences)),
+    dimnames = list(NULL, hla_ref[[hla_allele_col_name]])
+  )
+
+  rownames(single_res) <- reads[[read_name_col_name]][match(unique_sequences, read_sequences)]
+  attr(single_res, "read_weights") <- read_weights
+  attr(single_res, "read_to_unique") <- read_to_unique
+  single_res
 }
+
+# single_matching <- function(reads,
+#                             lapply_fun,
+#                             hla_ref,
+#                             maxmis,
+#                             hla_seq_col_name,
+#                             hla_allele_col_name,
+#                             read_name_col_name,
+#                             read_seq_col_name,
+#                             ...) {
+#   read_sequences <- reads[[read_seq_col_name]]
+#   ref_sequences <- Biostrings::DNAStringSet(hla_ref[[hla_seq_col_name]])
+#
+#   # Chunk original row indices; each chunk must contain equal-width reads.
+#   width_groups <- split(seq_along(read_sequences), nchar(read_sequences))
+#   read_chunks <- unlist(
+#     lapply(width_groups, function(idx) {
+#       brathering::split_chunks(idx, size = 5000)
+#     }),
+#     recursive = FALSE,
+#     use.names = FALSE
+#   )
+#
+#   hit_chunks <- lapply_fun(read_chunks, function(read_idx) {
+#     hits <- Biostrings::vwhichPDict(
+#       subject = ref_sequences,
+#       pdict = Biostrings::PDict(
+#         read_sequences[read_idx],
+#         max.mismatch = maxmis
+#       ),
+#       max.mismatch = maxmis
+#     )
+#
+#     # hits[[allele]] contains positions within this read chunk.
+#     chunk_positions <- as.integer(unlist(hits, use.names = FALSE))
+#
+#     list(
+#       i = read_idx[chunk_positions],                 # original read rows
+#       j = rep.int(seq_along(hits), lengths(hits))     # allele columns
+#     )
+#   }, ...)
+#
+#   i <- as.integer(unlist(lapply(hit_chunks, `[[`, "i"), use.names = FALSE))
+#   j <- as.integer(unlist(lapply(hit_chunks, `[[`, "j"), use.names = FALSE))
+#   rm(hit_chunks)
+#
+#   Matrix::sparseMatrix(
+#     i = i,
+#     j = j,
+#     x = rep.int(1L, length(i)),
+#     dims = c(length(read_sequences), length(ref_sequences)),
+#     dimnames = list(
+#       reads[[read_name_col_name]],
+#       hla_ref[[hla_allele_col_name]]
+#     )
+#   )
+# }
 
 pairwise_rbind <- function(x) {
   if (!length(x)) return(NULL)
@@ -885,7 +1193,7 @@ simulate_hla_reads <- function(
   reference <- reference_sequences[truth]
   starts <- purrr::map_int(nchar(reference) - read_length + 1L, ~sample.int(.x ,size = 1L))
   sequence <- stringr::str_sub(reference, starts, starts + read_length - 1L)
-  sequence[which(strands == "-")] <- igsc::revcompDNA(sequence[which(strands == "-")])
+  sequence[which(strands == "-")] <- igsc::revcomp_dna(sequence[which(strands == "-")])
 
   # insert SNPs
   # Insert SNPs into each individual read.
