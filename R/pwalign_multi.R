@@ -457,7 +457,7 @@ prep_subject_and_patterns <- function(subject,
   ### avoid using names from pa then
   original_names <- c(names(subject), names(patterns))
   names(subject) <- make.names(names(subject))
-  names(patterns) <- make.names(names(patterns))
+  names(patterns) <- make.names(names(patterns), unique = TRUE)
   names(original_names) <- c(names(subject), names(patterns))
 
   # save original order in case filterings below shuffles it
@@ -682,8 +682,11 @@ make_pa_unique_and_order_and_rm_subset_alignments <- function(pa,
   if (!is.null(pattern_groups)) {
     subject.ranges.split <- split(names(subject.ranges), pattern_groups[names(subject.ranges)])
     overlap_subject_ranges <- unlist(lapply(subject.ranges.split, function(y) {
+      if (length(y) < 2L) {
+        return(FALSE)
+      }
       ranges_comb <- utils::combn(y, 2, simplify = F)
-      if (any(unlist(lapply(ranges_comb, function(x) length(intersect(subject.ranges[[x[1]]], subject.ranges[[x[2]]])) > 1)))) {
+      if (any(unlist(lapply(ranges_comb, function(x) length(intersect(subject.ranges[[x[1]]], subject.ranges[[x[2]]])) > 0)))) {
         return(T)
       } else {
         return(F)
