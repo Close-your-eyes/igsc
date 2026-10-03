@@ -380,7 +380,9 @@ aln_plot <- function(aln,
                            name_col = name_col,
                            pos_col = pos_col,
                            pattern_lim_pos = pattern_lim_pos,
-                           verbose = verbose)
+                           verbose = verbose,
+                           yaxis = yaxis,
+                           aln = aln)
 
 
   if (pattern_names > 0) {
@@ -422,6 +424,11 @@ convert_aln_and_get_type <- function(aln,
     if (methods::is(aln, "AAStringSet")) {
       aln_type <- "AA"
     }
+
+    if (is.null(names(aln))) {
+      names(aln) <- paste0("seq_", 1:length(aln))
+    }
+
     aln <- xstringset_to_df(xstringset = aln,
                             name_col = name_col,
                             seq_col = seq_col,
@@ -926,7 +933,9 @@ add_pattern_lims <- function(plot,
                              name_col,
                              pos_col,
                              pattern_lim_pos,
-                             verbose) {
+                             verbose,
+                             yaxis,
+                             aln) {
 
   if (pattern_lim_size > 0 && !is.null(pairwise_alignment)) {
     pattern.ranges <- data.frame(pairwise_alignment@pattern@range,
@@ -1030,6 +1039,11 @@ xstringset_to_df <- function(xstringset,
 
   format <- rlang::arg_match(format)
   terminal_gap_sym <- "&"
+
+  if (is.null(names(xstringset))) {
+    names(xstringset) <- paste0("seq_", 1:length(xstringset))
+  }
+
   out <- purrr::map(as.list(xstringset), as.character)
   out <- purrr::map(out, replace_terminal_dashes, replacement = terminal_gap_sym)
   out <- purrr::flatten(purrr::map(out, strsplit, split = ""))
@@ -1190,11 +1204,11 @@ infer_subject_name <- function(aln,
   if (is.null(subject_name) && subject_name_infer) {
     max_len <- max(lengths(subj_rngs))
     if (length(which(lengths(subj_rngs) == max_len)) > 1) {
-      stop("Subject could not be identified.")
+      message("many sequences of max length. using first as subject.")
+      # stop("Subject could not be identified.")
       ## TODO: set variable for ordering pattern on y-axis to FALSE here
-    } else {
-      subject_name <- names(which(lengths(subj_rngs) == max_len))
     }
+    subject_name <- names(which(lengths(subj_rngs) == max_len))[1]
     # assigns in parent environment (https://stackoverflow.com/questions/10904124/global-and-local-variables-in-r?rq=1)
     #assign("subject_name", subject_name, envir = parent.frame())
     if (verbose) {

@@ -112,9 +112,10 @@ compare_seq_df_wide <- function(df,
       fun1 <- function(x) length(unique(x[which(!is.na(x))]))
     }
     fun2 <- function(x) all(x == "-")
+
     df[[ref]] <- ifelse(
       apply(
-        df[,c(non_ref)],
+        df[,c(non_ref),drop = F],
         MARGIN = 1,
         FUN = fun1
       ) == 0,
@@ -135,7 +136,7 @@ compare_seq_df_wide <- function(df,
   }
 
   if (rm_pure_NA_non_ref) {
-    na_sum <- apply(df[,non_ref], 1, function(x) sum(is.na(x)))
+    na_sum <- apply(df[,non_ref,drop = F], 1, function(x) sum(is.na(x)))
     df <- df[which(!dplyr::near(na_sum/length(non_ref), 1)),]
     df <- dplyr::arrange(df, !!rlang::sym(pos_col))
     df[[pos_col]] <- seq(1, nrow(df), 1)
