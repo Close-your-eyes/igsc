@@ -8,8 +8,8 @@
 #' @param aln An alignment to plot. Supported inputs are a data frame returned
 #'   by [pwalign_multi()], a `DNAStringSet`, `RNAStringSet`, or `AAStringSet`
 #'   (for example, from `DECIPHER::AlignSeqs()`), a
-#'   `pairwise_alignmentsSingleSubject` object returned by
-#'   `pwalign::pairwise_alignment()`, or a list of such pairwise alignments. A
+#'   `PairwiseAlignmentsSingleSubject` object returned by
+#'   `pwalign::pairwiseAlignment()`, or a list of such pairwise alignments. A
 #'   custom data frame must contain the columns named by `pos_col`, `seq_col`,
 #'   and `name_col`.
 #' @param tile_fill `NULL`, a named color vector, or the name of a nucleotide or
@@ -44,7 +44,7 @@
 #'   [ggplot2::geom_text()].
 #' @param pattern_names_fun_args Named list of additional arguments passed to
 #'   `pattern_names_fun`.
-#' @param pairwise_alignment Optional `pairwise_alignmentsSingleSubject` object
+#' @param pairwise_alignment Optional `PairwiseAlignmentsSingleSubject` object
 #'   on which `aln` is based. It supplies metadata for pattern-limit labels,
 #'   subject-name detection, and exact sequence lengths.
 #' @param subject_lim_lines Logical; draw dashed vertical lines at the first and
@@ -83,7 +83,8 @@
 #'   assigned.
 #' @param pos_shift Optional new starting position for the alignment. Supply a
 #'   number for an absolute start, or a string such as `"+100"` for a relative
-#'   circular shift.
+#'   circular shift. `"+1"` leaves positions unchanged; `"+2"` moves residues
+#'   one plotted position to the right. Shifts wrap within the observed positions.
 #' @param pos_shift_adjust_axis Logical; after shifting positions, relabel the
 #'   x-axis to display the original coordinates.
 #' @param verbose Logical; print informational messages.
@@ -111,7 +112,7 @@
 #'
 #' ### pairwise alignment
 #' # just character vectors
-#' aln1 <- pwalign::pairwise_alignment(subject = gzma$transcript_exon_intron,
+#' aln1 <- pwalign::pairwiseAlignment(subject = gzma$transcript_exon_intron,
 #'                                    pattern = gzma$coding,
 #'                                    type = "local-global")
 #' aln_plot(aln1)
@@ -119,7 +120,7 @@
 #' # provide names via DNAStringSets
 #' GZMA_RNA <- stats::setNames(gzma$transcript_exon_intron, "GZMA_premRNA")
 #' GZMA_CDS <- stats::setNames(gzma$coding, "GZMA_CDS")
-#' aln2 <- pwalign::pairwise_alignment(subject = Biostrings::DNAStringSet(GZMA_RNA),
+#' aln2 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMA_RNA),
 #'                                    pattern = Biostrings::DNAStringSet(GZMA_CDS),
 #'                                    type = "local-global")
 #' aln_plot(aln2)
@@ -146,7 +147,7 @@
 #' aln5[["plot"]]
 #'
 #' GZMB_CDS <- stats::setNames(gzmb$coding, "GZMB_CDS")
-#' aln6 <- pwalign::pairwise_alignment(subject = Biostrings::DNAStringSet(GZMB_CDS),
+#' aln6 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMB_CDS),
 #'                                    pattern = Biostrings::DNAStringSet(GZMA_CDS),
 #'                                    type = "global")
 #' # no modification of plotting colors
@@ -257,9 +258,11 @@ aln_plot <- function(aln,
                           focus = focus,
                           subject_name = subject_name,
                           name_col = name_col,
-                          pos_col = pos_col)
+                          pos_col = pos_col,
+                          seq_col = seq_col,
+                          verbose = verbose)
 
-  c(aln, x_breaks) %<-% shift_aln(aln = aln,
+  c(aln, x_breaks, x_labels) %<-% shift_aln(aln = aln,
                                   pos_shift = pos_shift,
                                   pos_col = pos_col,
                                   verbose = verbose,
@@ -316,12 +319,15 @@ aln_plot <- function(aln,
     ggplot2::ggplot(aln, ggplot2::aes(x = !!rlang::sym(pos_col), y = !!rlang::sym(yaxis))) + # name_col
     Gmisc::fastDoCall(base_theme, args = base_theme_args) +
     Gmisc::fastDoCall(ggplot2::theme, args = theme_args) +
-    ggplot2::scale_x_continuous(breaks = x_breaks) +
+    ggplot2::scale_x_continuous(
+      breaks = x_breaks,
+      labels = if (pos_shift_adjust_axis && !is.null(x_labels)) x_labels else ggplot2::waiver()
+    ) +
     ggplot2::coord_cartesian(expand = FALSE)
 
   if (add_length_suffix && is.null(y_group_col)) {
     # nt can only be added to y-axis text when sequences are not grouped
-    plot <- plot + ggplot2::scale_y_discrete(labels = aln_summary[["label"]][levels(aln[[name_col]])])
+    plot <- plot + ggplot2::scale_y_discrete(labels = stats::setNames(aln_summary[["label"]], as.character(aln_summary[[name_col]])))
   } else if (add_length_suffix && !is.null(y_group_col)) {
     message("length suffices not plotable when y-axis is grouped.")
   }
@@ -366,13 +372,6 @@ aln_plot <- function(aln,
 
   if (!is.null(coord_fixed_ratio)) {
     plot <- plot + ggplot2::coord_fixed(ratio = coord_fixed_ratio)
-  }
-
-  if (!is.null(pos_shift) && pos_shift_adjust_axis) {
-    plot_x_breaks <- ggplot2::ggplot_build(plot)[["layout"]][["panel_params"]][[1]][["x"]][["breaks"]]
-    plot_x_breaks <- plot_x_breaks[which(plot_x_breaks <= pos_shift)]
-    plot <- suppressMessages(plot + ggplot2::scale_x_continuous(breaks = max(aln[[pos_col]]) - pos_shift + 1 + c(1, plot_x_breaks),
-                                                                labels = c(1, plot_x_breaks)))
   }
 
   plot <- add_pattern_lims(plot = plot,
@@ -450,19 +449,23 @@ convert_aln_and_get_type <- function(aln,
       }
       y_group_col <- NULL
     }
-  } else if (methods::is(aln, "pairwise_alignmentsSingleSubject") || methods::is(aln, "list")) {
-    # from pwalign::pairwise_alignment
-    if (methods::is(aln, "pairwise_alignmentsSingleSubject")) {
-      aln_type <- ifelse(guess_type2(aln) == "AA", "AA", "NT")
-    } else if (methods::is(aln, "list")) {
-      aln_type <- ifelse(guess_type2(aln[[1]]) == "AA", "AA", "NT")
+  } else if (methods::is(aln, "PairwiseAlignmentsSingleSubject") || methods::is(aln, "list")) {
+    alignments <- if (methods::is(aln, "PairwiseAlignmentsSingleSubject")) list(aln) else aln
+    if (!length(alignments) || !all(vapply(alignments, methods::is, logical(1),
+                                          class2 = "PairwiseAlignmentsSingleSubject"))) {
+      stop("Provide a pairwise alignment or a non-empty list of pairwise alignments.")
     }
-
-    aln <- pwalign_to_df(
-      pa = aln,
-      verbose = verbose,
-      subject_width = "whole"
-    )
+    aln_type <- if (pwalign_guess_type(alignments[[1]]) == "AA") "AA" else "NT"
+    frames <- lapply(alignments, function(pa) {
+      lapply(seq_along(pa), function(i) {
+        sequences <- pwalign_to_xstringset(pa[i], verbose = verbose, subject_width = "whole")
+        xstringset_to_df(sequences, name_col = name_col, seq_col = seq_col,
+                         pos_col = pos_col, subject_name = attr(sequences, "subject_name"))
+      })
+    })
+    frames <- do.call(c, frames)
+    aln <- dplyr::distinct(dplyr::bind_rows(frames))
+    attr(aln, "subject_name") <- attr(frames[[1]], "subject_name")
     if (!is.null(y_group_col)) {
       if (verbose) {
         message("y_group_col is set to NULL.")
@@ -497,7 +500,8 @@ convert_aln_and_get_type <- function(aln,
 
   # if seq names are numeric; order them increasingly
   if (order_numeric_seq_names && !anyNA(suppressWarnings(as.numeric(as.character(aln[[name_col]]))))) {
-    aln[[name_col]] <- factor(aln[[name_col]], levels = as.character(unique(as.numeric(as.character(aln[[name_col]])))))
+    labels <- unique(as.character(aln[[name_col]]))
+    aln[[name_col]] <- factor(aln[[name_col]], levels = labels[order(as.numeric(labels))])
   } else if (!is.factor(aln[[name_col]])) {
     aln[[name_col]] <- as.factor(aln[[name_col]])
   }
@@ -510,20 +514,28 @@ change_aln_focus <- function(aln,
                              focus,
                              subject_name,
                              name_col,
-                             pos_col) {
-  if (!is.null(focus) && !is.null(subject_name)) {
-    if (!is.numeric(focus)) {
-      stop("focus should be a positive integer.")
-    }
-    pos_col_rng <- range(aln[which(aln[[name_col]] != subject_name), pos_col])
-    aln <- dplyr::filter(aln, dplyr::between(!!rlang::sym(pos_col), pos_col_rng[1]-focus, pos_col_rng[2]+focus))
-  } else if (!is.null(focus) && is.null(subject_name)) {
-    message("focus requires subject_name which is NULL though.")
-  } else if (!is.null(focus) && !is.null(subject_name) && !subject_name %in% aln[[name_col]]) {
-    message("subject name not found in ", name_col, ". Cannot use focus.")
+                             pos_col,
+                             seq_col,
+                             verbose) {
+  if (is.null(focus)) {
+    return(aln)
   }
-
-  return(aln)
+  if (!is.numeric(focus) || length(focus) != 1L || !is.finite(focus) || focus < 0) {
+    stop("focus must be a finite, non-negative number.")
+  }
+  if (is.null(subject_name) || !subject_name %in% aln[[name_col]]) {
+    if (verbose) message("focus requires a subject present in the alignment.")
+    return(aln)
+  }
+  occupied <- !is.na(aln[[seq_col]]) & !is.na(aln[[name_col]]) &
+    aln[[name_col]] != subject_name & is.finite(aln[[pos_col]])
+  if (!any(occupied)) {
+    if (verbose) message("No occupied pattern positions; focus was not applied.")
+    return(aln)
+  }
+  bounds <- range(aln[[pos_col]][occupied])
+  dplyr::filter(aln, dplyr::between(!!rlang::sym(pos_col),
+                                   bounds[1] - focus, bounds[2] + focus))
 }
 
 shift_aln <- function(aln,
@@ -531,37 +543,44 @@ shift_aln <- function(aln,
                       pos_col,
                       verbose,
                       x_breaks) {
-
+  original_positions <- sort(unique(aln[[pos_col]]))
+  x_labels <- NULL
   if (!is.null(pos_shift)) {
-    if (!is.numeric(pos_shift) && !grepl("^\\+", pos_shift)) {
-      stop("pos_shift has to be numeric giving and absolute position as start or start with a '+' giving a relative shift.")
+    if (!length(original_positions) || any(!is.finite(aln[[pos_col]]))) {
+      stop("Shifting requires finite, non-missing alignment positions.")
     }
-    if (grepl("^\\+", pos_shift)) {
-      pos_shift <- max(aln[[pos_col]]) - as.numeric(gsub("\\+", "", pos_shift)) + 2
-      if (pos_shift < 0) {
-        stop("pos_shift cannot be larger than the largest alignment position.")
+    if (is.character(pos_shift) && length(pos_shift) == 1L &&
+        !is.na(pos_shift) && grepl("^\\+[0-9]+$", pos_shift)) {
+      offset <- as.numeric(sub("^\\+", "", pos_shift))
+      if (!is.finite(offset) || offset < 1 || offset > length(original_positions)) {
+        stop("Relative pos_shift must be between +1 and the number of positions.")
       }
+      start_index <- (length(original_positions) - offset + 1L) %%
+        length(original_positions) + 1L
+      pos_shift <- original_positions[start_index]
+    } else if (!is.numeric(pos_shift) || length(pos_shift) != 1L ||
+               !is.finite(pos_shift)) {
+      stop("pos_shift must be a finite position or a relative shift such as '+3'.")
     }
-    conv <- stats::setNames(shifted_pos(
-      x = unique(aln[[pos_col]]),
-      start_pos = pos_shift,
-      verbose = verbose
-    ), unique(aln[[pos_col]]))
-    aln[[pos_col]] <- conv[aln[[pos_col]]]
+    shifted_positions <- shifted_pos(original_positions, start_pos = pos_shift,
+                                      verbose = verbose)
+    aln[[pos_col]] <- shifted_positions[match(aln[[pos_col]], original_positions)]
   }
 
-  # https://stackoverflow.com/questions/45493163/ggplot-remove-na-factor-level-in-legend
-  # --> na.translate = F
   if (is.null(x_breaks)) {
-    ## fix with expand = F in coord_cartesian
     x_breaks <- floor(base::pretty(unique(aln[[pos_col]]), n = 5))
     if (!any(x_breaks < 0)) {
-      x_breaks <- x_breaks[which(x_breaks > 0)]
+      x_breaks <- x_breaks[x_breaks > 0]
     }
-    #x_breaks <- x_breaks[which(x_breaks < max(aln[[pos_col]]))]
+    if (!is.null(pos_shift)) {
+      x_breaks <- sort(unique(c(original_positions[1],
+                               x_breaks[x_breaks %in% original_positions])))
+    }
   }
-
-  return(list(aln = aln, x_breaks = x_breaks))
+  if (!is.null(pos_shift)) {
+    x_labels <- original_positions[match(x_breaks, shifted_positions)]
+  }
+  list(aln = aln, x_breaks = x_breaks, x_labels = x_labels)
 }
 
 
@@ -577,7 +596,7 @@ make_yaxis <- function(aln,
                        seq_col,
                        verbose) {
 
-  if (group_on_yaxis && is.null(y_group_col) && length(unique(aln$seq.name))>2) {
+  if (group_on_yaxis && is.null(y_group_col) && length(unique(aln[[name_col]]))>2) {
     # if pairwise alignment is provided, use this one to derived ranges - but this may not be compatible with shifting?!
     if (is.null(subject_name)) {
       message("Cannot group on y-axis without subject name.")
@@ -634,13 +653,13 @@ make_yaxis <- function(aln,
       )
     }
 
-  } else if (group_on_yaxis && !is.null(y_group_col) && length(unique(aln$seq.name))>2) {
+  } else if (group_on_yaxis && !is.null(y_group_col) && length(unique(aln[[name_col]]))>2) {
     if (verbose) {
       message("y_group_col is not NULL. Using this one. Ignoring group_on_yaxis.")
     }
   }
 
-  if (y_order != "as_is" && length(unique(aln$seq.name))>2) {
+  if (y_order != "as_is" && length(unique(aln[[name_col]]))>2) {
     # if (is.null(y_group_col) && is.factor(aln[[name_col]])) {
     #   message("name_col is a factor. Will stick to this order.")
     #   order <- F
@@ -732,10 +751,13 @@ compare_pattern_to_ref <- function(aln,
     }
     if (aln_type == "AA") {
       seq_original <- "seq_original"
+      # The comparison routine mutates its sequence vector in C++.
+      aln[[seq_original]] <- aln[[seq_col]][seq_len(nrow(aln))]
     } else {
       seq_original <- NULL
     }
 
+    aln[[seq_col]] <- aln[[seq_col]][seq_len(nrow(aln))]
     aln <- compare_seq_df_long(df = aln,
                                ref = ref,
                                pos_col = pos_col,
@@ -801,9 +823,9 @@ make_color <- function(aln,
         chem_col[[seq_original]] <- as.character(chem_col[[seq_original]])
         aln <- dplyr::left_join(aln, chem_col, by = seq_original)
         aln[[col_col]] <- ifelse(is.na(aln[[col_col]]), aln[[seq_original]], aln[[col_col]])
-        tile_fill_internal <- AA[match.arg(tile_fill, choices = colnames(AA)),]
-        tile_fill_internal <- tile_fill_internal[unique(aln[[seq_col]][which(!is.na(aln[[seq_col]]))])]
-        for (i in 1:length(tile_fill_internal)) {
+        tile_fill_internal <- AA[, match.arg(tile_fill, choices = colnames(AA))]
+        tile_fill_internal <- tile_fill_internal[unique(aln[[seq_original]][which(!is.na(aln[[seq_original]]))])]
+        for (i in seq_along(tile_fill_internal)) {
           if (names(tile_fill_internal)[i] %in% names(igsc:::aa_info[["aa_main_prop"]])) {
             names(tile_fill_internal)[i] <- igsc:::aa_info[["aa_main_prop"]][names(tile_fill_internal)[i]]
           }
@@ -815,7 +837,7 @@ make_color <- function(aln,
         tile_fill_internal <- colrr::col_pal("viridis", return = "c", n = 100)[cut(unique(aln[[col_col]])[which(!is.na(unique(aln[[col_col]])))], 100)]
         names(tile_fill_internal) <- unique(aln[[col_col]])[which(!is.na(unique(aln[[col_col]])))]
       } else {
-        tile_fill_internal <- AA[match.arg(tile_fill, choices = colnames(AA)),]
+        tile_fill_internal <- AA[, match.arg(tile_fill, choices = colnames(AA))]
       }
     } else {
       if (verbose) {
@@ -917,7 +939,10 @@ make_aln_summary <- function(aln,
                                        pairwise_alignment@pattern@unaligned@ranges@width),
                                      c(pairwise_alignment@subject@unaligned@ranges@NAMES,
                                        pairwise_alignment@pattern@unaligned@ranges@NAMES))
+      # order always fits?
+      names(seq_lengths) <- aln_summary[[name_col]]
     }
+
     if (aln_type %in% c("NT", "AA")) {
       seq_lengths <- stats::setNames(paste0(names(seq_lengths), "\n", seq_lengths, " ", tolower(aln_type)),
                                      nm = names(seq_lengths))
@@ -926,11 +951,11 @@ make_aln_summary <- function(aln,
                                      nm = names(seq_lengths))
     }
 
-    aln_summary$label <- seq_lengths[aln_summary[[name_col]]]
+    aln_summary$label <- unname(seq_lengths[as.character(aln_summary[[name_col]])])
   } else {
-    aln_summary$label <- stats::setNames(as.character(aln_summary[[name_col]]),
-                                         as.character(aln_summary[[name_col]]))
+    aln_summary$label <- purrr::set_names(as.character(aln_summary[[name_col]]))
   }
+
 
   return(aln_summary)
 }
@@ -952,6 +977,7 @@ add_pattern_lims <- function(plot,
                                  seq.name = ifelse(rep(is.null(pairwise_alignment@pattern@unaligned@ranges@NAMES), length(pairwise_alignment)),
                                                    paste0("pattern_", seq(1,length(pairwise_alignment))),
                                                    pairwise_alignment@pattern@unaligned@ranges@NAMES))
+    names(pattern.ranges)[names(pattern.ranges) == "seq.name"] <- name_col
     names(pattern.ranges)[1:2] <- paste0("pattern_", names(pattern.ranges)[1:2])
     # stats::setNames(as.data.frame(pairwise_alignment@subject@range)[1:2], nm = paste0("subject_", names(as.data.frame(pairwise_alignment@subject@range)[1:2])))
     # subject position not from pairwise_alignment but from aln_summary as the latter can account for pos_shift
@@ -1154,32 +1180,21 @@ compare_seqs <- function(subject,
 }
 
 ## work with start pos - then derive shift
-shifted_pos <- function(x,
-                        n = NULL,
-                        start_pos = NULL,
-                        verbose) {
-
-
-  if (!is.null(n) && is.na(n)) {
-    stop("n is NA, not numeric.")
-  }
-  if (!is.null(start_pos) && is.na(start_pos)) {
-    stop("start_pos is NA, not numeric.")
-  }
-
+shifted_pos <- function(x, n = NULL, start_pos = NULL, verbose) {
+  if (!length(x)) return(x)
   if (!is.null(start_pos)) {
-    if (!is.null(n)) {
-      if (verbose) {
-        message("n will be ignored as start_pos is provided.")
-      }
+    if (length(start_pos) != 1L || is.na(start_pos)) {
+      stop("start_pos must be a single non-missing position.")
     }
-    n <- which(start_pos == x) - 1
-    if (length(n) == 0) {
-      stop("start_pos not found in x.")
-    }
+    if (!is.null(n) && verbose) message("n will be ignored as start_pos is provided.")
+    n <- match(start_pos, x) - 1L
+    if (is.na(n)) stop("start_pos not found in x.")
   }
-  x2 <- c(x[(length(x)-n+1):length(x)], dplyr::lag(x,n)[(n+1):length(x)])
-  return(x2)
+  if (is.null(n) || !is.numeric(n) || length(n) != 1L || !is.finite(n) || n != trunc(n)) {
+    stop("n must be a finite integer shift.")
+  }
+  indices <- (seq_along(x) - n - 1L) %% length(x) + 1L
+  x[indices]
 }
 
 infer_subject_name <- function(aln,

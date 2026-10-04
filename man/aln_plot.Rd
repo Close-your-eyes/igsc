@@ -48,8 +48,8 @@ aln_plot(
 \item{aln}{An alignment to plot. Supported inputs are a data frame returned
 by \code{\link[=pwalign_multi]{pwalign_multi()}}, a \code{DNAStringSet}, \code{RNAStringSet}, or \code{AAStringSet}
 (for example, from \code{DECIPHER::AlignSeqs()}), a
-\code{pairwise_alignmentsSingleSubject} object returned by
-\code{pwalign::pairwise_alignment()}, or a list of such pairwise alignments. A
+\code{PairwiseAlignmentsSingleSubject} object returned by
+\code{pwalign::pairwiseAlignment()}, or a list of such pairwise alignments. A
 custom data frame must contain the columns named by \code{pos_col}, \code{seq_col},
 and \code{name_col}.}
 
@@ -99,7 +99,7 @@ labels; for example, \code{\link[ggrepel:geom_text_repel]{ggrepel::geom_text_rep
 \item{pattern_names_fun_args}{Named list of additional arguments passed to
 \code{pattern_names_fun}.}
 
-\item{pairwise_alignment}{Optional \code{pairwise_alignmentsSingleSubject} object
+\item{pairwise_alignment}{Optional \code{PairwiseAlignmentsSingleSubject} object
 on which \code{aln} is based. It supplies metadata for pattern-limit labels,
 subject-name detection, and exact sequence lengths.}
 
@@ -152,7 +152,8 @@ assigned.}
 
 \item{pos_shift}{Optional new starting position for the alignment. Supply a
 number for an absolute start, or a string such as \code{"+100"} for a relative
-circular shift.}
+circular shift. \code{"+1"} leaves positions unchanged; \code{"+2"} moves residues
+one plotted position to the right. Shifts wrap within the observed positions.}
 
 \item{pos_shift_adjust_axis}{Logical; after shifting positions, relabel the
 x-axis to display the original coordinates.}
@@ -189,7 +190,7 @@ gzmb <- dplyr::filter(out, hgnc_symbol == "GZMB")
 
 ### pairwise alignment
 # just character vectors
-aln1 <- pwalign::pairwise_alignment(subject = gzma$transcript_exon_intron,
+aln1 <- pwalign::pairwiseAlignment(subject = gzma$transcript_exon_intron,
                                    pattern = gzma$coding,
                                    type = "local-global")
 aln_plot(aln1)
@@ -197,7 +198,7 @@ aln_plot(aln1)
 # provide names via DNAStringSets
 GZMA_RNA <- stats::setNames(gzma$transcript_exon_intron, "GZMA_premRNA")
 GZMA_CDS <- stats::setNames(gzma$coding, "GZMA_CDS")
-aln2 <- pwalign::pairwise_alignment(subject = Biostrings::DNAStringSet(GZMA_RNA),
+aln2 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMA_RNA),
                                    pattern = Biostrings::DNAStringSet(GZMA_CDS),
                                    type = "local-global")
 aln_plot(aln2)
@@ -224,7 +225,7 @@ aln5 <- pwalign_multi(subject = GZMB_gene, patterns = GZMB_exons,
 aln5[["plot"]]
 
 GZMB_CDS <- stats::setNames(gzmb$coding, "GZMB_CDS")
-aln6 <- pwalign::pairwise_alignment(subject = Biostrings::DNAStringSet(GZMB_CDS),
+aln6 <- pwalign::pairwiseAlignment(subject = Biostrings::DNAStringSet(GZMB_CDS),
                                    pattern = Biostrings::DNAStringSet(GZMA_CDS),
                                    type = "global")
 # no modification of plotting colors
