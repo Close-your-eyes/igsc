@@ -247,7 +247,9 @@ aln_plot <- function(aln,
   }
 
   if (subject_lim_lines && !is.null(subject_name) && !subject_name %in% aln[[name_col]]) {
-    message("subject_name not found in ", name_col, " of aln. Can't draw subject_lim_lines.")
+    if (verbose) {
+      message("subject_name not found in ", name_col, " of aln. Can't draw subject_lim_lines.")
+    }
     subject_lim_lines <- F
   }
 
@@ -396,10 +398,18 @@ aln_plot <- function(aln,
   }
 
   if (subject_lim_lines) {
-    #minmaxpos <- c(aln_summary |> dplyr::filter(!!rlang::sym(name_col) != subject_name) |> dplyr::pull(min_pos), aln_summary |> dplyr::filter(!!rlang::sym(name_col) != subject_name) |> dplyr::pull(max_pos))
-    min.pos <- aln |> dplyr::filter(!!rlang::sym(seq_col) != "-") |> dplyr::filter(!is.na(!!rlang::sym(seq_col))) |> dplyr::filter(!!rlang::sym(name_col) != subject_name) |> dplyr::slice_min(order_by = !!rlang::sym(pos_col), n = 1) |> dplyr::pull(!!rlang::sym(pos_col))
-    max.pos <- aln |> dplyr::filter(!!rlang::sym(seq_col) != "-") |> dplyr::filter(!is.na(!!rlang::sym(seq_col))) |> dplyr::filter(!!rlang::sym(name_col) != subject_name) |> dplyr::slice_max(order_by = !!rlang::sym(pos_col), n = 1) |> dplyr::pull(!!rlang::sym(pos_col))
-    plot <- plot + ggplot2::geom_vline(xintercept = c(min.pos, max.pos), linetype = "dashed")
+    minmaxpos <- aln |>
+      dplyr::filter(!!rlang::sym(seq_col) != "-") |>
+      dplyr::filter(!is.na(!!rlang::sym(seq_col))) |>
+      dplyr::filter(!!rlang::sym(name_col) != subject_name) |>
+      brathering::slice_minmax(order_by = !!rlang::sym(pos_col), n = c(1,1)) |>
+      dplyr::pull(position)
+
+    plot <- plot + ggplot2::geom_vline(
+      xintercept = minmaxpos,
+      linetype = "dashed",
+      linewidth = 0.25
+    )
   }
 
 
@@ -1184,11 +1194,11 @@ infer_subject_name <- function(aln,
     tidyr::drop_na(!!rlang::sym(seq_col)) |>
     dplyr::group_by(!!rlang::sym(name_col))
   subj_rngs <- stats::setNames(brathering::seq2(subj_rngs |>
-                                             dplyr::slice_min(!!rlang::sym(pos_col)) |>
-                                             dplyr::pull(!!rlang::sym(pos_col)),
-                                           subj_rngs |>
-                                             dplyr::slice_max(!!rlang::sym(pos_col)) |>
-                                             dplyr::pull(!!rlang::sym(pos_col))),
+                                                  dplyr::slice_min(!!rlang::sym(pos_col)) |>
+                                                  dplyr::pull(!!rlang::sym(pos_col)),
+                                                subj_rngs |>
+                                                  dplyr::slice_max(!!rlang::sym(pos_col)) |>
+                                                  dplyr::pull(!!rlang::sym(pos_col))),
                                nm = as.character(subj_rngs |>
                                                    dplyr::slice_min(!!rlang::sym(pos_col)) |>
                                                    dplyr::pull(!!rlang::sym(name_col))))

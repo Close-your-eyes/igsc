@@ -7,7 +7,7 @@
 pwalign_multi(
   subject,
   patterns,
-  type = c("global-local", "global", "local", "overlap", "local-global"),
+  type = c("local-global", "global-local", "global", "local", "overlap"),
   max_mismatch = NA,
   order_patterns = F,
   fix_subject_indels = F,
@@ -17,8 +17,8 @@ pwalign_multi(
   compare_seq_df_wide_args = list(match_symbol = ".", change_nonref = T,
     nonref_mismatch_as = "base", change_ref = T, ref_mismatch_as = "base", insertion_as =
     "base", rm_pure_NA_non_ref = F),
-  pairwiseAlignment_args = list(),
-  algnmt_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
+  pair_aln_args = list(),
+  aln_plot_args = list(add_length_suffix = T, pattern_lim_size = 2, verbose = F),
   order_subject_ranges = F,
   verbose = T
 )
@@ -66,11 +66,11 @@ plot. This is primarily useful when \code{max_mismatch} is not \code{NA}.}
 \item{compare_seq_df_wide_args}{Named list of arguments passed to
 \code{\link[=compare_seq_df_wide]{compare_seq_df_wide()}} when preparing the long plotting data.}
 
-\item{pairwiseAlignment_args}{Named list of additional arguments passed to
+\item{pair_aln_args}{Named list of additional arguments passed to
 \code{\link[pwalign:pairwiseAlignment]{pwalign::pairwiseAlignment()}}. \code{subject}, \code{pattern}, and \code{type} are
 supplied by \code{pwalign_multi()}.}
 
-\item{algnmt_plot_args}{Named list of additional arguments passed to
+\item{aln_plot_args}{Named list of additional arguments passed to
 \code{algnmt_plot()} when creating the plot.}
 
 \item{order_subject_ranges}{Logical; order the returned \code{subject_ranges} list
