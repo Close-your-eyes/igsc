@@ -26,7 +26,8 @@
 #'   `c("--op", "2", "--ep", "0.1")`. Use MAFFT's own scoring units.
 #'   Options that change the input set, sequence direction, sequence type,
 #'   thread count, or output format are not supported. Output order is restored
-#'   even if `"--reorder"` is supplied.
+#'   even if `"--reorder"` is supplied. See the sections below for common options,
+#'   strategy selection, and arguments managed by the wrapper.
 #'
 #' @return An aligned sequence set of the same type as `myXStringSet`, with
 #'   equal sequence widths and the original sequence order and names, including
@@ -39,8 +40,65 @@
 #'
 #'   This performs a new multiple-sequence alignment of all input sequences.
 #'   It does not implement reference-guided `--addfragments` alignment.
+#'
+#' @section Choosing a strategy:
+#' - `"auto"`: let MAFFT choose based on the data size; a useful starting point.
+#' - `"linsi"`: local pairwise information plus up to 1000 refinement cycles.
+#'   Useful when conserved regions are separated by variable regions.
+#' - `"ginsi"`: global pairwise information plus up to 1000 refinement cycles.
+#'   Useful for sequences of similar lengths that align across their full length.
+#' - `"einsi"`: generalized-affine pairwise alignment, up to 1000 refinement
+#'   cycles, and `--ep 0`. Intended for sequences with large unalignable regions.
+#' - `"fftns2"`: fast progressive alignment, two guide-tree calculations, and
+#'   no iterative refinement. Useful when speed is more important.
+#'
+#' The three refinement strategies can be much slower on large sequence sets.
+#' These names select MAFFT algorithms; they do not reproduce DECIPHER results.
+#'
+#' @section Common MAFFT arguments:
+#' Supply each option and value separately in `mafft_args`. Values are strings;
+#' options without values are single entries, for example `"--memsave"`.
+#'
+#' - `--op`: gap-opening penalty. Larger positive values discourage new gaps;
+#'   try `c("--op", "3")` to increase the usual value of 1.53.
+#' - `--ep`: an offset that behaves like a gap-extension penalty. Increasing it
+#'   generally discourages extending gaps, but it is not a conventional
+#'   per-residue extension cost. For example, `c("--ep", "0.1")`.
+#' - `--maxiterate`: maximum iterative-refinement cycles. More cycles can
+#'   increase runtime; zero disables refinement. For example,
+#'   `c("--maxiterate", "100")`.
+#' - `--retree`: number of guide-tree calculations in progressive alignment.
+#'   For the `"fftns2"` strategy, `c("--retree", "1")` provides a faster,
+#'   less thoroughly refined guide tree than the preset value of two.
+#' - `--bl`: protein BLOSUM matrix number, for example `c("--bl", "62")`.
+#'   Applies to amino-acid sequences, not nucleotide scoring.
+#' - `--memsave`: use MAFFT's memory-saving alignment algorithm for long
+#'   sequences; this can trade speed for lower memory use.
+#' - `--nofft`: disable the FFT approximation in group-to-group alignment.
+#'
+#' Defaults can differ between MAFFT versions and strategies. For example,
+#' MAFFT 7.526 reports `--ep 0.0` in its command-line help, while older manuals
+#' list 0.123. Consult the installed executable's `--help` output.
+#'
+#' Extra arguments follow the strategy preset on the command line. For manual
+#' control of `--maxiterate` or `--retree`, choose a non-`"auto"` strategy so
+#' automatic strategy selection does not decide those settings for you.
+#' Gap costs use MAFFT's own scoring scale, not DECIPHER's negative gap scores.
+#' Stronger gap penalties may favor mismatches and do not guarantee a gap-free
+#' alignment or subject sequence.
+#'
+#' @section Arguments managed by this wrapper:
+#' Set `processors` instead of passing `--thread`; `processors = NULL` passes
+#' `--thread -1`. Set `verbose = FALSE` to add `--quiet`. The input class selects
+#' `--nuc` or `--amino`, and `--anysymbol` is supplied automatically.
+#' `--reorder` cannot change the returned sequence order: original order is
+#' restored before returning. FASTA output is required. Options such as
+#' `--addfragments`, `--keeplength`, `--adjustdirection`, and `--clustalout`
+#' are rejected because they conflict with this wrapper's input/output contract.
+#'
 #' @seealso [DECIPHER::AlignSeqs()], [aln_plot()],
-#'   \url{https://mafft.cbrc.jp/alignment/software/}
+#'   \url{https://mafft.cbrc.jp/alignment/software/},
+#'   \url{https://mafft.cbrc.jp/alignment/software/manual/manual.html}
 #' @export
 #' @examples
 #' \dontrun{
@@ -50,9 +108,26 @@
 #' aligned <- align_seqs_mafft(dna, processors = 4, verbose = FALSE)
 #' aln_plot(aligned)
 #'
+#' # Make new gaps more costly; also discourage gap extension.
+#' fewer_gaps <- align_seqs_mafft(
+#'   dna, verbose = FALSE, mafft_args = c("--op", "3", "--ep", "0.1")
+#' )
+#'
+#' # Start from L-INS-i but reduce its refinement limit from 1000 to 100.
+#' limited_refinement <- align_seqs_mafft(
+#'   dna, strategy = "linsi", verbose = FALSE,
+#'   mafft_args = c("--maxiterate", "100")
+#' )
+#'
 #' proteins <- Biostrings::AAStringSet(c(first = "MKVLW", second = "MKVLAW"))
 #' aligned_aa <- align_seqs_mafft(proteins, strategy = "linsi",
 #'                                mafft = "/opt/local/bin/mafft", verbose = FALSE)
+#'
+#' # Choose a protein substitution matrix in MAFFT's own scoring system.
+#' aligned_blosum62 <- align_seqs_mafft(
+#'   proteins, strategy = "ginsi", verbose = FALSE,
+#'   mafft_args = c("--bl", "62")
+#' )
 #' }
 align_seqs_mafft <- function(myXStringSet,
                               processors = 1,
