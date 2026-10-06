@@ -503,7 +503,7 @@ convert_aln_and_get_type <- function(aln,
     labels <- unique(as.character(aln[[name_col]]))
     aln[[name_col]] <- factor(aln[[name_col]], levels = labels[order(as.numeric(labels))])
   } else if (!is.factor(aln[[name_col]])) {
-    aln[[name_col]] <- as.factor(aln[[name_col]])
+    aln[[name_col]] <- factor(aln[[name_col]], levels = unique(aln[[name_col]]))
   }
 
   return(list(aln = aln, aln_type = aln_type, y_group_col = y_group_col))
