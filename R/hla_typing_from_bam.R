@@ -1,7 +1,9 @@
-#' Type HLA genes directly from an RNA-seq BAM file
+#' Type HLA genes directly from RNA-seq BAM files
 #'
 #' A convenience workflow that first calls [get_hla_reads()] and then calls
 #' [hla_typing()] separately for each requested HLA gene.
+#' When multiple BAM files are supplied, their reads are pooled for one typing
+#' result per gene. All files should belong to the same individual.
 #'
 #' @inheritParams get_hla_reads
 #' @param hla_ref HLA allele reference data frame, preferably created by
@@ -37,7 +39,8 @@
 #'
 #' @return A list with `reads`, the candidate HLA read data frame; `typing`, a
 #'   named list of [hla_typing()] results; and `regions`, the queried genomic
-#'   ranges.
+#'   ranges (a `GRanges` for one BAM or a `GRangesList` named by BAM path for
+#'   multiple BAMs).
 #' @export
 #'
 #' @examples
@@ -48,6 +51,12 @@
 #'   reference_gtf = "reference/genes/genes.gtf",
 #'   genes = c("A", "B", "C"),
 #'   maxmis = 1)
+#'
+#' # Pool sequencing runs from the same individual
+#' result <- hla_typing_from_bam(
+#'   bam = c("run1/possorted_genome_bam.bam", "run2/possorted_genome_bam.bam"),
+#'   hla_ref = hla_ref,
+#'   reference_gtf = "reference/genes/genes.gtf")
 #'
 #' # check strandness of HLA genes
 #' gtf <- read_gtf(".../refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
@@ -278,11 +287,14 @@ hla_typing_from_bam <- function(
   )
 }
 
-#' Extract candidate HLA reads from an RNA-seq BAM file
+#' Extract candidate HLA reads from RNA-seq BAM files
 #'
 #' Extract alignments from the chromosome 6 major histocompatibility complex
 #' (MHC), together with chromosome 6 alternative or HLA-named contigs. This
 #' provides a compact set of candidate HLA reads suitable for [hla_typing()].
+#' Multiple BAM files are extracted independently and their reads are pooled;
+#' identical alignments in different files are retained. Query regions and
+#' reference validation are determined separately for each BAM.
 #'
 #' The default interval, 28--34 Mb on chromosome 6, deliberately extends beyond
 #' the classical HLA genes. It works for both GRCh37 and GRCh38 and avoids
@@ -300,7 +312,9 @@ hla_typing_from_bam <- function(
 #' reads aligned outside the selected regions are not classified as HLA reads by
 #' this function.
 #'
-#' @param bam Path to a coordinate-sorted BAM file with a corresponding index.
+#' @param bam Character vector of paths to coordinate-sorted BAM files, each
+#'   with a corresponding index. Multiple files are pooled and should belong
+#'   to the same individual.
 #' @param reference_genome Optional path to the FASTA file used for alignment.
 #'   The FASTA must have a `.fai` index and is used to validate reference names
 #'   and lengths.
@@ -332,8 +346,12 @@ hla_typing_from_bam <- function(
 #'   barcodes.
 #'
 #' @return A data frame in the format returned by [get_bam_reads()], with a
-#'   unique `readName` column for direct use by [hla_typing()]. The queried
-#'   ranges are stored in the `hla_regions` attribute.
+#'   unique `readName` column for direct use by [hla_typing()]. For multiple
+#'   BAMs, `bam_file` records the source path and `readName` is prefixed by the
+#'   one-based file index. The queried ranges are stored in the `hla_regions`
+#'   attribute: a `GRanges` for one BAM or a `GRangesList` named by BAM path for
+#'   multiple BAMs. Missing tag columns in individual BAMs are filled with `NA`
+#'   when pooling.
 #' @export
 #'
 #' @examples
@@ -370,9 +388,42 @@ get_hla_reads <- function(
 
   igsc:::.ensure_packages(c("GenomicRanges", "IRanges", "Rsamtools"))
 
-  if (missing(bam) || length(bam) != 1L || is.na(bam) || !nzchar(bam) ||
-      !file.exists(bam)) {
-    stop("`bam` must be the path to an existing BAM file.", call. = FALSE)
+  if (missing(bam) || !is.character(bam) || length(bam) == 0L ||
+      anyNA(bam) || any(!nzchar(bam)) || any(!file.exists(bam))) {
+    stop("`bam` must contain paths to existing BAM files.", call. = FALSE)
+  }
+  bam <- unname(path.expand(bam))
+
+  if (length(bam) > 1L) {
+    reads_by_bam <- lapply(seq_along(bam), function(i) {
+      reads <- get_hla_reads(
+        bam = bam[[i]],
+        reference_genome = reference_genome,
+        reference_gtf = reference_gtf,
+        regions = regions,
+        genes = genes,
+        mhc_start = mhc_start,
+        mhc_end = mhc_end,
+        include_alt_contigs = include_alt_contigs,
+        tags = tags,
+        scores = scores,
+        min_mapq = min_mapq,
+        primary_only = primary_only,
+        cell_barcodes = cell_barcodes,
+        cell_barcode_tag = cell_barcode_tag
+      )
+      reads$bam_file <- rep.int(bam[[i]], nrow(reads))
+      if (nrow(reads) > 0L) {
+        reads$readName <- paste0(i, ":", reads$readName)
+      }
+      reads
+    })
+    regions_by_bam <- GenomicRanges::GRangesList(
+      stats::setNames(lapply(reads_by_bam, attr, "hla_regions"), bam)
+    )
+    reads <- dplyr::bind_rows(reads_by_bam)
+    attr(reads, "hla_regions") <- regions_by_bam
+    return(reads)
   }
   if (!is.null(reference_genome) &&
       (length(reference_genome) != 1L || is.na(reference_genome) ||
@@ -743,4 +794,3 @@ validate_hla_reference_genome <- function(reference_genome, bam_stats) {
   }
   invisible(TRUE)
 }
-

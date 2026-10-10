@@ -2,7 +2,7 @@
 % Please edit documentation in R/hla_typing_from_bam.R
 \name{get_hla_reads}
 \alias{get_hla_reads}
-\title{Extract candidate HLA reads from an RNA-seq BAM file}
+\title{Extract candidate HLA reads from RNA-seq BAM files}
 \usage{
 get_hla_reads(
   bam,
@@ -22,7 +22,9 @@ get_hla_reads(
 )
 }
 \arguments{
-\item{bam}{Path to a coordinate-sorted BAM file with a corresponding index.}
+\item{bam}{Character vector of paths to coordinate-sorted BAM files, each
+with a corresponding index. Multiple files are pooled and should belong
+to the same individual.}
 
 \item{reference_genome}{Optional path to the FASTA file used for alignment.
 The FASTA must have a \code{.fai} index and is used to validate reference names
@@ -67,13 +69,20 @@ barcodes.}
 }
 \value{
 A data frame in the format returned by \code{\link[=get_bam_reads]{get_bam_reads()}}, with a
-unique \code{readName} column for direct use by \code{\link[=hla_typing]{hla_typing()}}. The queried
-ranges are stored in the \code{hla_regions} attribute.
+unique \code{readName} column for direct use by \code{\link[=hla_typing]{hla_typing()}}. For multiple
+BAMs, \code{bam_file} records the source path and \code{readName} is prefixed by the
+one-based file index. The queried ranges are stored in the \code{hla_regions}
+attribute: a \code{GRanges} for one BAM or a \code{GRangesList} named by BAM path for
+multiple BAMs. Missing tag columns in individual BAMs are filled with \code{NA}
+when pooling.
 }
 \description{
 Extract alignments from the chromosome 6 major histocompatibility complex
 (MHC), together with chromosome 6 alternative or HLA-named contigs. This
 provides a compact set of candidate HLA reads suitable for \code{\link[=hla_typing]{hla_typing()}}.
+Multiple BAM files are extracted independently and their reads are pooled;
+identical alignments in different files are retained. Query regions and
+reference validation are determined separately for each BAM.
 }
 \details{
 The default interval, 28--34 Mb on chromosome 6, deliberately extends beyond

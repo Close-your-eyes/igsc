@@ -419,36 +419,34 @@ run_read_matching_and_report_results <- function(hla_ref,
                allele2 = colnames(top_single_res)[col.combs[,2]]) |>
     dplyr::mutate(tot_expl_reads = uni_expl_reads + dbl_expl_reads, .after = dbl_expl_reads) |>
     dplyr::mutate(uni_expl_reads_rank = dplyr::dense_rank(-uni_expl_reads),
-                  tot_expl_reads_rank = dplyr::dense_rank(-tot_expl_reads)) |>
-    dplyr::mutate(rank_sum = (tot_expl_reads_rank + uni_expl_reads_rank)/2)
+                  tot_expl_reads_rank = dplyr::dense_rank(-tot_expl_reads),
+                  rank_sum = dplyr::dense_rank(base::interaction(-tot_expl_reads, -uni_expl_reads, lex.order = TRUE))) |>
+    dplyr::arrange(rank_sum) |>
+    dplyr::mutate(rank = dplyr::row_number()) # break ties
   pair_res_df <- pair_res_df |>
-    dplyr::mutate(allele_comb = igsc:::orderAndConcatenateStrings(as.matrix(pair_res_df[c("allele1", "allele2")])), .after = "allele2")|>
-    #dplyr::mutate(rank_int = dplyr::dense_rank(base::interaction(-tot_expl_reads, -uni_expl_reads, lex.order = TRUE)))|>
-    dplyr::group_by(allele_comb)|>
-    #dplyr::filter(rank_int == min(rank_int))|>
-    dplyr::filter(rank_sum == min(rank_sum))|>
-    dplyr::ungroup()|>
-    dplyr::distinct(allele_comb, .keep_all = TRUE)|>
-    dplyr::left_join(hla_ref|> dplyr::select(dplyr::all_of(c(hla_allele_col_name, p_group_col_name, g_group_col_name))), by = c("allele1" = hla_allele_col_name))|>
+    dplyr::mutate(allele_comb = igsc:::orderAndConcatenateStrings(as.matrix(pair_res_df[c("allele1", "allele2")])), .after = "allele2") |>
+    dplyr::filter(rank == min(rank), .by = allele_comb) |>
+    dplyr::distinct(allele_comb, .keep_all = TRUE) |>
+    dplyr::left_join(hla_ref |> dplyr::select(dplyr::all_of(c(hla_allele_col_name, p_group_col_name, g_group_col_name))), by = c("allele1" = hla_allele_col_name)) |>
     dplyr::rename(
       p_group1 = dplyr::all_of(p_group_col_name),
       g_group1 = dplyr::all_of(g_group_col_name)
     ) |>
-    dplyr::left_join(hla_ref|> dplyr::select(dplyr::all_of(c(hla_allele_col_name, p_group_col_name, g_group_col_name))), by = c("allele2" = hla_allele_col_name))|>
+    dplyr::left_join(hla_ref |> dplyr::select(dplyr::all_of(c(hla_allele_col_name, p_group_col_name, g_group_col_name))), by = c("allele2" = hla_allele_col_name)) |>
     dplyr::rename(
       p_group2 = dplyr::all_of(p_group_col_name),
       g_group2 = dplyr::all_of(g_group_col_name)
     ) |>
-    dplyr::left_join(top_sin_res_df|> dplyr::select(dplyr::all_of(hla_allele_col_name), expl_reads), by = c("allele1" = hla_allele_col_name))|>
-    dplyr::rename("allele1_expl_reads" = expl_reads)|>
-    dplyr::left_join(top_sin_res_df|> dplyr::select(dplyr::all_of(hla_allele_col_name), expl_reads), by = c("allele2" = hla_allele_col_name))|>
-    dplyr::rename("allele2_expl_reads" = expl_reads)|>
-    dplyr::mutate(expl_reads_overall = !!reads_w_min_one_match_sum)|>
-    dplyr::mutate(non_expl_reads_overall = !!reads_w_no_match_sum)|>
-    dplyr::mutate(allele12_expl_read_diff = abs(allele1_expl_reads - allele2_expl_reads))|>
-    dplyr::mutate(frac_match_reads_expl = tot_expl_reads/expl_reads_overall)|>
+    dplyr::left_join(top_sin_res_df |> dplyr::select(dplyr::all_of(hla_allele_col_name), expl_reads), by = c("allele1" = hla_allele_col_name)) |>
+    dplyr::rename("allele1_expl_reads" = expl_reads) |>
+    dplyr::left_join(top_sin_res_df |> dplyr::select(dplyr::all_of(hla_allele_col_name), expl_reads), by = c("allele2" = hla_allele_col_name)) |>
+    dplyr::rename("allele2_expl_reads" = expl_reads) |>
+    dplyr::mutate(expl_reads_overall = !!reads_w_min_one_match_sum) |>
+    dplyr::mutate(non_expl_reads_overall = !!reads_w_no_match_sum) |>
+    dplyr::mutate(allele12_expl_read_diff = abs(allele1_expl_reads - allele2_expl_reads)) |>
+    dplyr::mutate(frac_match_reads_expl = tot_expl_reads/expl_reads_overall) |>
     dplyr::mutate(frac_all_reads_expl = tot_expl_reads/(expl_reads_overall + non_expl_reads_overall)) |>
-    dplyr::mutate(allele_group1 = stringr::str_extract(allele1, "[:alnum:]{1,}\\*[:digit:]{2}"))|>
+    dplyr::mutate(allele_group1 = stringr::str_extract(allele1, "[:alnum:]{1,}\\*[:digit:]{2}")) |>
     dplyr::mutate(allele_group2 = stringr::str_extract(allele2, "[:alnum:]{1,}\\*[:digit:]{2}"))
 
   # Treat pair labels as unordered so X/Y and Y/X are grouped together even
@@ -465,31 +463,28 @@ run_read_matching_and_report_results <- function(hla_ref,
 
   ## plotting
   top_pair_res_plot1 <-
-    #top_pair_res_df
-    pair_res_df|>
-    dplyr::group_by(p_group12)|>
-    dplyr::slice_min(order_by = rank_sum, n = 1, with_ties = FALSE)|>
-    dplyr::ungroup()
+    dplyr::slice_min(pair_res_df, order_by = rank, n = 1, with_ties = FALSE, by = p_group12)
 
-  allele_group12_medians <-
-    top_pair_res_plot1|>
-    dplyr::group_by(allele_group12)|>
-    dplyr::summarise(median_frac_match_reads_expl = stats::median(frac_match_reads_expl))|>
+  allele_group12_medians <- top_pair_res_plot1 |>
+    dplyr::summarise(median_frac_match_reads_expl = stats::median(frac_match_reads_expl), .by = allele_group12) |>
     dplyr::arrange(dplyr::desc(median_frac_match_reads_expl))
 
   overview_plot <- ggplot2::ggplot(top_pair_res_plot1, ggplot2::aes(x = brathering::reorder_within(allele_group2, frac_match_reads_expl, allele_group1), y = frac_match_reads_expl)) +
     ggplot2::geom_boxplot() +
     ggplot2::theme_bw() +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5), panel.grid.minor = ggplot2::element_blank(), strip.background = ggplot2::element_rect(fill = "white"), panel.grid.major.x = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5),
+                   panel.grid.minor = ggplot2::element_blank(),
+                   strip.background = ggplot2::element_rect(fill = "white"),
+                   panel.grid.major.x = ggplot2::element_blank(),
+                   text = ggplot2::element_text(family = "Courier")) +
     brathering::scale_x_reordered() +
     ggplot2::labs(x = "allele_group2") +
     ggplot2::geom_hline(yintercept = allele_group12_medians[1, 2, drop = TRUE], color = "tomato2") +
     ggplot2::geom_hline(yintercept = max(top_pair_res_plot1$frac_match_reads_expl), color = "forestgreen") +
     ggplot2::facet_wrap(ggplot2::vars(allele_group1), nrow = 1, scales = "free_x")
 
-  top_pair_res_plot2 <-
-    top_pair_res_plot1|>
-    dplyr::arrange(rank_sum, dplyr::desc(tot_expl_reads),
+  top_pair_res_plot2 <- top_pair_res_plot1 |>
+    dplyr::arrange(rank, dplyr::desc(tot_expl_reads),
                    dplyr::desc(uni_expl_reads)) |>
     dplyr::mutate(rank_plot = dplyr::row_number()) |>
     dplyr::slice_head(n = top_n_pairwise_results) |>
@@ -504,27 +499,28 @@ run_read_matching_and_report_results <- function(hla_ref,
     ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), panel.grid.minor = ggplot2::element_blank(), strip.background = ggplot2::element_rect(fill = "white"), panel.grid.major.x = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
     ggplot2::facet_wrap(ggplot2::vars(allele_group), scales = "free_x")
 
-  rank.plot.p1 <- ggplot2::ggplot(top_pair_res_plot2, ggplot2::aes(x = as.factor(rank_plot), y = stats::reorder(p_group1, rank_plot), fill = plot.color)) +
-    ggplot2::geom_point(size = 2, shape = 21) +
-    ggplot2::ylab("p group 1") +
-    ggplot2::scale_x_discrete(breaks = seq(0, nrow(pair_res_df), 10)) +
-    ggplot2::theme_bw() +
-    ggplot2::theme(axis.title.x = ggplot2::element_blank(), axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), legend.position = "none", panel.grid.minor = ggplot2::element_blank(), panel.grid.major.x = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier"))
+  rank_plot <- function(y, ylab, xlab = "rank") {
+    ggplot2::ggplot(
+      top_pair_res_plot2,
+      ggplot2::aes(x = as.factor(rank_plot), y = {{ y }}, fill = plot.color)
+    ) +
+      ggplot2::geom_point(size = 2, shape = 21) +
+      ggplot2::labs(x = xlab, y = ylab) +
+      ggplot2::scale_x_discrete(breaks = seq(0, nrow(pair_res_df), 10)) +
+      ggplot2::theme_bw() +
+      ggplot2::theme(
+        legend.position = "none",
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.grid.major.x = ggplot2::element_blank(),
+        text = ggplot2::element_text(family = "Courier"),
+        axis.text.y = ggplot2::element_text(hjust = 0)
+      )
+  }
 
-  rank.plot.p2 <- ggplot2::ggplot(top_pair_res_plot2, ggplot2::aes(x = as.factor(rank_plot), y = stats::reorder(p_group2, rank_plot), fill = plot.color)) +
-    ggplot2::geom_point(size = 2, shape = 21) +
-    ggplot2::ylab("p group 2") +
-    ggplot2::scale_x_discrete(breaks = seq(0, nrow(pair_res_df), 10)) +
-    ggplot2::theme_bw() +
-    ggplot2::theme(axis.title.x = ggplot2::element_blank(), axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), legend.position = "none", panel.grid.minor = ggplot2::element_blank(), panel.grid.major.x = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier"))
+  rank.plot.p1 <- rank_plot(stats::reorder(p_group1, rank_plot), "p group 1")
+  rank.plot.p2 <- rank_plot(stats::reorder(p_group2, rank_plot), "p group 2")
+  rank.read.plot <- rank_plot(tot_expl_reads, "total\nexplained\nreads")
 
-  rank.read.plot <- ggplot2::ggplot(top_pair_res_plot2, ggplot2::aes(x = as.factor(rank_plot), y = tot_expl_reads, fill = plot.color)) +
-    ggplot2::geom_point(size = 2, shape = 21) +
-    ggplot2::xlab("rank") +
-    ggplot2::ylab("total\nexplained\nreads") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "none", panel.grid.minor = ggplot2::element_blank(), panel.grid.major.x = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
-    ggplot2::scale_x_discrete(breaks = seq(0, nrow(pair_res_df), 10))
 
   expl_reads_overall <- unique(top_pair_res_plot2$expl_reads_overall)
   max_tot_reads <- max(top_pair_res_plot2$tot_expl_reads)
@@ -564,7 +560,14 @@ run_read_matching_and_report_results <- function(hla_ref,
   height.3 <- height.3/total
 
   #pair_plot <- cowplot::plot_grid(rank.plot.p1, rank.plot.p2, rank.read.plot, ncol = 1, align = "v", rel_heights = c(height.1,height.2,height.3)) # check how to replace with patchwork
-  pair_plot <- patchwork::wrap_plots(rank.plot.p1, rank.plot.p2, rank.read.plot, ncol = 1, heights = c(height.1,height.2,height.3))
+  pair_plot <- patchwork::wrap_plots(
+    rank.plot.p1,
+    rank.plot.p2,
+    rank.read.plot,
+    ncol = 1,
+    heights = c(height.1,height.2,height.3),
+    axes = "collect"
+  )
 
   return(list(top_sin_res_df = top_sin_res_df,
               top_sin_res_mat = top_single_res,

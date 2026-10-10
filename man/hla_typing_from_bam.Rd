@@ -2,7 +2,7 @@
 % Please edit documentation in R/hla_typing_from_bam.R
 \name{hla_typing_from_bam}
 \alias{hla_typing_from_bam}
-\title{Type HLA genes directly from an RNA-seq BAM file}
+\title{Type HLA genes directly from RNA-seq BAM files}
 \usage{
 hla_typing_from_bam(
   bam,
@@ -37,7 +37,9 @@ hla_typing_from_bam(
 )
 }
 \arguments{
-\item{bam}{Path to a coordinate-sorted BAM file with a corresponding index.}
+\item{bam}{Character vector of paths to coordinate-sorted BAM files, each
+with a corresponding index. Multiple files are pooled and should belong
+to the same individual.}
 
 \item{hla_ref}{HLA allele reference data frame, preferably created by
 \code{\link[=hla_df_from_xml]{hla_df_from_xml()}}.}
@@ -123,11 +125,14 @@ such as \code{mc.cores} for \code{\link[parallel:mclapply]{parallel::mclapply()}
 \value{
 A list with \code{reads}, the candidate HLA read data frame; \code{typing}, a
 named list of \code{\link[=hla_typing]{hla_typing()}} results; and \code{regions}, the queried genomic
-ranges.
+ranges (a \code{GRanges} for one BAM or a \code{GRangesList} named by BAM path for
+multiple BAMs).
 }
 \description{
 A convenience workflow that first calls \code{\link[=get_hla_reads]{get_hla_reads()}} and then calls
 \code{\link[=hla_typing]{hla_typing()}} separately for each requested HLA gene.
+When multiple BAM files are supplied, their reads are pooled for one typing
+result per gene. All files should belong to the same individual.
 }
 \examples{
 \dontrun{
@@ -137,6 +142,12 @@ result <- hla_typing_from_bam(
   reference_gtf = "reference/genes/genes.gtf",
   genes = c("A", "B", "C"),
   maxmis = 1)
+
+# Pool sequencing runs from the same individual
+result <- hla_typing_from_bam(
+  bam = c("run1/possorted_genome_bam.bam", "run2/possorted_genome_bam.bam"),
+  hla_ref = hla_ref,
+  reference_gtf = "reference/genes/genes.gtf")
 
 # check strandness of HLA genes
 gtf <- read_gtf(".../refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",

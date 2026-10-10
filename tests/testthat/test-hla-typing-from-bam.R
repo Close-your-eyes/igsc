@@ -1,11 +1,11 @@
-make_hla_test_bam <- function(directory) {
+make_hla_test_bam <- function(directory, barcode_tag = "CB", chr6 = "chr6") {
   sam <- file.path(directory, "hla-test.sam")
   quality <- paste(rep("I", 20L), collapse = "")
   record <- function(qname, flag, rname, pos, mapq, barcode, base = "A") {
     sequence <- paste(rep(base, 20L), collapse = "")
     paste(
       qname, flag, rname, pos, mapq, "20M", "*", 0, 0,
-      sequence, quality, paste0("CB:Z:", barcode),
+      sequence, quality, paste0(barcode_tag, ":Z:", barcode),
       sep = "\t"
     )
   }
@@ -14,12 +14,12 @@ make_hla_test_bam <- function(directory) {
     c(
       "@HD\tVN:1.6\tSO:coordinate",
       "@SQ\tSN:chr1\tLN:1000",
-      "@SQ\tSN:chr6\tLN:1000",
+      paste0("@SQ\tSN:", chr6, "\tLN:1000"),
       "@SQ\tSN:chr6_GL000250v2_alt\tLN:1000",
       record("outside", 0, "chr1", 100, 60, "CELL-1"),
-      record("hla_primary", 0, "chr6", 100, 60, "CELL-1"),
-      record("hla_secondary", 256, "chr6", 150, 60, "CELL-1"),
-      record("hla_low_mapq", 0, "chr6", 200, 5, "CELL-2", base = "C"),
+      record("hla_primary", 0, chr6, 100, 60, "CELL-1"),
+      record("hla_secondary", 256, chr6, 150, 60, "CELL-1"),
+      record("hla_low_mapq", 0, chr6, 200, 5, "CELL-2", base = "C"),
       record("hla_alt", 0, "chr6_GL000250v2_alt", 10, 60, "CELL-1")
     ),
     sam
@@ -327,4 +327,136 @@ test_that("custom allele columns are honored when checking one-gene input", {
   )
 
   expect_s3_class(result$pair_res1_df, "data.frame")
+})
+
+
+test_that("multiple BAMs retain cross-file reads and source metadata", {
+  skip_if_not_installed("Rsamtools")
+  directories <- c(tempfile("hla-run1-"), tempfile("hla-run2-"))
+  invisible(lapply(directories, dir.create))
+  bam <- vapply(directories, make_hla_test_bam, character(1))
+  region <- GenomicRanges::GRanges("chr6", IRanges::IRanges(1, 300))
+
+  reads <- suppressMessages(get_hla_reads(
+    bam, regions = region, scores = FALSE, min_mapq = 10
+  ))
+
+  expect_equal(nrow(reads), 2L)
+  expect_identical(reads$qname, rep("hla_primary", 2L))
+  expect_identical(reads$bam_file, unname(bam))
+  expect_identical(reads$readName, c("1:hla_primary", "2:hla_primary"))
+  expect_identical(anyDuplicated(reads$readName), 0L)
+  regions <- attr(reads, "hla_regions")
+  expect_s4_class(regions, "GRangesList")
+  expect_identical(names(regions), unname(bam))
+  expect_identical(regions[[1L]], region)
+  expect_identical(regions[[2L]], region)
+})
+
+
+test_that("pooling fills unavailable BAM tags with missing values", {
+  skip_if_not_installed("Rsamtools")
+  directories <- c(tempfile("hla-run1-"), tempfile("hla-run2-"))
+  invisible(lapply(directories, dir.create))
+  bam <- c(make_hla_test_bam(directories[[1L]]),
+           make_hla_test_bam(directories[[2L]], barcode_tag = "ZZ"))
+  region <- GenomicRanges::GRanges("chr6", IRanges::IRanges(1, 130))
+
+  reads <- suppressMessages(get_hla_reads(
+    bam, regions = region, tags = c("CB", "ZZ"), scores = FALSE
+  ))
+
+  expect_identical(reads$CB, c("CELL-1", NA_character_))
+  expect_identical(reads$ZZ, c(NA_character_, "CELL-1"))
+})
+
+
+test_that("default query regions are determined separately for each BAM", {
+  skip_if_not_installed("Rsamtools")
+  directories <- c(tempfile("hla-chr6-"), tempfile("hla-6-"))
+  invisible(lapply(directories, dir.create))
+  bam <- c(make_hla_test_bam(directories[[1L]]),
+           make_hla_test_bam(directories[[2L]], chr6 = "6"))
+
+  reads <- suppressMessages(get_hla_reads(
+    bam, mhc_start = 1, mhc_end = 300, include_alt_contigs = FALSE,
+    scores = FALSE
+  ))
+
+  expect_equal(nrow(reads), 4L)
+  regions <- attr(reads, "hla_regions")
+  expect_identical(as.character(GenomicRanges::seqnames(regions[[1L]])), "chr6")
+  expect_identical(as.character(GenomicRanges::seqnames(regions[[2L]])), "6")
+})
+
+
+test_that("empty BAM queries can be pooled with nonempty or empty queries", {
+  skip_if_not_installed("Rsamtools")
+  directory <- tempfile("hla-empty-")
+  dir.create(directory)
+  bam <- make_hla_test_bam(directory)
+  empty_sam <- file.path(directory, "empty.sam")
+  writeLines(readLines(file.path(directory, "hla-test.sam"), n = 4L), empty_sam)
+  empty_bam <- suppressMessages(Rsamtools::asBam(
+    empty_sam, file.path(directory, "empty"), indexDestination = TRUE
+  ))
+  region <- GenomicRanges::GRanges("chr6", IRanges::IRanges(1, 130))
+
+  reads <- suppressMessages(get_hla_reads(
+    c(empty_bam, bam), regions = region, scores = FALSE
+  ))
+  expect_equal(nrow(reads), 1L)
+  expect_identical(reads$readName, "2:hla_primary")
+  expect_identical(reads$bam_file, bam)
+  expect_length(attr(reads, "hla_regions"), 2L)
+
+  empty <- suppressMessages(get_hla_reads(
+    c(empty_bam, empty_bam), regions = region, scores = FALSE
+  ))
+  expect_equal(nrow(empty), 0L)
+  expect_identical(empty$readName, character())
+  expect_identical(empty$bam_file, character())
+  expect_length(attr(empty, "hla_regions"), 2L)
+})
+
+
+test_that("BAM path vectors are validated before extraction", {
+  skip_if_not_installed("Rsamtools")
+  directory <- tempfile("hla-validation-")
+  dir.create(directory)
+  bam <- make_hla_test_bam(directory)
+
+  for (invalid in list(character(), NA_character_, "", 1L,
+                       c(bam, NA_character_), c(bam, ""),
+                       c(bam, file.path(directory, "missing.bam")))) {
+    expect_error(get_hla_reads(invalid), "paths to existing BAM files")
+  }
+  expect_error(get_hla_reads(), "paths to existing BAM files")
+})
+
+
+test_that("the typing workflow passes pooled reads to each requested gene", {
+  skip_if_not_installed("Rsamtools")
+  directory <- tempfile("hla-pooled-typing-")
+  dir.create(directory)
+  bam <- make_hla_test_bam(directory)
+  region <- GenomicRanges::GRanges("chr6", IRanges::IRanges(1, 130))
+  workflow <- hla_typing_from_bam
+  workflow_env <- new.env(parent = environment(workflow))
+  workflow_env$hla_typing <- function(reads, hla_ref, ...) {
+    list(n_reads = nrow(reads), gene = unique(hla_ref$gene))
+  }
+  environment(workflow) <- workflow_env
+
+  result <- suppressMessages(workflow(
+    bam = c(bam, bam),
+    hla_ref = data.frame(gene = c("A", "B")),
+    genes = c("A", "B"), regions = region, scores = FALSE
+  ))
+
+  expect_equal(nrow(result$reads), 2L)
+  expect_named(result$typing, c("A", "B"))
+  expect_identical(result$typing$A, list(n_reads = 2L, gene = "A"))
+  expect_identical(result$typing$B, list(n_reads = 2L, gene = "B"))
+  expect_identical(result$regions, attr(result$reads, "hla_regions"))
 })
