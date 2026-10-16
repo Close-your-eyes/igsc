@@ -7,7 +7,7 @@
 hla_typing(
   hla_ref,
   reads,
-  allele_diff = 5,
+  allele_diff = 2,
   top_n_pairwise_results = 50,
   hla_seq_col_name = "seq_Exon2_3",
   read_seq_col_name = "seq",
@@ -21,9 +21,9 @@ hla_typing(
   rev_comp_minus = FALSE,
   strand_col_name = "strand",
   minus_strand_value = "-",
-  pairwise_method = c("exhaustive", "heuristic"),
-  pairwise_anchor_n = 25L,
-  pairwise_partner_n = 25L,
+  pairwise_method = c("heuristic", "exhaustive"),
+  pairwise_anchor_n = 75L,
+  pairwise_partner_n = 75L,
   ...
 )
 }
@@ -112,6 +112,9 @@ input reads represented by each row.}
 \item{pair_res1_df}{Pairwise results reduced to the best result per
 P-group pair.}
 \item{pair_res2_df}{The leading pairwise results used in the rank plot.}
+\item{top_alleles}{A character vector of the two representative allele
+identifiers in the highest-ranked pair. Ties use the existing pair
+ranking order.}
 \item{plot_sin_res}{A \code{ggplot} of single-allele explained-read counts.}
 \item{plot_pair_res1}{A \code{ggplot} overview of pairwise results.}
 \item{plot_pair_res2}{A \code{patchwork} object showing the leading pairwise

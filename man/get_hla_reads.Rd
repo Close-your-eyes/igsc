@@ -14,7 +14,7 @@ get_hla_reads(
   mhc_end = 34000000L,
   include_alt_contigs = TRUE,
   tags = c("CR", "CB", "CY", "AS", "UR", "UB", "UY", "HI", "NH", "nM", "RE"),
-  scores = TRUE,
+  scores = FALSE,
   min_mapq = 0L,
   primary_only = TRUE,
   cell_barcodes = NULL,

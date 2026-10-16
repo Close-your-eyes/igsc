@@ -81,6 +81,9 @@
 #'     \item{pair_res1_df}{Pairwise results reduced to the best result per
 #'       P-group pair.}
 #'     \item{pair_res2_df}{The leading pairwise results used in the rank plot.}
+#'     \item{top_alleles}{A character vector of the two representative allele
+#'       identifiers in the highest-ranked pair. Ties use the existing pair
+#'       ranking order.}
 #'     \item{plot_sin_res}{A `ggplot` of single-allele explained-read counts.}
 #'     \item{plot_pair_res1}{A `ggplot` overview of pairwise results.}
 #'     \item{plot_pair_res2}{A `patchwork` object showing the leading pairwise
@@ -105,7 +108,7 @@
 #' }
 hla_typing <- function(hla_ref,
                        reads,
-                       allele_diff = 5,
+                       allele_diff = 2,
                        top_n_pairwise_results = 50,
                        hla_seq_col_name = "seq_Exon2_3",
                        read_seq_col_name = "seq",
@@ -119,9 +122,9 @@ hla_typing <- function(hla_ref,
                        rev_comp_minus = FALSE,
                        strand_col_name = "strand",
                        minus_strand_value = "-",
-                       pairwise_method = c("exhaustive", "heuristic"),
-                       pairwise_anchor_n = 25L,
-                       pairwise_partner_n = 25L,
+                       pairwise_method = c("heuristic", "exhaustive"),
+                       pairwise_anchor_n = 75L,
+                       pairwise_partner_n = 75L,
                        ...) {
   igsc:::.ensure_packages(c(
     "Biostrings", "Matrix", "brathering", "ggplot2", "patchwork"
@@ -384,9 +387,13 @@ run_read_matching_and_report_results <- function(hla_ref,
 
   attr(top_single_res, "read_weights") <- single_match_weights(single_res)[unique_reads_w_min_one_match]
   rm(single_res)
+  rm(single_stats)
+  rm(reads_w_min_one_match)
+  rm(unique_reads_w_min_one_match)
+  invisible(gc())
 
   if (pairwise_method == "heuristic") {
-    pairwise_res <- pairwise_matching_heuristic(
+    pairwise_results <- pairwise_matching_heuristic(
       top_single_res = top_single_res,
       hla_ref = hla_ref,
       hla_allele_col_name = hla_allele_col_name,
@@ -397,7 +404,7 @@ run_read_matching_and_report_results <- function(hla_ref,
       ...
     )
   } else {
-    pairwise_res <- pairwise_matching(
+    pairwise_results <- pairwise_matching(
       top_single_res = top_single_res,
       hla_ref = hla_ref,
       hla_allele_col_name = hla_allele_col_name,
@@ -406,21 +413,24 @@ run_read_matching_and_report_results <- function(hla_ref,
       ...
     )
   }
-  groups <- pairwise_res$groups
-  top_sin_res_df <- pairwise_res$top_sin_res_df
-  col.combs <- pairwise_res$col.combs
-  pairwise_results <- pairwise_res$pairwise_results
-  rm(pairwise_res)
+  groups <- pairwise_results$groups
+  top_sin_res_df <- pairwise_results$top_sin_res_df
+  col.combs <- pairwise_results$col.combs
+  pairwise_results <- pairwise_results$pairwise_results
 
   pair_res_df <-
-    data.frame(uni_expl_reads = pairwise_results[,1], # sapply(pairwise_results, "[", 1),
-               dbl_expl_reads = pairwise_results[,2], # sapply(pairwise_results, "[", 2),
+    data.frame(uni_expl_reads = pairwise_results[,1],
+               dbl_expl_reads = pairwise_results[,2],
                allele1 = colnames(top_single_res)[col.combs[,1]],
-               allele2 = colnames(top_single_res)[col.combs[,2]]) |>
+               allele2 = colnames(top_single_res)[col.combs[,2]])
+
+  rm(pairwise_results)
+  rm(col.combs)
+  invisible(gc())
+
+  pair_res_df <- pair_res_df |>
     dplyr::mutate(tot_expl_reads = uni_expl_reads + dbl_expl_reads, .after = dbl_expl_reads) |>
-    dplyr::mutate(uni_expl_reads_rank = dplyr::dense_rank(-uni_expl_reads),
-                  tot_expl_reads_rank = dplyr::dense_rank(-tot_expl_reads),
-                  rank_sum = dplyr::dense_rank(base::interaction(-tot_expl_reads, -uni_expl_reads, lex.order = TRUE))) |>
+    dplyr::mutate(rank_sum = dplyr::dense_rank(tibble::tibble(-tot_expl_reads, -uni_expl_reads))) |>
     dplyr::arrange(rank_sum) |>
     dplyr::mutate(rank = dplyr::row_number()) # break ties
   pair_res_df <- pair_res_df |>
@@ -461,9 +471,53 @@ run_read_matching_and_report_results <- function(hla_ref,
     as.matrix(pair_res_df[c("allele_group1", "allele_group2")])
   )
 
-  ## plotting
   top_pair_res_plot1 <-
     dplyr::slice_min(pair_res_df, order_by = rank, n = 1, with_ties = FALSE, by = p_group12)
+
+  top_pair_res_plot2 <- top_pair_res_plot1 |>
+    dplyr::arrange(rank, dplyr::desc(tot_expl_reads),
+                   dplyr::desc(uni_expl_reads)) |>
+    dplyr::mutate(rank_plot = dplyr::row_number()) |>
+    dplyr::slice_head(n = top_n_pairwise_results) |>
+    dplyr::mutate(plot.color = as.factor(ifelse(rank_plot %% 2 != 0, 1, 2))) |>
+    dplyr::mutate(p_group1 = factor(p_group1, unique(p_group1))) |>
+    dplyr::mutate(p_group2 = factor(p_group2, unique(p_group2)))
+
+  plots <- make_hla_typing_plots(
+    top_sin_res_df = top_sin_res_df,
+    top_pair_res_plot1 = top_pair_res_plot1,
+    top_pair_res_plot2 = top_pair_res_plot2,
+    hla_allele_col_name = hla_allele_col_name,
+    pair_count = nrow(pair_res_df)
+  )
+
+  return(list(top_sin_res_df = top_sin_res_df,
+              top_sin_res_mat = top_single_res,
+              pair_res_df = pair_res_df,
+              pair_res1_df = top_pair_res_plot1,
+              pair_res2_df = top_pair_res_plot2,
+              plot_sin_res = plots$plot_sin_res,
+              plot_pair_res1 = plots$plot_pair_res1,
+              plot_pair_res2 = plots$plot_pair_res2,
+              # alleles with exactly the same reads
+              allele_groups_ambiguous = groups,
+              top_alleles = c(top_pair_res_plot2$allele1[[1L]],
+                              top_pair_res_plot2$allele2[[1L]])))
+}
+
+
+# Keep plot environments separate from the matching frame. Force every
+# argument so unevaluated promises cannot retain reads or match matrices.
+make_hla_typing_plots <- function(top_sin_res_df,
+                                  top_pair_res_plot1,
+                                  top_pair_res_plot2,
+                                  hla_allele_col_name,
+                                  pair_count) {
+  force(top_sin_res_df)
+  force(top_pair_res_plot1)
+  force(top_pair_res_plot2)
+  force(hla_allele_col_name)
+  force(pair_count)
 
   allele_group12_medians <- top_pair_res_plot1 |>
     dplyr::summarise(median_frac_match_reads_expl = stats::median(frac_match_reads_expl), .by = allele_group12) |>
@@ -483,13 +537,6 @@ run_read_matching_and_report_results <- function(hla_ref,
     ggplot2::geom_hline(yintercept = max(top_pair_res_plot1$frac_match_reads_expl), color = "forestgreen") +
     ggplot2::facet_wrap(ggplot2::vars(allele_group1), nrow = 1, scales = "free_x")
 
-  top_pair_res_plot2 <- top_pair_res_plot1 |>
-    dplyr::arrange(rank, dplyr::desc(tot_expl_reads),
-                   dplyr::desc(uni_expl_reads)) |>
-    dplyr::mutate(rank_plot = dplyr::row_number()) |>
-    dplyr::slice_head(n = top_n_pairwise_results) |>
-    dplyr::mutate(plot.color = as.factor(ifelse(rank_plot %% 2 != 0, 1, 2)))
-
   sin_plot <- ggplot2::ggplot(top_sin_res_df, ggplot2::aes(x = brathering::reorder_within(!!rlang::sym(hla_allele_col_name), expl_reads, allele_group), y = expl_reads)) +
     ggplot2::geom_bar(stat = "identity") +
     ggplot2::xlab("allele") +
@@ -499,6 +546,7 @@ run_read_matching_and_report_results <- function(hla_ref,
     ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank(), panel.grid.minor = ggplot2::element_blank(), strip.background = ggplot2::element_rect(fill = "white"), panel.grid.major.x = ggplot2::element_blank(), text = ggplot2::element_text(family = "Courier")) +
     ggplot2::facet_wrap(ggplot2::vars(allele_group), scales = "free_x")
 
+
   rank_plot <- function(y, ylab, xlab = "rank") {
     ggplot2::ggplot(
       top_pair_res_plot2,
@@ -506,7 +554,7 @@ run_read_matching_and_report_results <- function(hla_ref,
     ) +
       ggplot2::geom_point(size = 2, shape = 21) +
       ggplot2::labs(x = xlab, y = ylab) +
-      ggplot2::scale_x_discrete(breaks = seq(0, nrow(pair_res_df), 10)) +
+      ggplot2::scale_x_discrete(breaks = seq(0, pair_count, 10)) +
       ggplot2::theme_bw() +
       ggplot2::theme(
         legend.position = "none",
@@ -517,8 +565,8 @@ run_read_matching_and_report_results <- function(hla_ref,
       )
   }
 
-  rank.plot.p1 <- rank_plot(stats::reorder(p_group1, rank_plot), "p group 1")
-  rank.plot.p2 <- rank_plot(stats::reorder(p_group2, rank_plot), "p group 2")
+  rank.plot.p1 <- rank_plot(p_group1, "p group 1")
+  rank.plot.p2 <- rank_plot(p_group2, "p group 2")
   rank.read.plot <- rank_plot(tot_expl_reads, "total\nexplained\nreads")
 
 
@@ -569,16 +617,11 @@ run_read_matching_and_report_results <- function(hla_ref,
     axes = "collect"
   )
 
-  return(list(top_sin_res_df = top_sin_res_df,
-              top_sin_res_mat = top_single_res,
-              pair_res_df = pair_res_df,
-              pair_res1_df = top_pair_res_plot1,
-              pair_res2_df = top_pair_res_plot2,
-              plot_sin_res = sin_plot,
-              plot_pair_res1 = overview_plot,
-              plot_pair_res2 = pair_plot,
-              # alleles with exactly the same reads
-              allele_groups_ambiguous = groups))
+  list(
+    plot_sin_res = sin_plot,
+    plot_pair_res1 = overview_plot,
+    plot_pair_res2 = pair_plot
+  )
 }
 
 
@@ -723,6 +766,24 @@ pairwise_matching <- function(top_single_res,
 }
 
 
+# It selects promising allele pairs before scoring them with the same counter used
+# by exhaustive matching. The shortcut is in which pairs it considers; the counts
+# for selected pairs are exact. It starts with the read-match matrix after the
+# allele_diff filter. Each column represents an allele, and each row represents a
+# distinct read sequence. 1. Group alleles with identical match patterns. Alleles
+# matching exactly the same reads are indistinguishable for this calculation. The
+# function chooses one representative per group and keeps the group membership for
+# reporting. These groups are based on read matches, not P-groups or G-groups. 2.
+# Choose the strongest groups as anchors. It counts the reads explained by each
+# representative and selects the highest-support groups. The default
+# pairwise_anchor_n is 25. Counts include duplicate-read weights unless
+# make_reads_distinct removed those duplicates earlier. 3. Find complementary
+# partners for each anchor. Each anchor is compared with every other group. Sparse
+# matrix cross-products count their shared reads. Partners are ranked by: - Most
+# reads explained by either allele, counting shared reads once. - Most reads
+# matching exactly one member of the pair. - Highest individual partner support. -
+#   Alphabetical allele name to resolve remaining ties. The default
+# pairwise_partner_n retains 25 partners per anchor.
 pairwise_matching_heuristic <- function(top_single_res,
                                         hla_ref,
                                         hla_allele_col_name,
@@ -869,17 +930,35 @@ single_matching <- function(reads,
     )
   }, ...)
 
-  i <- as.integer(unlist(lapply(hit_chunks, `[[`, "i"), use.names = FALSE))
-  j <- as.integer(unlist(lapply(hit_chunks, `[[`, "j"), use.names = FALSE))
+  i <- as.integer(unlist(
+    lapply(hit_chunks, `[[`, "i"),
+    use.names = FALSE
+  ))
+
+  # Release chunk-level row indices before flattening column indices.
+  for (k in seq_along(hit_chunks)) {
+    hit_chunks[[k]]$i <- NULL
+  }
+  invisible(gc())
+
+  j <- as.integer(unlist(
+    lapply(hit_chunks, `[[`, "j"),
+    use.names = FALSE
+  ))
+
   rm(hit_chunks)
+  invisible(gc())
 
   single_res <- Matrix::sparseMatrix(
     i = i,
     j = j,
-    x = rep.int(1L, length(i)),
+    x = 1,
     dims = c(length(unique_sequences), length(ref_sequences)),
     dimnames = list(NULL, hla_ref[[hla_allele_col_name]])
   )
+
+  rm(i, j)
+  invisible(gc())
 
   rownames(single_res) <- reads[[read_name_col_name]][match(unique_sequences, read_sequences)]
   attr(single_res, "read_weights") <- read_weights

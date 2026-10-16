@@ -230,3 +230,50 @@ test_that("hla_typing dispatches between exhaustive and heuristic pairwise searc
     exhaustive$top_sin_res_df$expl_reads
   )
 })
+
+
+test_that("returned HLA plots do not retain their matching frame", {
+  for (package in c("Biostrings", "Matrix", "brathering", "ggplot2", "patchwork")) {
+    skip_if_not_installed(package)
+  }
+
+  collected <- new.env(parent = emptyenv())
+  collected$matching_frame <- FALSE
+  finalizer <- local({
+    status <- collected
+    function(object) status$matching_frame <- TRUE
+  })
+  original_matching <- igsc:::single_matching
+  recording_matching <- function(...) {
+    probe <- new.env(parent = emptyenv())
+    reg.finalizer(probe, finalizer)
+    # Put the probe in the reporting frame, which plotting must not retain.
+    assign("plot_memory_probe", probe, envir = parent.frame())
+    original_matching(...)
+  }
+  local_mocked_bindings(single_matching = recording_matching, .package = "igsc")
+
+  alleles <- sprintf("HLA-A*%02d:01", seq_len(4L))
+  hla_ref <- data.frame(
+    allele = alleles,
+    seq_Exon2_3 = c("AAACCC", "GGGTTT", "CCCGGG", "TTTAAA"),
+    p_group = paste0("A*", sprintf("%02d", seq_len(4L)), "P"),
+    g_group = paste0("A*", sprintf("%02d", seq_len(4L)), "G")
+  )
+  reads <- data.frame(
+    qname = paste0("r", seq_len(8L)),
+    seq = rep(c("AAA", "GGG", "CCC", "TTT"), 2L)
+  )
+  result <- suppressMessages(hla_typing(hla_ref, reads))
+  invisible(gc())
+  expect_true(collected$matching_frame)
+
+  expect_identical(result$plot_sin_res$data, result$top_sin_res_df)
+  expect_identical(result$plot_pair_res1$data, result$pair_res1_df)
+  expect_identical(result$plot_pair_res2$data, result$pair_res2_df)
+  expect_equal(nrow(result$pair_res_df), 6L)
+  expect_equal(result$top_sin_res_df$expl_reads, rep(4, 4L))
+  expect_no_error(ggplot2::ggplot_build(result$plot_sin_res))
+  expect_no_error(ggplot2::ggplot_build(result$plot_pair_res1))
+  expect_no_error(patchwork::patchworkGrob(result$plot_pair_res2))
+})

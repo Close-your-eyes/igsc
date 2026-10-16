@@ -4,7 +4,16 @@
 \alias{hla_df_from_xml}
 \title{Prepare an HLA allele data frame from an XML file}
 \usage{
-hla_df_from_xml(file_path, lapply_fun = lapply, replace_none_pg = TRUE, ...)
+hla_df_from_xml(
+  file_path,
+  lapply_fun = lapply,
+  replace_none_pg = TRUE,
+  rm_hgg_entries = T,
+  unique_exon2_3 = F,
+  rm_intron_exon_bounds = F,
+  rev_comp_minus = FALSE,
+  ...
+)
 }
 \arguments{
 \item{file_path}{Path to an \code{.xml}, \code{.xml.gz}, or \code{.xml.zip} file.}
@@ -15,6 +24,21 @@ include \code{\link[base:lapply]{base::lapply()}}, \code{pbapply::pblapply}, and
 
 \item{replace_none_pg}{Logical. Replace \code{"None"} in \code{p_group} and \code{g_group}
 with \code{allele_protein} and \code{allele_coding}, respectively.}
+
+\item{rm_hgg_entries}{filter entries with HGG-prefix in g_group. these are
+some kind of duplicates.}
+
+\item{unique_exon2_3}{filter for unique sequences in Exon 2-3}
+
+\item{rm_intron_exon_bounds}{remove columns with Intron, Exon, UTR boundaries
+to save memory}
+
+\item{rev_comp_minus}{Logical; reverse complement \code{seq} and \code{seq_Exon2_3}
+for minus-strand genes B, C, DMA, DMB, DOA, DOB, DPA1, DQB1, DQB2,
+DRB1, and DRB5. Defaults to \code{FALSE}, retaining the XML orientation.
+When \code{TRUE}, retained exon, intron, and UTR coordinates are updated to
+refer to the reversed full sequence. A message reports either choice.
+The gene strand assignments follow the supplied GRCh38 annotation.}
 
 \item{...}{Additional arguments passed to \code{lapply_fun}, such as \code{mc.cores}.}
 }
@@ -34,6 +58,7 @@ ZIP archives must contain a file named \code{hla.xml}, or exactly one XML file.
 hla <- hla_df_from_xml("hla.xml")
 hla <- hla_df_from_xml("hla.xml.gz")
 hla <- hla_df_from_xml("hla.xml.zip")
+hla <- hla_df_from_xml("hla.xml.gz", rev_comp_minus = TRUE)
 
 tt <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
 

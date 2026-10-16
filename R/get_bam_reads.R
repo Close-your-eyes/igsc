@@ -35,7 +35,8 @@
 #' @param bam Path to a coordinate-sorted BAM file with an index accessible to
 #'   Rsamtools.
 #' @param granges A [GenomicRanges::GRanges()] object specifying the ranges to
-#'   query. Its strand is ignored when selecting alignments. The default queries
+#'   query. Empty ranges are rejected. Its strand is ignored when selecting
+#'   alignments. The default queries
 #'   bases 1 through 10,000 of the reference sequence with the highest mapped
 #'   read count in the BAM index.
 #' @param tags Character vector of BAM tag names passed to
@@ -49,6 +50,7 @@
 #'   `qual` for alignments on the minus strand.
 #' @param revcomp_plus_strand Logical; if `TRUE`, reverse-complement `seq` and
 #'   reverse `qual` for alignments on the plus strand after reading the BAM.
+#' @param decode_bam_flags run decode_bam_flags and attach columns
 #'
 #' @return A data frame containing fields returned by
 #'   [Rsamtools::scanBamWhat()], including `qname`, `flag`, `rname`, `strand`,
@@ -56,12 +58,31 @@
 #'   form of the one-based queried-range index. Requested tags present in the BAM are
 #'   added as columns. When `scores = TRUE`, four more columns are added:
 #'   `readQualNum` (a list of per-base Phred scores), `minQual`, `meanQual`, and
-#'   `n_belowQ30` (the number of bases with Phred score below 30).
+#'   `n_belowQ30` (the number of bases with Phred score below 30). Array-valued
+#'   BAM tags are stored as list columns. Missing qualities produce an empty
+#'   integer vector in `readQualNum` and `NA` in the three quality summaries.
 #' @seealso [get_hla_reads()]
 #' @export
 #'
 #' @examples
 #' \dontrun{
+#' | value|meaning                                                    |
+#' |-----:|:----------------------------------------------------------|
+#' |     1|Paired-end or other multi-segment read                     |
+#' |     2|Properly aligned pair, according to the aligner            |
+#' |     4|Read is unmapped                                           |
+#' |     8|Mate is unmapped                                           |
+#' |    16|Read is reverse-complemented; minus strand if mapped       |
+#' |    32|Mate is reverse-complemented; minus strand if mapped       |
+#' |    64|First segment, usually R1                                  |
+#' |   128|Last segment, usually R2                                   |
+#' |   256|Secondary alignment: an alternative mapping                |
+#' |   512|Failed platform/vendor quality checks                      |
+#' |  1024|Marked as a PCR or optical duplicate                       |
+#' |  2048|Supplementary alignment: another part of a split alignment |
+#'
+#' # see igsc::decode_bam_flags()
+#'
 #' bam <- "path/to/possorted_genome_bam.bam"
 #' reference_names <- names(Rsamtools::scanBamHeader(bam)[[1]]$targets)
 #' chr6 <- intersect(c("chr6", "6"), reference_names)[1]
@@ -71,6 +92,10 @@
 #'   seqnames = chr6,
 #'   ranges = IRanges::IRanges(start = 29000000L, end = 35000000L)
 #' )
+#'
+#' mhc2 <- range <- GenomicRanges::GRanges(seqnames = "chr6",
+#'                                         ranges = "28000000..34000000")
+#'
 #' reads <- get_bam_reads(bam, granges = mhc, tags = c("CB", "UB"))
 #' reads <- reads[!is.na(reads$mapq) & reads$mapq >= 20, , drop = FALSE]
 #' head(reads[, c("qname", "rname", "pos", "mapq", "seq")])
@@ -82,12 +107,17 @@ get_bam_reads <- function(bam,
                                    "UY", "HI", "NH", "nM", "RE"),
                           scores = T,
                           revcomp_minus_strand = F,
-                          revcomp_plus_strand = F) {
+                          revcomp_plus_strand = F,
+                          decode_bam_flags = T) {
 
   igsc:::.ensure_packages(c("Biostrings", "GenomicRanges", "Rsamtools"))
 
   if (missing(bam) || bam == "" || !file.exists(bam)) {
     stop("bam not found or missing.")
+  }
+
+  if (!methods::is(granges, "GRanges") || length(granges) == 0L) {
+    stop("`granges` must be a non-empty GRanges object.", call. = FALSE)
   }
 
   message("Reading BAM file.")
@@ -101,17 +131,20 @@ get_bam_reads <- function(bam,
 
   # start of a read always refers to the (+)Strand, so for reads on the (-)Strand start is actually the end, (see IGV browser, read details)
   reads <- purrr::map_dfr(reads, function(x) {
-    if ("tag" %in% names(x)) {
-      no_tags <- names(which(purrr::map_lgl(x[[which(names(x) == "tag")]], is.null)))
-      if (length(no_tags) > 0) {
-        message("These tags were not found: ", paste(no_tags, collapse = ","), ".")
-      }
-      x <- cbind(data.frame(x[-which(names(x) == "tag")]),
-                 data.frame(purrr::discard(x[[which(names(x) == "tag")]], is.null)))
-    } else {
-      x <- data.frame(x)
+    tag_values <- x$tag
+    x$tag <- NULL
+    no_tags <- names(tag_values)[vapply(tag_values, is.null, logical(1))]
+    if (length(no_tags) > 0L) {
+      message("These tags were not found: ", paste(no_tags, collapse = ","), ".")
     }
-  }, .id = "genomic_range")
+    result <- data.frame(x)
+    for (tag_name in names(tag_values)) {
+      if (!is.null(tag_values[[tag_name]])) {
+        result[[tag_name]] <- tag_values[[tag_name]]
+      }
+    }
+    result
+  }, .id = "grange")
 
   if (revcomp_plus_strand) {
     # start and CIGAR remain the same ?? Not sure. But in ScanBamParam start and CIGAR remain the same when reverseComplement = T.
@@ -127,6 +160,10 @@ get_bam_reads <- function(bam,
   if (scores) {
     message("Calculating read score.")
     pq <- methods::as(Biostrings::PhredQuality(reads$qual), "IntegerList")
+    # Rsamtools represents absent BAM qualities with negative Phred sentinels.
+    pq <- lapply(pq, function(x) {
+      if (anyNA(x) || any(x < 0L)) integer() else x
+    })
     stats <- igsc:::qual_stats_cpp(pq)
     for (i in names(stats)) {
       reads[[i]] <- stats[[i]]
@@ -136,5 +173,12 @@ get_bam_reads <- function(bam,
     # reads$meanQual <- unlist(lapply_fun(pq, mean, ...))
     # reads$n_belowQ30 <- unlist(lapply_fun(pq, function(x) sum(x < 30), ...))
   }
+
+  reads[["seq_duplicate"]] <- as.numeric(duplicated(reads$seq))
+
+  if (decode_bam_flags) {
+    reads <- cbind(reads, decode_bam_flags(reads$flag))
+  }
+
   return(reads)
 }

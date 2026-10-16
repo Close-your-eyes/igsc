@@ -11,7 +11,6 @@ hla_typing_from_bam(
   reference_gtf = NULL,
   regions = NULL,
   genes = c("A", "B", "C"),
-  hla_gene_col_name = "gene",
   mhc_start = 28000000L,
   mhc_end = 34000000L,
   include_alt_contigs = TRUE,
@@ -21,18 +20,18 @@ hla_typing_from_bam(
   primary_only = TRUE,
   cell_barcodes = NULL,
   cell_barcode_tag = "CB",
-  allele_diff = 5,
+  allele_diff = 2,
   top_n_pairwise_results = 50,
   hla_seq_col_name = "seq_Exon2_3",
   hla_allele_col_name = "allele",
   p_group_col_name = "p_group",
   g_group_col_name = "g_group",
   lapply_fun = lapply,
-  maxmis = 3,
+  maxmis = 0,
   make_reads_distinct = FALSE,
-  pairwise_method = c("exhaustive", "heuristic"),
-  pairwise_anchor_n = 25L,
-  pairwise_partner_n = 25L,
+  pairwise_method = c("heuristic", "exhaustive"),
+  pairwise_anchor_n = 75L,
+  pairwise_partner_n = 75L,
   ...
 )
 }
@@ -60,9 +59,8 @@ contigs are added.}
 
 \item{genes}{Character vector of genes to type, for example \code{c("A", "B", "C")}. An optional \verb{HLA-} prefix is ignored. Use \code{NULL} to type every gene
 represented in \code{hla_ref}. When \code{reference_gtf} is supplied, the same genes
-determine which annotated gene boundaries are queried.}
-
-\item{hla_gene_col_name}{Column in \code{hla_ref} containing HLA gene names.}
+determine which annotated gene boundaries are queried. Each gene is prefixed
+with \verb{HLA-} and matched to the part before \code{*} in \code{hla_allele_col_name}.}
 
 \item{mhc_start, mhc_end}{One-based inclusive bounds of the broad MHC interval
 used when \code{regions} is \code{NULL}.}
@@ -183,78 +181,37 @@ gtf <- read_gtf(".../refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
 
 
 library(igsc)
+
+# fast settings for hla-typing:
+# unique_exon2_3: remove alleles with duplicate sequences here --> fewer combinations in pairwise matching
+# rev_comp_minus: no increase in speed but needed to align reads from BAM files which have seq from (-)-strand
+
 hla <- hla_df_from_xml(
   "/Volumes/CMS_SSD_2TB/hla.xml.gz",
   lapply_fun = parallel::mclapply,
-  mc.cores = 8)
+  mc.cores = 3,
+  unique_exon2_3 = T,
+  rm_intron_exon_bounds = T,
+  rev_comp_minus = T)
 
-hlaA <- hla |>
-  dplyr::filter(grepl("^HLA-A", allele)) |>
-  dplyr::filter(seq_length == max(seq_length), .by = allele_protein)
+# fast settings for hla-typing:
+# provide reference_gtf to filter actual hla-gene regions only
+# mclapply + mc.cores: run parallel read matching
+# maxmis set to 0: much less matching reads but way quicker for read alignment!
+# make_reads_distinct: no major increase as only unique are aligned once. but reduces redundancy.
+# pairwise_method to heuristic: reduce tested pairwise combinations massively. groups similar alleles.
+# allele_diff reduced to 2 or so: less candidates for pairwise testing.
 
-hlaresA <- hla_typing_from_bam(
-  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
+hlares <- hla_typing_from_bam(
+  bam = "/Volumes/CMS_SSD_2TB/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/hg38_CR7_wo_introns/GEX/Pat4_rep1_blood/outs/possorted_genome_bam.bam",
+  hla_ref = hla,
   reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-  hla_ref = hlaA,
-  genes = "A",
+  genes = c("A", "B", "C"),
   lapply_fun = parallel::mclapply,
   make_reads_distinct = T,
+  pairwise_method = "heuristic",
   mc.cores = 4,
-  maxmis = 3,
-  allele_diff = 4)
-hlaresA$typing$B$plot_pair_res2
-
-## HLA-B and HLA-C are on (-) Strand but all bam reads are returned as on (+) Strand
-## hence revcomp the reference: (-) --> (+)
-hlaB <- hla |>
-  dplyr::filter(grepl("^HLA-B", allele)) |>
-  dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-  dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
-
-hlaresB <- hla_typing_from_bam(
-  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-  hla_ref = hlaB,
-  genes = "B",
-  lapply_fun = parallel::mclapply,
-  make_reads_distinct = T,
-  mc.cores = 4,
-  maxmis = 3,
-  allele_diff = 4)
-hlaresB$typing$B$plot_pair_res2
-
-hlaC <- hla |>
-  dplyr::filter(grepl("^HLA-C", allele)) |>
-  dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-  dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
-
-hlaresC <- hla_typing_from_bam(
-  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-  hla_ref = hlaC,
-  genes = "C",
-  lapply_fun = parallel::mclapply,
-  make_reads_distinct = T,
-  mc.cores = 4,
-  maxmis = 3,
-  allele_diff = 4)
-hlaresC$typing$C$plot_pair_res2
-
-hlaDPA1 <- hla |>
-  dplyr::filter(grepl("^HLA-DPA1", allele)) |>
-  dplyr::filter(seq_length == max(seq_length), .by = allele_protein) |>
-  dplyr::mutate(seq_Exon2_3 = revcomp_dna(seq_Exon2_3))
-
-hlaresDPA1 <- hla_typing_from_bam(
-  bam = "/Users/chris/Documents/possorted_genome_bam.bam",
-  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
-  hla_ref = hlaDPA1,
-  genes = "DPA1",
-  lapply_fun = parallel::mclapply,
-  make_reads_distinct = T,
-  mc.cores = 4,
-  maxmis = 3,
+  maxmis = 0,
   allele_diff = 2)
-hlaresDPA1$typing$DPA1$plot_pair_res2
 }
 }

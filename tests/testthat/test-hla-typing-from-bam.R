@@ -263,7 +263,6 @@ test_that("BAM workflow extracts reads and types each requested gene", {
   sequence_a <- paste(rep("A", 20L), collapse = "")
   sequence_c <- paste(rep("C", 20L), collapse = "")
   hla_ref <- data.frame(
-    gene = c("A", "A"),
     allele = c("HLA-A*01:01", "HLA-A*02:01"),
     seq_Exon2_3 = c(sequence_a, sequence_c),
     p_group = c("A*01:01P", "A*02:01P"),
@@ -444,19 +443,54 @@ test_that("the typing workflow passes pooled reads to each requested gene", {
   workflow <- hla_typing_from_bam
   workflow_env <- new.env(parent = environment(workflow))
   workflow_env$hla_typing <- function(reads, hla_ref, ...) {
-    list(n_reads = nrow(reads), gene = unique(hla_ref$gene))
+    list(n_reads = nrow(reads), allele = hla_ref$allele)
   }
   environment(workflow) <- workflow_env
 
   result <- suppressMessages(workflow(
     bam = c(bam, bam),
-    hla_ref = data.frame(gene = c("A", "B")),
+    hla_ref = data.frame(allele = c("HLA-A*01:01", "HLA-B*01:01")),
     genes = c("A", "B"), regions = region, scores = FALSE
   ))
 
   expect_equal(nrow(result$reads), 2L)
   expect_named(result$typing, c("A", "B"))
-  expect_identical(result$typing$A, list(n_reads = 2L, gene = "A"))
-  expect_identical(result$typing$B, list(n_reads = 2L, gene = "B"))
+  expect_identical(result$typing$A, list(n_reads = 2L, allele = "HLA-A*01:01"))
+  expect_identical(result$typing$B, list(n_reads = 2L, allele = "HLA-B*01:01"))
   expect_identical(result$regions, attr(result$reads, "hla_regions"))
+})
+
+
+test_that("BAM workflow selects genes from the configured allele column", {
+  workflow <- hla_typing_from_bam
+  workflow_env <- new.env(parent = environment(workflow))
+  workflow_env$get_hla_reads <- function(...) {
+    data.frame(seq = "ACGT", readName = "read-1", strand = "+")
+  }
+  workflow_env$hla_typing <- function(hla_ref, ...) hla_ref$allele_id
+  environment(workflow) <- workflow_env
+  hla_ref <- data.frame(allele_id = c(
+    "HLA-A*01:01", "HLA-A*02:01", "HLA-B*01:01", "HLA-DRB1*01:01",
+    "HLA-DRB10*01:01", NA_character_
+  ))
+
+  result <- suppressMessages(workflow(
+    bam = "unused.bam", hla_ref = hla_ref,
+    genes = c("A", "HLA-DRB1"), hla_allele_col_name = "allele_id"
+  ))
+  expect_named(result$typing, c("A", "DRB1"))
+  expect_identical(result$typing$A, hla_ref$allele_id[1:2])
+  expect_identical(result$typing$DRB1, "HLA-DRB1*01:01")
+
+  all_genes <- suppressMessages(workflow(
+    bam = "unused.bam", hla_ref = hla_ref,
+    genes = NULL, hla_allele_col_name = "allele_id"
+  ))
+  expect_named(all_genes$typing, c("A", "B", "DRB1", "DRB10"))
+  expect_error(workflow(
+    bam = "unused.bam", hla_ref = hla_ref,
+    genes = "C", hla_allele_col_name = "allele_id"
+  ), "No reference alleles were found for: HLA-C", fixed = TRUE)
+  expect_error(workflow(bam = "unused.bam", hla_ref = hla_ref),
+               "`hla_allele_col_name` must name a column", fixed = TRUE)
 })

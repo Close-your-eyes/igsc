@@ -13,6 +13,17 @@
 #' @param replace_none_pg Logical. Replace `"None"` in `p_group` and `g_group`
 #'   with `allele_protein` and `allele_coding`, respectively.
 #' @param ... Additional arguments passed to `lapply_fun`, such as `mc.cores`.
+#' @param rm_hgg_entries filter entries with HGG-prefix in g_group. these are
+#'  some kind of duplicates.
+#' @param unique_exon2_3 filter for unique sequences in Exon 2-3
+#' @param rm_intron_exon_bounds remove columns with Intron, Exon, UTR boundaries
+#' to save memory
+#' @param rev_comp_minus Logical; reverse complement `seq` and `seq_Exon2_3`
+#'   for minus-strand genes B, C, DMA, DMB, DOA, DOB, DPA1, DQB1, DQB2,
+#'   DRB1, and DRB5. Defaults to `FALSE`, retaining the XML orientation.
+#'   When `TRUE`, retained exon, intron, and UTR coordinates are updated to
+#'   refer to the reversed full sequence. A message reports either choice.
+#'   The gene strand assignments follow the supplied GRCh38 annotation.
 #'
 #' @return A data frame with one row per allele.
 #' @export
@@ -22,6 +33,7 @@
 #' hla <- hla_df_from_xml("hla.xml")
 #' hla <- hla_df_from_xml("hla.xml.gz")
 #' hla <- hla_df_from_xml("hla.xml.zip")
+#' hla <- hla_df_from_xml("hla.xml.gz", rev_comp_minus = TRUE)
 #'
 #' tt <- hla_df_from_xml("/Volumes/CMS_SSD_2TB/hla.xml.gz", lapply_fun = parallel::mclapply, mc.cores = 8)
 #'
@@ -34,6 +46,10 @@
 hla_df_from_xml <- function(file_path,
                             lapply_fun = lapply,
                             replace_none_pg = TRUE,
+                            rm_hgg_entries = T,
+                            unique_exon2_3 = F,
+                            rm_intron_exon_bounds = F,
+                            rev_comp_minus = FALSE,
                             ...) {
 
   igsc:::.ensure_packages("xml2")
@@ -50,6 +66,8 @@ hla_df_from_xml <- function(file_path,
   if (!is.logical(replace_none_pg) || length(replace_none_pg) != 1L || is.na(replace_none_pg)) {
     stop("`replace_none_pg` must be TRUE or FALSE.", call. = FALSE)
   }
+
+  validate_logical(rev_comp_minus, "rev_comp_minus")
 
   lapply_fun <- match.fun(lapply_fun)
   document <- read_hla_xml(file_path)
@@ -75,15 +93,17 @@ hla_df_from_xml <- function(file_path,
   df <- dplyr::bind_rows(rows)
   rownames(df) <- NULL
 
+  if (rm_hgg_entries) {
+    df <- df |> dplyr::filter(!grepl("^HGG", g_group))
+  }
+
   # Normalize to four allele fields while preserving expression suffixes,
   # e.g. HLA-A*01:01N -> HLA-A*01:01:01:01N.
   df$allele <- pad_hla_allele(df$allele)
-  df$prefix <- substr(df$allele, 1, 3)
 
   allele_name <- sub("^HLA-", "", df$allele)
   mic <- grepl("^MIC[^*]*\\*", allele_name)
   allele_name[mic] <- sub("^MIC", "", allele_name[mic])
-  df$gene <- sub("\\*.*$", "", allele_name)
 
   # Remove the fourth allele field and any expression suffix.
   df$allele_coding <- sub(":[[:digit:]]+[[:alpha:]]*$", "", df$allele)
@@ -105,6 +125,56 @@ hla_df_from_xml <- function(file_path,
   }
 
   df$seq_Exon2_3 <- extract_cds(df, exons = c(2,3))
+  df$seq_length_Exon2_3 <- nchar(df$seq_Exon2_3)
+
+  minus_genes <- c("B", "C", "DMA", "DMB", "DOA", "DOB", "DPA1",
+                   "DQB1", "DQB2", "DRB1", "DRB5")
+  genes <- sub("[*].*$", "", sub("^HLA-", "", df$allele))
+  minus <- genes %in% minus_genes
+
+  if (rev_comp_minus) {
+    for (column in c("seq", "seq_Exon2_3")) {
+      rows <- which(minus & !is.na(df[[column]]))
+      if (length(rows)) {
+        df[[column]][rows] <- revcomp_dna(
+          df[[column]][rows], fun = "Biostrings"
+        )
+      }
+    }
+
+    # Keep feature locations consistent with the reversed full sequence.
+    boundary_columns <- grep("^Intron|^Exon|UTR", names(df), value = TRUE)
+    for (column in boundary_columns) {
+      rows <- which(minus & !is.na(df$seq_length) &
+                      !is.na(df[[column]]) &
+                      grepl("^[0-9]+_[0-9]+$", df[[column]]))
+      if (length(rows)) {
+        bounds <- strsplit(df[[column]][rows], "_", fixed = TRUE)
+        starts <- as.integer(vapply(bounds, `[[`, character(1), 1L))
+        ends <- as.integer(vapply(bounds, `[[`, character(1), 2L))
+        df[[column]][rows] <- paste(
+          df$seq_length[rows] - ends + 1L,
+          df$seq_length[rows] - starts + 1L, sep = "_"
+        )
+      }
+    }
+    message("`rev_comp_minus = TRUE`: reverse complemented sequences for ",
+            sum(minus), " minus-strand HLA alleles",
+            if (any(minus)) paste0(" (", paste(unique(paste0("HLA-", genes[minus])),
+                                               collapse = ", "), ")") else "",
+            ".")
+  } else {
+    message("`rev_comp_minus = FALSE`: minus-strand HLA sequences were not ",
+            "reverse complemented; retaining the XML orientation.")
+  }
+
+  if (unique_exon2_3) {
+    df <- df[!duplicated(df$seq_Exon2_3),]
+  }
+
+  if (rm_intron_exon_bounds) {
+    df <- df[,which(!grepl("^Intron|^Exon|UTR", names(df)))]
+  }
 
   return(df)
 }
@@ -157,7 +227,8 @@ read_child <- function(x) {
   allele <- xml2::xml_attr(x, "name")
 
   if (is.na(allele) || !nzchar(allele)) {
-    stop("Encountered an allele node without a name.", call. = FALSE)
+    message("Encountered an allele node without a name.", call. = FALSE)
+    return(NULL)
   }
 
   sequence_node <- xml2::xml_find_first(
@@ -736,7 +807,7 @@ hla_df_from_xml_legacy <- function(file_path,
   df$seq_length <- nchar(df$seq)
 
   df$seq_Exon2_3 <- substr(df$seq, as.numeric(sapply(strsplit(df$Exon2, "_"), "[", 1)), as.numeric(sapply(strsplit(df$Exon3, "_"), "[", 2)))
-  df$seq_Exon2_3_length <- nchar(df$seq_Exon2_3)
+  df$seq_length_Exon2_3 <- nchar(df$seq_Exon2_3)
 
   if (replace_none_pg) {
     df$g_group <- ifelse(df$g_group == "None", df$allele_coding, df$g_group)

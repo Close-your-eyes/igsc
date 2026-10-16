@@ -12,7 +12,8 @@ get_bam_reads(
   tags = c("CR", "CB", "CY", "AS", "UR", "UB", "UY", "HI", "NH", "nM", "RE"),
   scores = T,
   revcomp_minus_strand = F,
-  revcomp_plus_strand = F
+  revcomp_plus_strand = F,
+  decode_bam_flags = T
 )
 }
 \arguments{
@@ -20,7 +21,8 @@ get_bam_reads(
 Rsamtools.}
 
 \item{granges}{A \code{\link[GenomicRanges:GRanges]{GenomicRanges::GRanges()}} object specifying the ranges to
-query. Its strand is ignored when selecting alignments. The default queries
+query. Empty ranges are rejected. Its strand is ignored when selecting
+alignments. The default queries
 bases 1 through 10,000 of the reference sequence with the highest mapped
 read count in the BAM index.}
 
@@ -38,6 +40,8 @@ from \code{qual}.}
 
 \item{revcomp_plus_strand}{Logical; if \code{TRUE}, reverse-complement \code{seq} and
 reverse \code{qual} for alignments on the plus strand after reading the BAM.}
+
+\item{decode_bam_flags}{run decode_bam_flags and attach columns}
 }
 \value{
 A data frame containing fields returned by
@@ -46,7 +50,9 @@ A data frame containing fields returned by
 form of the one-based queried-range index. Requested tags present in the BAM are
 added as columns. When \code{scores = TRUE}, four more columns are added:
 \code{readQualNum} (a list of per-base Phred scores), \code{minQual}, \code{meanQual}, and
-\code{n_belowQ30} (the number of bases with Phred score below 30).
+\code{n_belowQ30} (the number of bases with Phred score below 30). Array-valued
+BAM tags are stored as list columns. Missing qualities produce an empty
+integer vector in \code{readQualNum} and \code{NA} in the three quality summaries.
 }
 \description{
 Extract alignments with \code{\link[Rsamtools:scanBam]{Rsamtools::scanBam()}} and return one data-frame row
@@ -83,6 +89,23 @@ comparing with a minus-strand reference sequence.
 }
 \examples{
 \dontrun{
+| value|meaning                                                    |
+|-----:|:----------------------------------------------------------|
+|     1|Paired-end or other multi-segment read                     |
+|     2|Properly aligned pair, according to the aligner            |
+|     4|Read is unmapped                                           |
+|     8|Mate is unmapped                                           |
+|    16|Read is reverse-complemented; minus strand if mapped       |
+|    32|Mate is reverse-complemented; minus strand if mapped       |
+|    64|First segment, usually R1                                  |
+|   128|Last segment, usually R2                                   |
+|   256|Secondary alignment: an alternative mapping                |
+|   512|Failed platform/vendor quality checks                      |
+|  1024|Marked as a PCR or optical duplicate                       |
+|  2048|Supplementary alignment: another part of a split alignment |
+
+# see igsc::decode_bam_flags()
+
 bam <- "path/to/possorted_genome_bam.bam"
 reference_names <- names(Rsamtools::scanBamHeader(bam)[[1]]$targets)
 chr6 <- intersect(c("chr6", "6"), reference_names)[1]
@@ -92,6 +115,10 @@ mhc <- GenomicRanges::GRanges(
   seqnames = chr6,
   ranges = IRanges::IRanges(start = 29000000L, end = 35000000L)
 )
+
+mhc2 <- range <- GenomicRanges::GRanges(seqnames = "chr6",
+                                        ranges = "28000000..34000000")
+
 reads <- get_bam_reads(bam, granges = mhc, tags = c("CB", "UB"))
 reads <- reads[!is.na(reads$mapq) & reads$mapq >= 20, , drop = FALSE]
 head(reads[, c("qname", "rname", "pos", "mapq", "seq")])
