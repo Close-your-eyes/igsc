@@ -9,15 +9,20 @@
 #'
 #' @param dir Directory searched recursively for input FASTQ files.
 #' @param save_path Parent directory for sample-specific output directories.
-#' @param exec Logical; execute commands when `TRUE`, otherwise return a plan.
+#' @param exec Logical; concatenate files when `TRUE`, otherwise return a plan.
 #' @param existing How existing output files are handled: `"error"`, `"skip"`,
 #'   or `"overwrite"`.
 #' @param create_save_path Logical; create `save_path` when it does not exist.
 #' @param verify Logical; after execution, verify that output size equals the
 #'   sum of input file sizes.
+#' @param method Concatenation method: `"auto"` (the default) uses `"binary"`
+#'   on Windows and `"cat"` elsewhere. `"binary"` copies compressed bytes in
+#'   bounded chunks using R binary connections, without external commands.
+#'   `"cat"` uses an external `cat` executable, which must be on `PATH`.
 #'
-#' @return A data frame containing output files, input files, commands, and
-#'   execution status.
+#' @return A data frame containing output files, input files, the resolved
+#'   method, commands, and execution status. Commands are `NA` for the
+#'   `"binary"` method because no external command is used.
 #'
 #' @export
 #'
@@ -37,16 +42,41 @@
 #' }
 concat_10X_fastq <- function(
     dir,
-    save_path,
+    save_path = file.path(dir, "concatfastq"),
     exec = FALSE,
     existing = c("error", "skip", "overwrite"),
     create_save_path = TRUE,
-    verify = TRUE
+    verify = TRUE,
+    method = c("auto", "binary", "cat")
 ) {
 
   igsc:::.ensure_package("brathering")
 
   existing <- match.arg(existing)
+  method <- match.arg(method)
+  if (method == "auto") {
+    method <- if (.Platform$OS.type == "windows") "binary" else "cat"
+  }
+
+  # Use ordinary binary files rather than gzfile(): preserve gzip members
+  # byte-for-byte, with bounded memory use even for large FASTQ files.
+  copy_binary <- function(inputs, output) {
+    output_connection <- file(output, open = "wb")
+    on.exit(close(output_connection), add = TRUE)
+
+    copy_input <- function(input) {
+      input_connection <- file(input, open = "rb")
+      on.exit(close(input_connection), add = TRUE)
+      repeat {
+        bytes <- readBin(input_connection, what = "raw", n = 8388608L)
+        if (!length(bytes)) break
+        writeBin(bytes, output_connection)
+      }
+    }
+
+    for (input in inputs) copy_input(input)
+    invisible(0L)
+  }
 
   # Argument validation -------------------------------------------------------
   check_scalar_string <- function(x, name) {
@@ -261,12 +291,12 @@ concat_10X_fastq <- function(
       )
     }
 
-    command <- paste(
+    command <- if (method == "cat") paste(
       "cat",
       paste(shQuote(group$input), collapse = " "),
       ">",
       shQuote(output)
-    )
+    ) else NA_character_
 
     data.frame(
       sample = sample,
@@ -277,6 +307,7 @@ concat_10X_fastq <- function(
       expected_bytes = sum(group$size),
       expected_size = brathering::format_bytes(sum(group$size)),
       inputs = I(list(group$input)),
+      method = method,
       command = command,
       stringsAsFactors = FALSE
     )
@@ -341,14 +372,25 @@ concat_10X_fastq <- function(
       tmpdir = output_dir
     )
 
-    temporary_command <- paste(
-      "cat",
-      paste(shQuote(plan$inputs[[i]]), collapse = " "),
-      ">",
-      shQuote(temporary_output)
+    status <- tryCatch(
+      if (method == "binary") {
+        copy_binary(plan$inputs[[i]], temporary_output)
+      } else {
+        system2(
+          command = "cat",
+          args = shQuote(plan$inputs[[i]]),
+          stdout = temporary_output
+        )
+      },
+      error = function(e) {
+        unlink(temporary_output)
+        stop(e)
+      },
+      interrupt = function(e) {
+        unlink(temporary_output)
+        stop(e)
+      }
     )
-
-    status <- system(temporary_command)
 
     if (!identical(status, 0L)) {
       if (file.exists(temporary_output)) {

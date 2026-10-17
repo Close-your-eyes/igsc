@@ -2,13 +2,86 @@
 % Please edit documentation in R/get_fasta_seq_bounds.R
 \name{get_fasta_seq_bounds}
 \alias{get_fasta_seq_bounds}
-\title{From a fasta file, get sequence boundaries (lines)}
+\title{Locate sequence boundaries in a FASTA file}
 \usage{
 get_fasta_seq_bounds(file_path)
 }
 \arguments{
-\item{file_path}{path to fasta file or fst file}
+\item{file_path}{A single local path to a plain-text or gzip-compressed FASTA
+file. Gzip input must end in lowercase \code{.gz}; all other extensions are
+treated as plain text. Paths containing spaces or shell characters are
+supported, and \code{~} is expanded to the user's home directory.}
+}
+\value{
+A data frame with one row per FASTA record, in file order, containing:
+\describe{
+\item{fastaname}{Factor containing the complete header without its leading
+\code{">"}.}
+\item{seqname}{Factor containing the first space-delimited header field.}
+\item{fctname}{Factor containing \code{seqname} with \code{"chr"} removed, used to
+define chromosome-aware factor levels.}
+\item{start_line}{Numeric one-based line number of the record's header.}
+\item{end_line}{Numeric inclusive last line before the next header, or the
+final file line for the last record.}
+\item{n_seq_lines}{Numeric count of physical lines in the record,
+excluding its header.}
+\item{bp_approx}{Numeric approximate sequence length, calculated by
+multiplying \code{n_seq_lines} by the first sequence line's trimmed width.
+This is a base-count estimate for nucleotide FASTA input, not an exact
+sequence length.}
+}
 }
 \description{
-Use forcats::fct_drop to drop unused factor levels.
+Return the inclusive file-line boundaries of each FASTA record, together
+with its header, chromosome-style names, and an approximate sequence length.
+For gzip input, line numbers refer to the decompressed text.
+}
+\details{
+Headers must begin with \code{">"} in the first column. Sequence identifiers must
+be unique because \code{\link[=get_fasta_names]{get_fasta_names()}} is called with \code{prep_chr = TRUE}.
+Records remain in file order; the name columns have chromosome-aware factor
+levels as described in \code{\link[=get_fasta_names]{get_fasta_names()}}.
+
+The first line is assumed to be a header and the second line a sequence
+line. The trimmed width of that sequence line is used to estimate every
+record's length. This estimate assumes a consistent sequence-line width
+across the file. Short final lines cause overestimates; differing wrap
+widths, blank lines, and comments can make the estimate inaccurate.
+\code{n_seq_lines} counts every physical line after the header through \code{end_line},
+including blank and comment lines. Boundaries do not depend on line width.
+
+Line counting uses \code{\link{count_file_lines}}. Line counting and header detection
+use the external \code{rg} command when
+available and otherwise use \code{grep}. Gzip input uses \code{rg -z}, which requires
+a gzip decompressor on \code{PATH}; the \code{grep} fallback uses \code{gunzip -c}.
+Sequence-line width is read with \code{\link[vroom:vroom_lines]{vroom::vroom_lines()}}.
+}
+\section{Supported formats}{
+
+Input must be a local plain-text FASTA file (for example, \code{.fa}, \code{.fasta},
+\code{.fna}, or \code{.faa}) or a gzip-compressed FASTA file ending in lowercase \code{.gz}
+(for example, \code{.fa.gz} or \code{.fasta.gz}). Plain-text files do not need a specific
+extension. Other compression formats, archives such as \code{.tar.gz}, and \code{fst}
+files are not supported. FASTQ input is not supported. The sequence alphabet
+is not validated.
+}
+
+\examples{
+\dontrun{
+fasta <- tempfile(fileext = ".fa")
+records <- c(">chr1 chromosome 1", "ACGT", "TGCA", ">chr2", "AAAA")
+writeLines(records, fasta)
+get_fasta_seq_bounds(fasta)
+
+compressed_fasta <- paste0(fasta, ".gz")
+con <- gzfile(compressed_fasta, "wt")
+writeLines(records, con)
+close(con)
+get_fasta_seq_bounds(compressed_fasta)
+
+unlink(c(fasta, compressed_fasta))
+}
+}
+\seealso{
+\code{\link{count_file_lines}}, \code{\link[=get_fasta_names]{get_fasta_names()}}, \code{\link[=read_fasta]{read_fasta()}}
 }

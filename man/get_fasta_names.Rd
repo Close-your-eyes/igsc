@@ -7,18 +7,21 @@
 get_fasta_names(file_path, prep_chr = T)
 }
 \arguments{
-\item{file_path}{Path to a FASTA file. Files with a \code{.gz} extension are read
-as gzip-compressed input; all other extensions are read as plain text.}
+\item{file_path}{A single local path to a plain-text or gzip-compressed FASTA
+file. Gzip input must end in lowercase \code{.gz}; all other extensions are
+treated as plain text. Paths containing spaces or shell characters are
+supported, and \code{~} is expanded to the user's home directory.}
 
 \item{prep_chr}{Logical; derive chromosome-oriented \code{seqname} and \code{fctname}
-factor columns and order the FASTA names by them.}
+factor columns and order their factor levels. Rows retain file order.}
 }
 \value{
 A data frame with one row per FASTA header. It always contains
-\code{start_line}, the numeric line number of the header, and \code{fastaname}, the
-complete header without its leading \code{">"}. When \code{prep_chr = TRUE},
+\code{start_line}, the numeric one-based line number of the header, and
+\code{fastaname}, the complete header without its leading \code{">"}, as a character
+column. When \code{prep_chr = TRUE},
 \code{fastaname} is converted to a factor and the result also contains
-\code{seqname}, the first field of the header, and \code{fctname}, the same field with
+\code{seqname}, the first space-delimited field of the header, and \code{fctname}, the same field with
 \code{"chr"} removed; all three are factors in chromosome-aware order.
 }
 \description{
@@ -27,15 +30,29 @@ its line number and header text. The leading \code{">"} is removed from each
 header.
 }
 \details{
-When \code{prep_chr = TRUE}, the first whitespace-delimited field of each header
+When \code{prep_chr = TRUE}, the first space-delimited field of each header
 is treated as a sequence name. The \code{"chr"} substring is removed to construct
 an ordering key: numeric names are ordered numerically, followed by
 non-numeric names in their input order. This is useful for chromosome FASTA
 files, where lexical ordering would otherwise place \code{chr10} before \code{chr2}.
+This ordering applies to factor levels; rows remain in file order. Sequence
+identifiers and their ordering keys must be unique when \code{prep_chr = TRUE}.
 
-Header detection uses \code{rg} when available and falls back to \code{grep}. Reading a
-file whose extension is \code{.gz} additionally requires the \code{gunzip} command.
+Header detection uses the external \code{rg} command when available and falls
+back to \code{grep}. Gzip input uses \code{rg -z}, which requires a gzip decompressor
+on \code{PATH}; the \code{grep} fallback uses \code{gunzip -c}. Line numbers refer to the
+decompressed text for gzip input and to the original text for plain input.
 }
+\section{Supported formats}{
+
+Input must be a local plain-text FASTA file (for example, \code{.fa}, \code{.fasta},
+\code{.fna}, or \code{.faa}) or a gzip-compressed FASTA file ending in lowercase \code{.gz}
+(for example, \code{.fa.gz} or \code{.fasta.gz}). Plain-text files do not need a specific
+extension. Other compression formats, archives such as \code{.tar.gz}, and \code{fst}
+files are not supported. FASTQ input is not supported. Headers must begin
+with \code{">"} in the first column; sequence content is not validated.
+}
+
 \examples{
 \dontrun{
 fasta <- tempfile(fileext = ".fa")
@@ -50,4 +67,7 @@ get_fasta_names(fasta, prep_chr = FALSE)
 
 unlink(fasta)
 }
+}
+\seealso{
+\code{\link[=get_fasta_seq_bounds]{get_fasta_seq_bounds()}}, \code{\link[=read_fasta]{read_fasta()}}
 }

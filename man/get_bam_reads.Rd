@@ -13,7 +13,8 @@ get_bam_reads(
   scores = T,
   revcomp_minus_strand = F,
   revcomp_plus_strand = F,
-  decode_bam_flags = T
+  decode_bam_flags = T,
+  return_bam_subset = NULL
 )
 }
 \arguments{
@@ -42,6 +43,12 @@ from \code{qual}.}
 reverse \code{qual} for alignments on the plus strand after reading the BAM.}
 
 \item{decode_bam_flags}{run decode_bam_flags and attach columns}
+
+\item{return_bam_subset}{Optional path ending in \code{.bam}. When supplied,
+write alignments overlapping \code{granges} to this file and create its index.
+The parent directory must exist and be writable; existing output BAM or
+index files are rejected. Read-processing options (\code{tags}, \code{scores},
+reverse-complement options, and \code{decode_bam_flags}) do not affect this BAM.}
 }
 \value{
 A data frame containing fields returned by
@@ -53,6 +60,9 @@ added as columns. When \code{scores = TRUE}, four more columns are added:
 \code{n_belowQ30} (the number of bases with Phred score below 30). Array-valued
 BAM tags are stored as list columns. Missing qualities produce an empty
 integer vector in \code{readQualNum} and \code{NA} in the three quality summaries.
+When \code{return_bam_subset} is supplied, return the output BAM path instead
+of a data frame. Alignments are retained in full; mates outside the queried
+ranges are not automatically included.
 }
 \description{
 Extract alignments with \code{\link[Rsamtools:scanBam]{Rsamtools::scanBam()}} and return one data-frame row

@@ -51,6 +51,11 @@
 #' @param revcomp_plus_strand Logical; if `TRUE`, reverse-complement `seq` and
 #'   reverse `qual` for alignments on the plus strand after reading the BAM.
 #' @param decode_bam_flags run decode_bam_flags and attach columns
+#' @param return_bam_subset Optional path ending in `.bam`. When supplied,
+#'   write alignments overlapping `granges` to this file and create its index.
+#'   The parent directory must exist and be writable; existing output BAM or
+#'   index files are rejected. Read-processing options (`tags`, `scores`,
+#'   reverse-complement options, and `decode_bam_flags`) do not affect this BAM.
 #'
 #' @return A data frame containing fields returned by
 #'   [Rsamtools::scanBamWhat()], including `qname`, `flag`, `rname`, `strand`,
@@ -61,6 +66,9 @@
 #'   `n_belowQ30` (the number of bases with Phred score below 30). Array-valued
 #'   BAM tags are stored as list columns. Missing qualities produce an empty
 #'   integer vector in `readQualNum` and `NA` in the three quality summaries.
+#'   When `return_bam_subset` is supplied, return the output BAM path instead
+#'   of a data frame. Alignments are retained in full; mates outside the queried
+#'   ranges are not automatically included.
 #' @seealso [get_hla_reads()]
 #' @export
 #'
@@ -108,7 +116,8 @@ get_bam_reads <- function(bam,
                           scores = T,
                           revcomp_minus_strand = F,
                           revcomp_plus_strand = F,
-                          decode_bam_flags = T) {
+                          decode_bam_flags = T,
+                          return_bam_subset = NULL) {
 
   igsc:::.ensure_packages(c("Biostrings", "GenomicRanges", "Rsamtools"))
 
@@ -121,6 +130,66 @@ get_bam_reads <- function(bam,
   }
 
   message("Reading BAM file.")
+
+  if (!is.null(return_bam_subset)) {
+    if (!is.character(return_bam_subset) || length(return_bam_subset) != 1L ||
+        is.na(return_bam_subset) || !nzchar(trimws(return_bam_subset))) {
+      stop("`return_bam_subset` must be one non-empty, non-NA path.", call. = FALSE)
+    }
+    if (!grepl("\\.bam$", return_bam_subset, ignore.case = TRUE)) {
+      stop("`return_bam_subset` must end in .bam.", call. = FALSE)
+    }
+    destination <- path.expand(return_bam_subset)
+    output_dir <- dirname(destination)
+    if (!dir.exists(output_dir) || file.access(output_dir, 2L) != 0L) {
+      stop("The output directory must exist and be writable: ", output_dir,
+           call. = FALSE)
+    }
+    destination <- file.path(normalizePath(output_dir, mustWork = TRUE),
+                             basename(destination))
+    if (identical(destination, normalizePath(bam, mustWork = TRUE))) {
+      stop("`return_bam_subset` must differ from the input BAM.", call. = FALSE)
+    }
+    output_files <- c(destination, paste0(destination, c(".bai", ".csi")),
+                      sub("\\.bam$", ".bai", destination, ignore.case = TRUE),
+                      sub("\\.bam$", ".csi", destination, ignore.case = TRUE))
+    if (any(file.exists(output_files))) {
+      stop("Output BAM or index already exists; refusing to overwrite: ",
+           paste(unique(output_files[file.exists(output_files)]), collapse = ", "),
+           call. = FALSE)
+    }
+    if (any(GenomicRanges::start(granges) < 1L) ||
+        any(GenomicRanges::width(granges) == 0L)) {
+      stop("`granges` must contain positive-width ranges starting at base 1 or later.",
+           call. = FALSE)
+    }
+    bam_file <- Rsamtools::BamFile(bam)
+    bam_index <- Rsamtools::index(bam_file)
+    if (length(bam_index) != 1L || is.na(bam_index) ||
+        !file.exists(bam_index) || dir.exists(bam_index) ||
+        file.access(bam_index, 4L) != 0L) {
+      stop("The input BAM needs a readable index; coordinate-sort it and run Rsamtools::indexBam().",
+           call. = FALSE)
+    }
+    # Opening the input validates the index before any output is created.
+    open(bam_file)
+    on.exit(close(bam_file), add = TRUE)
+    reference_names <- names(Rsamtools::scanBamHeader(bam_file)$targets)
+    unknown_names <- setdiff(as.character(GenomicRanges::seqnames(granges)),
+                             reference_names)
+    if (length(unknown_names)) {
+      stop("Sequence names in `granges` are absent from the BAM header: ",
+           paste(unknown_names, collapse = ", "), call. = FALSE)
+    }
+    Rsamtools::filterBam(
+      file = bam_file,
+      destination = destination,
+      param = Rsamtools::ScanBamParam(which = granges),
+      indexDestination = TRUE
+    )
+    return(return_bam_subset)
+  }
+
   params <- Rsamtools::ScanBamParam(
     which = granges,
     what = Rsamtools::scanBamWhat(),

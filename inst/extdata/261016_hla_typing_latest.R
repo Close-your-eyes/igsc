@@ -44,3 +44,26 @@ reads <- get_bam_reads(bam = bam,
                        scores = F,
                        decode_bam_flags = F)
 write_fastq(reads)
+
+
+#---- try mhc typing with bamboozled bam and compare to biomni results -------
+hla <- hla_df_from_xml(
+  "/Volumes/CMS_SSD_2TB/hla.xml.gz",
+  lapply_fun = parallel::mclapply,
+  mc.cores = 3,
+  unique_exon2_3 = T,
+  rm_intron_exon_bounds = T,
+  rev_comp_minus = T)
+
+bam <- "/Volumes/CMS_SSD_2TB/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/hg38_CR7_wo_introns/GEX/Pat4_rep1_blood/outs/possorted_genome_bam_bamboozle_mhc.bam"
+hlares <- hla_typing_from_bam(
+  bam = bam,
+  hla_ref = hla,
+  reference_gtf = "/Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/genes/genes.gtf.gz",
+  genes = c("A", "B", "C"),
+  lapply_fun = parallel::mclapply,
+  make_reads_distinct = T,
+  pairwise_method = "heuristic",
+  mc.cores = 4,
+  maxmis = 0,
+  allele_diff = 2)

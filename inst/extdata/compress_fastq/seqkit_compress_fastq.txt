@@ -1,0 +1,38 @@
+seqkit split2 \
+  -1 /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R1_001.fastq.gz \
+  -2 /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001.fastq.gz\
+  -s 1000000 \
+  -O chunks
+  
+seqkit replace -p '^.*$' -r 'read_{nr}' \
+  reads.fastq.gz -o renamed.fastq.gz
+  
+  
+## replace read names running number and leading zeros
+seqkit replace -p '^.*$' -r 'read_{nr}' --nr-width 10 \
+  /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R1_001.fastq.gz \
+  -o /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R1_001_renamed.fastq.gz
+  
+  
+
+## two options to replace quality values with a constant (takes a while)
+seqkit fx2tab /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed.fastq.gz \
+  | awk 'BEGIN {FS=OFS="\t"} {gsub(/./, "I", $3); print}' \
+  | seqkit tab2fx -o /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed_constant.fastq.gz
+  
+
+
+gzip -dc /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed.fastq.gz \
+  | LC_ALL=C awk 'NR % 4 == 0 {gsub(/./, "I")} {print}' \
+  | pigz -1 -p 8 > /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed_constant.fastq.gz
+  
+  
+ls -lhSr /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq
+
+-rw-r--r-- 1 chris staff 2.8G Oct 17 19:41 bamtofastq_S1_L001_R2_001_renamed_constant.fastq.gz
+-rw-r--r-- 1 chris staff 3.0G Oct 17 18:47 bamtofastq_S1_L001_R1_001_renamed.fastq.gz
+-rw-r--r-- 1 chris staff 6.9G Oct 17 18:56 bamtofastq_S1_L001_R2_001_renamed.fastq.gz
+-rw-r--r-- 1 chris staff 7.7G Oct 17 14:09 bamtofastq_S1_L001_R1_001.fastq.gz
+-rw-r--r-- 1 chris staff  15G Oct 17 14:09 bamtofastq_S1_L001_R2_001.fastq.gz
+
+# does it yield same results by cellranger?

@@ -6,11 +6,12 @@
 \usage{
 concat_10X_fastq(
   dir,
-  save_path,
+  save_path = file.path(dir, "concatfastq"),
   exec = FALSE,
   existing = c("error", "skip", "overwrite"),
   create_save_path = TRUE,
-  verify = TRUE
+  verify = TRUE,
+  method = c("auto", "binary", "cat")
 )
 }
 \arguments{
@@ -18,7 +19,7 @@ concat_10X_fastq(
 
 \item{save_path}{Parent directory for sample-specific output directories.}
 
-\item{exec}{Logical; execute commands when \code{TRUE}, otherwise return a plan.}
+\item{exec}{Logical; concatenate files when \code{TRUE}, otherwise return a plan.}
 
 \item{existing}{How existing output files are handled: \code{"error"}, \code{"skip"},
 or \code{"overwrite"}.}
@@ -27,10 +28,16 @@ or \code{"overwrite"}.}
 
 \item{verify}{Logical; after execution, verify that output size equals the
 sum of input file sizes.}
+
+\item{method}{Concatenation method: \code{"auto"} (the default) uses \code{"binary"}
+on Windows and \code{"cat"} elsewhere. \code{"binary"} copies compressed bytes in
+bounded chunks using R binary connections, without external commands.
+\code{"cat"} uses an external \code{cat} executable, which must be on \code{PATH}.}
 }
 \value{
-A data frame containing output files, input files, commands, and
-execution status.
+A data frame containing output files, input files, the resolved
+method, commands, and execution status. Commands are \code{NA} for the
+\code{"binary"} method because no external command is used.
 }
 \description{
 Concatenates gzip-compressed FASTQ files belonging to the same sample and
