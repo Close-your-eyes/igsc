@@ -9,23 +9,40 @@ seqkit replace -p '^.*$' -r 'read_{nr}' \
   
   
 ## replace read names running number and leading zeros
+
 seqkit replace -p '^.*$' -r 'read_{nr}' --nr-width 10 \
   /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R1_001.fastq.gz \
   -o /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R1_001_renamed.fastq.gz
   
   
 
-## two options to replace quality values with a constant (takes a while)
+## two options to replace quality values with a constant (both take a while)
+## try this for R2 only. barcodes in R1 may be subject to correction based on quality.
+
 seqkit fx2tab /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed.fastq.gz \
   | awk 'BEGIN {FS=OFS="\t"} {gsub(/./, "I", $3); print}' \
   | seqkit tab2fx -o /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed_constant.fastq.gz
   
 
-
 gzip -dc /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed.fastq.gz \
   | LC_ALL=C awk 'NR % 4 == 0 {gsub(/./, "I")} {print}' \
   | pigz -1 -p 8 > /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed_constant.fastq.gz
   
+  
+  
+# multithreaded?
+set -o pipefail
+
+input="/Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed.fastq.gz"
+output="${input%.fastq.gz}_constant.fastq.gz"
+
+gzip -dc "$input" \
+  | parallel --pipe -L 4 --block 64M -j 4 --keep-order \
+      "LC_ALL=C awk 'NR % 4 == 0 {gsub(/./, \"I\")} {print}'" \
+  | pigz -1 -p 8 > "$output"
+  
+  
+
   
 ls -lhSr /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq
 

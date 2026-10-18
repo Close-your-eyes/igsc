@@ -26,6 +26,8 @@ transcript_exon_intron = introns+exons, gene_exon_intron = full genomic span,
 gene_exon = exons in genomic order, not revcomp
 }
 \examples{
+\dontrun{
 granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
 out <- get_sequences_from_biomart(granzymes)
+}
 }

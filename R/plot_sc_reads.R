@@ -49,10 +49,10 @@ plot_sc_reads <- function(gtf_file,
     #dplyr::filter(feature == !!feature)
 
   if (nrow(gene_info) == 0) {
-    stop("no rows left in gtf data frame, check seqname, feature and gene_name.")
+    stop("no rows left in gtf data frame, check seqname, feature and gene_name.devt")
   }
   if (nrow(gene_info) != 1) {
-    print(head(gene_info))
+    print(utils::head(gene_info))
     stop("gtf data frame should have one row only after filtering. check.")
   }
   # gene info should have one line only

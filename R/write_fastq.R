@@ -20,6 +20,8 @@
 #'   output. Use `FALSE` if sequences already have the desired orientation,
 #'   including output extracted with `revcomp_minus_strand = TRUE` and
 #'   `revcomp_plus_strand = FALSE`.
+#' @param plus_line how to write third line per read? plus only (empty) or
+#'   repeat qname?
 #'
 #' @details
 #' The function cannot infer orientation when strand information is absent.

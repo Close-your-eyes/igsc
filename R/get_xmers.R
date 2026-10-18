@@ -33,9 +33,6 @@
 #' # Also return trailing subsequences shorter than 15 residues
 #' get_xmers(aa_seq, include_incomplete = TRUE)
 #'
-#' # A short sequence is returned when incomplete x-mers are enabled
-#' get_xmers("MKTII", x = 10, include_incomplete = TRUE)
-#'
 #' @export
 get_xmers <- function(
     aa_sequence,

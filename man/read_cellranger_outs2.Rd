@@ -62,6 +62,24 @@ The following files are required for each sample:
 }
 }
 }
+\examples{
+\dontrun{
+vdj_out_path <- c(Pat3_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat3_rep1_blood/outs",
+                  Pat3_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat3_rep1_urine/outs",
+                  Pat4_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep1_blood/outs",
+                  Pat4_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep1_urine/outs",
+                  Pat4_rep2_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep2_blood/outs",
+                  Pat4_rep2_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep2_urine/outs",
+                  Pat5_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat5_rep1_blood/outs",
+                  Pat5_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat5_rep1_urine/outs",
+                  Pat6_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat6_rep1_blood/outs",
+                  Pat6_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat6_rep1_urine/outs",
+                  Pat7_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat7_rep1_blood/outs",
+                  Pat7_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat7_rep1_urine/outs"
+)
+crout <- read_cellranger_outs2(vdj_out_path)
+}
+}
 \seealso{
 read_cellranger_outs()
 }

@@ -375,7 +375,7 @@ run_read_matching_and_report_results <- function(hla_ref,
   } else {
     message("retained alleles according to allele_diff: ", length(retained_alleles), " from ", length(expl_reads_per_allele))
     plot(sort(expl_reads_per_allele))
-    abline(h = max(expl_reads_per_allele) / allele_diff)
+    graphics::abline(h = max(expl_reads_per_allele) / allele_diff)
   }
 
 
@@ -819,7 +819,7 @@ pairwise_matching_heuristic <- function(top_single_res,
   read_weights <- single_match_weights(top_single_res)
   attr(rep_mat, "read_weights") <- read_weights
   support <- weighted_col_sums(rep_mat)
-  anchors <- head(order(-support, group_reps$allele), anchor_n)
+  anchors <- utils::head(order(-support, group_reps$allele), anchor_n)
 
   # Cross-products count shared reads for each anchor/partner. Rank partners
   # by union coverage, then by reads matching exactly one member of the pair.

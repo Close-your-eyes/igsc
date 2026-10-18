@@ -40,6 +40,9 @@ reverse their quality strings. Use \code{TRUE} for default \code{\link[=get_bam_
 output. Use \code{FALSE} if sequences already have the desired orientation,
 including output extracted with \code{revcomp_minus_strand = TRUE} and
 \code{revcomp_plus_strand = FALSE}.}
+
+\item{plus_line}{how to write third line per read? plus only (empty) or
+repeat qname?}
 }
 \value{
 The output path.

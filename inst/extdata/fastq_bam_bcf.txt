@@ -1,0 +1,68 @@
+gzip -dc /Volumes/CMS_SSD_2TB/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/hg38_CR7_wo_introns/GEX/Pat4_rep1_blood/outs/mhc_reads_bamboozled.fastq.gz | awk '
+BEGIN {
+    headers = "gzip -1 -c > headers.txt.gz"
+    sequences = "gzip -1 -c > sequences.txt.gz"
+    qualities = "gzip -1 -c > qualities.txt.gz"
+}
+{
+    print | headers
+    getline
+    print | sequences
+    getline
+    getline
+    print | qualities
+}
+END {
+    close(headers)
+    close(sequences)
+    close(qualities)
+}'
+
+pigz -dc /Volumes/CMS_SSD_2TB/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/hg38_CR7_wo_introns/GEX/Pat4_rep1_blood/outs/mhc_reads_bamboozled.fastq.gz | awk '
+BEGIN {
+    headers = "pigz -1 -p 2 -c > headers.txt.gz"
+    sequences = "pigz -1 -p 2 -c > sequences.txt.gz"
+    qualities = "pigz -1 -p 2 -c > qualities.txt.gz"
+}
+{
+    print | headers
+    getline
+    print | sequences
+    getline
+    getline
+    print | qualities
+}
+END {
+    close(headers)
+    close(sequences)
+    close(qualities)
+}'
+
+
+## bamtofastq from 10X
+
+# For ordinary BAM-to-FASTQ conversion, use samtools fastq. For reconstructing FASTQs from supported 10x Genomics BAMs, use 10x’s bamtofastq. The name bamtofastq is ambiguous: BEDTools and biobambam2 also have tools with that name.
+# For 10x single-cell RNA-seq, the distinction matters: barcode and UMI information can be stored in BAM tags rather than as a separate read alignment. Plain samtools fastq extraction does not automatically reconstruct the 10x FASTQ layout. Use 10x bamtofastq when preparing inputs to rerun Cell Ranger; the required tags must still be present. V(D)J BAMs are an explicit unsupported case.
+
+curl -fL \
+  https://github.com/10XGenomics/bamtofastq/releases/download/v1.4.1/bamtofastq_macos \
+  -o bamtofastq
+
+chmod +x bamtofastq
+
+./bamtofastq --help
+
+./bamtofastq --nthreads=8 --reads-per-fastq=500000000000 /Volumes/CMS_SSD_2TB/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/hg38_CR7_wo_introns/GEX/Pat4_rep1_blood/outs/possorted_genome_bam.bam fastq_out
+
+
+
+
+## snps from bam
+# bcf tools
+
+bcftools mpileup -Ou -f /Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh38-2020-A/fasta/genome.fa /Volumes/CMS_SSD_2TB/R_scRNAseq/2019_SLE_LN/data/Sequencing_data/hg38_CR7_wo_introns/GEX/Pat4_rep1_blood/outs/possorted_genome_bam.bam \
+  | bcftools call -mv -Ou \
+  | bcftools norm -m -any -Ou \
+  | bcftools view -v snps -Oz -o snps.vcf.gz
+  
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' snps.vcf.gz > snps.tsv

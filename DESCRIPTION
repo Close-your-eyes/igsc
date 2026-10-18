@@ -28,7 +28,8 @@ Imports:
     Gmisc,
     stringi,
     tibble,
-    pak
+    pak,
+    digest
 Suggests:
     rmarkdown,
     janitor,

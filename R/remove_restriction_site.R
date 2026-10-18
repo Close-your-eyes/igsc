@@ -115,7 +115,7 @@ remove_restriction_site <- function(dna, frame_start = 1L, site,
   amino_acids <- strsplit(paste0(
     "FFLLSSSSYY**CC*W", "LLLLPPPPHHQQRRRR",
     "IIIMTTTTNNKKSSRR", "VVVVAAAADDEEGGGG"), "")[[1L]]
-  code <- setNames(amino_acids, codons)
+  code <- stats::setNames(amino_acids, codons)
   synonyms <- split(codons, amino_acids)
 
   reverse_complement <- function(x)

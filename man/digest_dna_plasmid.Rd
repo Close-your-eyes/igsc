@@ -130,7 +130,7 @@ every detected cut on the requested strands.
 
 \examples{
 # An internal EcoRI site: retain the original orientation.
-tt <- digest_dna_plasmid("G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"))
+tt <- digest_dna_plasmid("G/AATTC", c(plasmid = "AAAAAGAATTCAAAAAAAAA"))$plasmid
 
 # print the cut sites
 dna_double_strand_print(tt[1], tt[3])

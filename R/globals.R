@@ -174,7 +174,15 @@ global_vars <- c(
   "value",
   "values",
   "y",
-  "yaxis"
+  "yaxis",
+  "allele",
+  "antigen.gene",
+  "antigen.species",
+  "expl_reads_overall",
+  "g_group",
+  "gene",
+  "read_group",
+  "species"
 )
 
 utils::globalVariables(global_vars)

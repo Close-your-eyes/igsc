@@ -12,8 +12,10 @@
 #' @export
 #'
 #' @examples
-#'granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
-#'out <- get_sequences_from_biomart(granzymes)
+#' \dontrun{
+#' granzymes <- c("GZMA","GZMB","GZMH","GZMK","GZMM")
+#' out <- get_sequences_from_biomart(granzymes)
+#'}
 get_sequences_from_biomart <- function(hgnc_symbol,
                                        useEnsembl_args = list(biomart = "ensembl",
                                                               dataset = "hsapiens_gene_ensembl"),

@@ -53,7 +53,24 @@
 #'
 #' @seealso read_cellranger_outs()
 #'
+#' @export
 #' @examples
+#' \dontrun{
+#' vdj_out_path <- c(Pat3_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat3_rep1_blood/outs",
+#'                   Pat3_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat3_rep1_urine/outs",
+#'                   Pat4_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep1_blood/outs",
+#'                   Pat4_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep1_urine/outs",
+#'                   Pat4_rep2_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep2_blood/outs",
+#'                   Pat4_rep2_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat4_rep2_urine/outs",
+#'                   Pat5_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat5_rep1_blood/outs",
+#'                   Pat5_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat5_rep1_urine/outs",
+#'                   Pat6_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat6_rep1_blood/outs",
+#'                   Pat6_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat6_rep1_urine/outs",
+#'                   Pat7_rep1_blood = "data/Sequencing_data/2026_CR9/VDJ/Pat7_rep1_blood/outs",
+#'                   Pat7_rep1_urine = "data/Sequencing_data/2026_CR9/VDJ/Pat7_rep1_urine/outs"
+#' )
+#' crout <- read_cellranger_outs2(vdj_out_path)
+#' }
 read_cellranger_outs2 <- function(vdj_outs_path,
                                   skip_incomplete = F,
                                   include_fasta = T) {
@@ -139,7 +156,7 @@ read_cellranger_outs2 <- function(vdj_outs_path,
   cl_long <- cl_long |>
     dplyr::mutate(consensus_id = gsub("consensus_", "consensus", consensus_id)) |>
     dplyr::left_join(consensus_annotations, by = c("sample", "chain", "clonotype_id", "consensus_id"))
-    # dplyr::mutate(barcode = stringr::str_replace(barcode, "-1$", ""))
+  # dplyr::mutate(barcode = stringr::str_replace(barcode, "-1$", ""))
 
   return(cl_long)
 }
