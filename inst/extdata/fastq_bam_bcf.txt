@@ -65,4 +65,6 @@ bcftools mpileup -Ou -f /Volumes/CMS_SSD_2TB/reference_genomes/refdata-gex-GRCh3
   | bcftools norm -m -any -Ou \
   | bcftools view -v snps -Oz -o snps.vcf.gz
   
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' snps.vcf.gz > snps.tsv
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' /Users/chris/snps.vcf.gz > snps.tsv
+
+

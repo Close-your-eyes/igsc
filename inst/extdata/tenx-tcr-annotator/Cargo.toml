@@ -1,0 +1,22 @@
+[workspace]
+members = ["app", "vendor/amino", "vendor/equiv", "vendor/graph_simple", "vendor/hyperbase", "vendor/io_utils", "vendor/kmer_lookup", "vendor/string_utils", "vendor/vdj_ann", "vendor/vdj_types", "vendor/vector_utils"]
+resolver = "2"
+
+[workspace.dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+bio = "3"
+csv = "1"
+debruijn = "0.3"
+itertools = "0.14"
+permutation = "0.4"
+petgraph = "0.8"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["raw_value"] }
+
+[workspace.lints.rust]
+warnings = "deny"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

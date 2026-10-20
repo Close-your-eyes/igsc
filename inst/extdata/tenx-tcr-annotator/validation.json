@@ -1,0 +1,14 @@
+{
+  "sequence_count": 7,
+  "reference_columns_checked_per_sequence": 44,
+  "reference_values_matched": 308,
+  "region_sequence_and_coordinate_values_matched": 196,
+  "reverse_complement_checks_passed": 7,
+  "ambiguous_input_preserves_existing_output": true,
+  "non_receptor_sequence_handled": true,
+  "excluded_reference_fields": [
+    "reads",
+    "umis"
+  ],
+  "discrepancies": []
+}

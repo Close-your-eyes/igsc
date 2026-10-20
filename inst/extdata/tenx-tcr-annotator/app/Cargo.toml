@@ -1,0 +1,13 @@
+[package]
+name = "tenx-tcr-annotate"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+vdj_ann = { path = "../vendor/vdj_ann" }
+vdj_types = { path = "../vendor/vdj_types" }
+amino = { path = "../vendor/amino" }
+debruijn = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+csv = { workspace = true }

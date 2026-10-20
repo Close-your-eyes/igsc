@@ -463,6 +463,95 @@ concat_10X_fastq <- function(
   return(plan)
 }
 
+#' Build concatenation commands from 10x FASTQ paths
+#'
+#' Groups lane-split FASTQ paths by sample prefix and read type, using the
+#' same output naming scheme as [concat_10X_fastq()]. Within each group,
+#' inputs are ordered by sample number, lane, chunk, and path.
+#'
+#' Paths need not exist locally. This function only returns POSIX shell
+#' commands; it does not execute them or create directories. Create the
+#' sample-specific output directories before running the commands.
+#'
+#' @param fastq_files Character vector of paths named like
+#'   `sample_S1_L001_R1_001.fastq.gz`.
+#' @param save_path Parent directory for sample-specific output directories.
+#'
+#' @return An unnamed character vector with one shell-quoted `cat` command
+#'   per sample and read type. Empty input returns `character(0)`.
+#' @export
+#' @examples
+#' concat_10X_fastq_commands(c(
+#'   "sample_S1_L002_R1_001.fastq.gz",
+#'   "sample_S1_L001_R1_001.fastq.gz",
+#'   "sample_S1_L001_R2_001.fastq.gz"
+#' ), save_path = "output")
+concat_10X_fastq_commands <- function(fastq_files, save_path = "concatfastq") {
+  if (!is.character(fastq_files) || anyNA(fastq_files) ||
+      any(!nzchar(fastq_files))) {
+    stop("`fastq_files` must be a character vector of non-empty, non-NA paths.",
+         call. = FALSE)
+  }
+  if (!is.character(save_path) || length(save_path) != 1L ||
+      is.na(save_path) || !nzchar(save_path)) {
+    stop("`save_path` must be one non-empty, non-NA string.", call. = FALSE)
+  }
+  if (!length(fastq_files)) return(character(0))
+
+  fastq_files <- path.expand(fastq_files)
+  save_path <- path.expand(save_path)
+  filenames <- basename(fastq_files)
+  pattern <-
+    "^(.+)_S([0-9]+)_L([0-9]{3})_([IR][12])_([0-9]{3})\\.fastq\\.gz$"
+  parsed <- regmatches(filenames, regexec(pattern, filenames, perl = TRUE))
+  valid <- lengths(parsed) == 6L
+  if (!all(valid)) {
+    stop(
+      "FASTQ filename(s) do not match the expected 10x naming scheme ",
+      "`<sample>_S<number>_L<number>_<I1|I2|R1|R2>_<chunk>.fastq.gz`:\n",
+      paste(filenames[!valid], collapse = "\n"), call. = FALSE
+    )
+  }
+
+  metadata <- data.frame(
+    input = fastq_files,
+    sample = vapply(parsed, `[[`, character(1), 2L),
+    sample_number = as.numeric(vapply(parsed, `[[`, character(1), 3L)),
+    lane = as.integer(vapply(parsed, `[[`, character(1), 4L)),
+    type = vapply(parsed, `[[`, character(1), 5L),
+    chunk = as.integer(vapply(parsed, `[[`, character(1), 6L)),
+    stringsAsFactors = FALSE
+  )
+  if (anyDuplicated(metadata[c("sample", "sample_number", "lane", "type", "chunk")])) {
+    stop("Duplicate sample/lane/read/chunk combinations detected.",
+         call. = FALSE)
+  }
+
+  metadata <- metadata[order(
+    metadata$sample, metadata$type, metadata$sample_number,
+    metadata$lane, metadata$chunk, metadata$input
+  ), , drop = FALSE]
+  # Start a new group whenever sample or read type changes in the sorted rows.
+  # Comparing columns separately also handles sample names containing dots.
+  group_start <- !duplicated(metadata[c("sample", "type")])
+  groups <- split(seq_len(nrow(metadata)), cumsum(group_start))
+
+  unname(vapply(groups, function(index) {
+    group <- metadata[index, , drop = FALSE]
+    sample <- group$sample[1L]
+    output <- file.path(
+      save_path, # sample,
+      sprintf("%s_S1_L001_%s_001.fastq.gz", sample, group$type[1L])
+    )
+    if (output %in% group$input) {
+      stop("An output file would overwrite one of its own input files: ",
+           output, call. = FALSE)
+    }
+    paste("cat --", paste(shQuote(group$input, type = "sh"), collapse = " "),
+          ">", shQuote(output, type = "sh"))
+  }, character(1)))
+}
+
 # original:
 # concat_10X_fastq <- function(dir,
 #                              save_path,

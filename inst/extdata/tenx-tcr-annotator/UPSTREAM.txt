@@ -1,0 +1,5 @@
+Cell Ranger 10.1.0
+Repository: https://github.com/10XGenomics/cellranger
+Commit: 669395e208db7ce03354091e271d893074294d28
+The vendor/ crates are copied without changes.
+License: vendor/LICENSE.10x
