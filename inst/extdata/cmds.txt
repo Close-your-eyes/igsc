@@ -1,0 +1,45 @@
+python3 /Users/chris/Documents/R_packages/igsc/inst/extdata/tcr3dist/cdr3_tcrdist.py \
+ /Volumes/CMS_SSD_2TB/R_scRNAseq/2026_Cross_reactive_TCR/test_tcr3dist.csv \
+  --cdr3-column cdr3 \
+  --cpus 4 \
+  --output distances.csv
+  
+python3 /sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/cdr3_tcrdist.py \
+/sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/test_tcr3dist.csv \
+  --cdr3-column cdr3 \
+  --cpus 4 \
+  --output distances.csv
+  
+  
+python3 /sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/run_umap.py \
+ /sc-scratch/sc-scratch-cc13-scurbi/distances.csv embedding.csv
+ 
+gzip /sc-scratch/sc-scratch-cc13-scurbi/embedding.csv
+
+python3 /sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/cdr3_tcrdist.py \
+/sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/olgatrab.csv \
+  --cdr3-column cdr3 \
+  --cpus 16 \
+  --output distances_olga.csv
+  
+python3 /sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/cdr3_tcrdist.py \
+/sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/olgatrab10000.csv \
+  --cdr3-column cdr3 \
+  --cpus 16 \
+  --output distances_olga10000.csv
+  
+python3 /sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/cdr3_tcrdist.py \
+/sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/olgatrab20000.csv \
+  --cdr3-column cdr3 \
+  --cpus 16 \
+  --output distances_olga20000.csv
+  
+python3 /sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/cdr3_tcrdist.py \
+/sc-scratch/sc-scratch-cc13-scurbi/tcrdistumap/olgatrab40000.csv \
+  --cdr3-column cdr3 \
+  --cpus 16 \
+  --output distances_olga40000.csv
+  
+  
+HLAGuessr-infer_hla -a /Volumes/CMS_SSD_2TB/R_scRNAseq/2026_Cross_reactive_TCR/hlaguess_t30_a.tsv \
+  -b /Volumes/CMS_SSD_2TB/R_scRNAseq/2026_Cross_reactive_TCR/hlaguess_t30_b.tsv -d tab

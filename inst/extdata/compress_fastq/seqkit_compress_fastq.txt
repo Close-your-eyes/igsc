@@ -27,7 +27,32 @@ seqkit fx2tab /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/b
 gzip -dc /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed.fastq.gz \
   | LC_ALL=C awk 'NR % 4 == 0 {gsub(/./, "I")} {print}' \
   | pigz -1 -p 8 > /Users/chris/fastq_out/Pat4_rep1_blood_0_1_H3HNYBGXB/concatfastq/bamtofastq/bamtofastq_S1_L001_R2_001_renamed_constant.fastq.gz
-  
+
+
+
+
+
+
+# use own function to rename reads and replace qualities
+/Users/chris/Documents/R_packages/igsc/inst/extdata/compress_fastq/fastq_compression.bash
+
+relabel_fastq /Users/chris/fastq_out2/Pat4_rep1_blood_S1_L001_R1_001.fastq.gz \
+ /Users/chris/fastq_out2/Pat4_rep1_blood_S1_L001_R1_002.fastq.gz \
+    --rename --quality --level 1 --reads 10000
+    
+relabel_fastq /Users/chris/fastq_out2/Pat4_rep1_blood_S1_L001_R1_001.fastq.gz \
+ /Users/chris/fastq_out2/Pat4_rep1_blood_S1_L001_R1_002.fastq.gz \
+    --rename --level 1
+    
+relabel_fastq /Users/chris/fastq_out2/Pat4_rep1_blood_S1_L001_R2_001.fastq.gz \
+ /Users/chris/fastq_out2/Pat4_rep1_blood_S1_L001_R2_002.fastq.gz \
+    --rename --quality --level 1
+    
+    
+    
+
+
+
   
   
 # multithreaded?
