@@ -138,6 +138,7 @@ relabel_fastq() (
         }
 )
 
+## using triplets option made the file bigger and takes long compute!
 
 # compress_fastq_sequences -- store only concatenated read sequences in gzip.
 #

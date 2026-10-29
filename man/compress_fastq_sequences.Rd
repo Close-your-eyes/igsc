@@ -69,6 +69,13 @@ stop decompression early; failures may leave partial output files.
 }
 \examples{
 \dontrun{
+Sys.setenv(
+  PATH = paste(
+    "/Users/chris/miniconda3/bin",
+    Sys.getenv("PATH"),
+    sep = .Platform$path.sep
+  )
+)
 compress_fastq_sequences(
   "input.fastq.gz", "reads.L98.seq.gz", read_length = 98L, threads = 8L
 )

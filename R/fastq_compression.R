@@ -115,6 +115,13 @@
 #'
 #' @examples
 #' \dontrun{
+#' Sys.setenv(
+#'   PATH = paste(
+#'     "/Users/chris/miniconda3/bin",
+#'     Sys.getenv("PATH"),
+#'     sep = .Platform$path.sep
+#'   )
+#' )
 #' relabel_fastq(
 #'   "input.fastq.gz", "renamed.fastq.gz",
 #'   rename = TRUE, quality = TRUE, level = 6L, threads = 8L
@@ -183,6 +190,13 @@ relabel_fastq <- function(input, output, rename = FALSE, quality = FALSE,
 #'
 #' @examples
 #' \dontrun{
+#' Sys.setenv(
+#'   PATH = paste(
+#'     "/Users/chris/miniconda3/bin",
+#'     Sys.getenv("PATH"),
+#'     sep = .Platform$path.sep
+#'   )
+#' )
 #' compress_fastq_sequences(
 #'   "input.fastq.gz", "reads.L98.seq.gz", read_length = 98L, threads = 8L
 #' )
@@ -194,6 +208,11 @@ relabel_fastq <- function(input, output, rename = FALSE, quality = FALSE,
 compress_fastq_sequences <- function(input, output, read_length = 98L,
                                      triplets = FALSE, level = 6L, reads = NULL,
                                      threads = NULL, script = NULL) {
+
+  if (triplets) {
+    message("using triplets increased fastq.gz file size. also it takes long time to compute. better set to FALSE.
+            However, uncompressed it was only 1/3 the size.")
+  }
   args <- c(
     .fastq_option("--read-length", read_length),
     if (isTRUE(triplets)) "--triplets",

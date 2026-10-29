@@ -60,6 +60,13 @@ partial output files.
 }
 \examples{
 \dontrun{
+Sys.setenv(
+  PATH = paste(
+    "/Users/chris/miniconda3/bin",
+    Sys.getenv("PATH"),
+    sep = .Platform$path.sep
+  )
+)
 relabel_fastq(
   "input.fastq.gz", "renamed.fastq.gz",
   rename = TRUE, quality = TRUE, level = 6L, threads = 8L
